@@ -10,8 +10,8 @@ Windows setup instructions are supplied, but were not executed on Windows here.
 - Prettier formatting check: passed.
 - Oxlint with warnings denied: passed.
 - Full TypeScript typecheck: passed.
-- Unit tests: 16 passed.
-- HTTP tests: 8 passed (database provider mocked).
+- Unit tests: 17 passed.
+- HTTP tests: 12 passed (database and Firebase providers mocked).
 - Production compilation: passed.
 
 ## Database and runtime validation
@@ -36,5 +36,9 @@ have not been tested. Add real URLs to .env and run db:deploy and the readiness 
 PGlite is useful for functional checks but does not establish production concurrency,
 load, cloud compatibility or availability guarantees.
 
-No customer registration, Firebase verification, seller authorization, catalog,
-checkout or payment features exist yet. This is a tested backend foundation.
+The Firebase Admin code was compiled and its request behavior was tested with a mocked
+token verifier. No private service-account credential was included, so a real token
+against the user's Firebase project still requires the manual README test.
+
+Seller authorization, catalog, checkout and payment features do not exist yet. This is
+a tested backend foundation plus Firebase identity/profile synchronization.

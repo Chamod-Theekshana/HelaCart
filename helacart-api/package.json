@@ -13,6 +13,8 @@
     "start": "nest start",
     "prestart:dev": "npm run prisma:generate",
     "start:dev": "nest start --watch",
+    "prestart:dev:ipv4": "npm run prisma:generate",
+    "start:dev:ipv4": "node scripts/start-dev-ipv4.mjs",
     "start:debug": "nest start --debug --watch",
     "start:prod": "node dist/main.js",
     "lint": "oxlint src/ test/ --deny-warnings",

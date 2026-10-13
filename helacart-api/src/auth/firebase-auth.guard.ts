@@ -1,39 +1,30 @@
 import {
   CanActivate,
   ExecutionContext,
-  Inject,
   Injectable,
   UnauthorizedException,
 } from '@nestjs/common';
-import { Auth } from 'firebase-admin/auth';
-import { Request } from 'express';
-import { FIREBASE_AUTH } from './firebase-auth.constants.js';
+import type { Request } from 'express';
+import type { DecodedIdToken } from 'firebase-admin/auth';
+import { FirebaseAdminService } from './firebase-admin.service.js';
 
 export type AuthenticatedRequest = Request & {
-  user: {
-    uid: string;
-    email?: string;
-    name?: string;
-    email_verified?: boolean;
-  };
+  user: DecodedIdToken;
 };
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
-  constructor(@Inject(FIREBASE_AUTH) private readonly firebaseAuth: Auth) {}
+  constructor(private readonly firebase: FirebaseAdminService) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
-    const authorization = request.headers.authorization;
-
-    if (!authorization?.startsWith('Bearer ')) {
+    const match = request.headers.authorization?.match(/^Bearer\s+(\S+)$/i);
+    if (!match) {
       throw new UnauthorizedException('Missing bearer token');
     }
 
-    const idToken = authorization.slice('Bearer '.length);
-
     try {
-      request.user = await this.firebaseAuth.verifyIdToken(idToken);
+      request.user = await this.firebase.verifyIdToken(match[1]);
       return true;
     } catch {
       throw new UnauthorizedException('Invalid or expired Firebase token');

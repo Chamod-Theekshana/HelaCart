@@ -67,6 +67,10 @@ export function validateEnvironment(input: Record<string, unknown>) {
   }
   if (!origins.length)
     problems.push('CORS_ORIGINS must include at least one origin');
+  const firebaseProjectId = String(input.FIREBASE_PROJECT_ID ?? '').trim();
+  if (!/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(firebaseProjectId)) {
+    problems.push('FIREBASE_PROJECT_ID must be a valid Firebase project ID');
+  }
   if (problems.length)
     throw new Error(`Invalid environment: ${problems.join('; ')}`);
   return {
@@ -76,5 +80,6 @@ export function validateEnvironment(input: Record<string, unknown>) {
     HOST: host,
     DATABASE_URL: databaseUrl,
     CORS_ORIGINS: origins,
+    FIREBASE_PROJECT_ID: firebaseProjectId,
   };
 }

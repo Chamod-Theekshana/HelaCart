@@ -4,6 +4,7 @@ import { IsString } from 'class-validator';
 import request from 'supertest';
 import type { Server } from 'node:http';
 import { AppModule } from '../src/app.module.js';
+import { FirebaseAdminService } from '../src/auth/firebase-admin.service.js';
 import { configureApp } from '../src/configure-app.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 
@@ -23,7 +24,11 @@ class ValidationProbeController {
 
 describe('API HTTP behavior (database mocked)', () => {
   let app: INestApplication<Server>;
-  const database = { checkConnection: vi.fn() };
+  const database = {
+    checkConnection: vi.fn(),
+    user: { upsert: vi.fn() },
+  };
+  const firebase = { verifyIdToken: vi.fn() };
 
   beforeAll(async () => {
     const moduleFixture = await Test.createTestingModule({
@@ -32,6 +37,8 @@ describe('API HTTP behavior (database mocked)', () => {
     })
       .overrideProvider(PrismaService)
       .useValue(database)
+      .overrideProvider(FirebaseAdminService)
+      .useValue(firebase)
       .compile();
     app = moduleFixture.createNestApplication();
     configureApp(app);
@@ -40,6 +47,8 @@ describe('API HTTP behavior (database mocked)', () => {
 
   beforeEach(() => {
     database.checkConnection.mockReset().mockResolvedValue(undefined);
+    database.user.upsert.mockReset();
+    firebase.verifyIdToken.mockReset();
   });
   afterAll(async () => {
     await app.close();
@@ -124,5 +133,75 @@ describe('API HTTP behavior (database mocked)', () => {
       .send({ name: 'Test' })
       .expect(201)
       .expect({ name: 'Test' });
+  });
+
+  it('rejects a protected route when its bearer token is missing', async () => {
+    await request(app.getHttpServer()).get('/api/v1/auth/me').expect(401);
+    expect(firebase.verifyIdToken).not.toHaveBeenCalled();
+    expect(database.user.upsert).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid Firebase ID tokens', async () => {
+    firebase.verifyIdToken.mockRejectedValue(new Error('expired token'));
+    await request(app.getHttpServer())
+      .get('/api/v1/auth/me')
+      .set('Authorization', 'Bearer invalid-token')
+      .expect(401)
+      .expect(({ body }) => {
+        expect(body.message).toBe('Invalid or expired Firebase token');
+      });
+    expect(database.user.upsert).not.toHaveBeenCalled();
+  });
+
+  it('rejects an authenticated Firebase identity without an email', async () => {
+    firebase.verifyIdToken.mockResolvedValue({ uid: 'firebase-no-email' });
+    await request(app.getHttpServer())
+      .get('/api/v1/auth/me')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(401)
+      .expect(({ body }) => {
+        expect(body.message).toBe('Firebase account must have an email');
+      });
+    expect(database.user.upsert).not.toHaveBeenCalled();
+  });
+
+  it('verifies the token and synchronizes the HelaCart profile', async () => {
+    const profile = {
+      id: '5720886d-9210-461c-9e93-d0176b019eed',
+      firebaseUid: 'firebase-user-1',
+      email: 'buyer@example.com',
+      emailVerified: true,
+      name: 'Buyer',
+      createdAt: '2026-10-13T00:00:00.000Z',
+      updatedAt: '2026-10-13T00:00:00.000Z',
+      memberships: [],
+    };
+    firebase.verifyIdToken.mockResolvedValue({
+      uid: 'firebase-user-1',
+      email: 'buyer@example.com',
+      email_verified: true,
+      name: '  Buyer  ',
+    });
+    database.user.upsert.mockResolvedValue(profile);
+
+    await request(app.getHttpServer())
+      .get('/api/v1/auth/me')
+      .set('Authorization', 'bearer valid-token')
+      .expect(200)
+      .expect(profile)
+      .expect('Cache-Control', 'no-store');
+
+    expect(firebase.verifyIdToken).toHaveBeenCalledWith('valid-token');
+    expect(database.user.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { firebaseUid: 'firebase-user-1' },
+        create: expect.objectContaining({
+          firebaseUid: 'firebase-user-1',
+          email: 'buyer@example.com',
+          emailVerified: true,
+          name: 'Buyer',
+        }),
+      }),
+    );
   });
 });

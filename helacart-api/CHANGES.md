@@ -30,3 +30,17 @@ Added reliable generate/build/start scripts, credential exclusions and Windows g
 This repair establishes the backend foundation. Authentication, seller approval,
 product management, checkout, payment integration, admin UI and mobile app are not
 implemented or claimed complete. See README.md and VALIDATION.md.
+
+## Firebase authentication milestone
+
+- Connected the existing AuthModule to the Nest application.
+- Consolidated duplicate Firebase initialization into one injectable service.
+- Added strict bearer-token parsing and Firebase ID-token verification.
+- Added `GET /api/v1/auth/me` with no-store responses.
+- Added safe Neon profile upsert from verified Firebase claims.
+- Added the `emailVerified` profile snapshot and a forward-only migration.
+- Added Firebase project environment validation and safe credential documentation.
+- Added HTTP coverage for missing, invalid, email-less and valid identities.
+
+Firebase client registration screens, seller workflows and marketplace features remain
+outside this milestone.

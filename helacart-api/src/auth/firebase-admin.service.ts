@@ -1,24 +1,23 @@
 import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { Auth, DecodedIdToken, getAuth } from 'firebase-admin/auth';
-import {
-  applicationDefault,
-  getApp,
-  getApps,
-  initializeApp,
-} from 'firebase-admin/app';
+import { type Auth, type DecodedIdToken, getAuth } from 'firebase-admin/auth';
+import { applicationDefault, getApps, initializeApp } from 'firebase-admin/app';
 
 @Injectable()
 export class FirebaseAdminService {
   private readonly auth: Auth;
 
   constructor(config: ConfigService) {
-    const app = getApps().length
-      ? getApp()
-      : initializeApp({
+    const appName = 'helacart-admin';
+    const app =
+      getApps().find((candidate) => candidate.name === appName) ??
+      initializeApp(
+        {
           credential: applicationDefault(),
           projectId: config.getOrThrow<string>('FIREBASE_PROJECT_ID'),
-        });
+        },
+        appName,
+      );
 
     this.auth = getAuth(app);
   }

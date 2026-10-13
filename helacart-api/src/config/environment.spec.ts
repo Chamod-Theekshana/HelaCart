@@ -2,6 +2,7 @@ import { validateEnvironment } from './environment.js';
 
 const local = {
   DATABASE_URL: 'postgresql://test:secret@localhost:5432/helacart',
+  FIREBASE_PROJECT_ID: 'helacart-test',
 };
 
 describe('Environment configuration', () => {
@@ -48,6 +49,7 @@ describe('Environment configuration', () => {
   it('requires TLS for Neon and production databases', () => {
     expect(() =>
       validateEnvironment({
+        ...local,
         DATABASE_URL: 'postgresql://u:p@ep-demo.aws.neon.tech/db',
       }),
     ).toThrow('TLS');
@@ -56,6 +58,7 @@ describe('Environment configuration', () => {
     ).toThrow('TLS');
     expect(() =>
       validateEnvironment({
+        ...local,
         DATABASE_URL:
           'postgresql://u:p@ep-demo.aws.neon.tech/db?sslmode=require',
       }),
@@ -69,5 +72,14 @@ describe('Environment configuration', () => {
     expect(() =>
       validateEnvironment({ ...local, HOST: 'https://localhost' }),
     ).toThrow('HOST');
+  });
+
+  it('requires a valid Firebase project ID', () => {
+    expect(() =>
+      validateEnvironment({ ...local, FIREBASE_PROJECT_ID: '' }),
+    ).toThrow('FIREBASE_PROJECT_ID');
+    expect(() =>
+      validateEnvironment({ ...local, FIREBASE_PROJECT_ID: 'Invalid Project' }),
+    ).toThrow('FIREBASE_PROJECT_ID');
   });
 });
