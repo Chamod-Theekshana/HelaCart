@@ -1,114 +1,213 @@
-<p align="center">
-  <a href="http://nestjs.com/" target="blank"><img src="https://nestjs.com/img/logo-small.svg" width="120" alt="Nest Logo" /></a>
-</p>
+# HelaCart API
 
-[circleci-image]: https://img.shields.io/circleci/build/github/nestjs/nest/master?token=abc123def456
-[circleci-url]: https://circleci.com/gh/nestjs/nest
+Corrected backend foundation for the HelaCart Sri Lankan goods marketplace.
+This is a working NestJS/Neon starter, **not a completed ecommerce API**.
 
-  <p align="center">A progressive <a href="http://nodejs.org" target="_blank">Node.js</a> framework for building efficient and scalable server-side applications.</p>
-    <p align="center">
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/v/@nestjs/core.svg" alt="NPM Version" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/l/@nestjs/core.svg" alt="Package License" /></a>
-<a href="https://www.npmjs.com/~nestjscore" target="_blank"><img src="https://img.shields.io/npm/dm/@nestjs/common.svg" alt="NPM Downloads" /></a>
-<a href="https://circleci.com/gh/nestjs/nest" target="_blank"><img src="https://img.shields.io/circleci/build/github/nestjs/nest/master" alt="CircleCI" /></a>
-<a href="https://discord.gg/G7Qnnhy" target="_blank"><img src="https://img.shields.io/badge/discord-online-brightgreen.svg" alt="Discord"/></a>
-<a href="https://opencollective.com/nest#backer" target="_blank"><img src="https://opencollective.com/nest/backers/badge.svg" alt="Backers on Open Collective" /></a>
-<a href="https://opencollective.com/nest#sponsor" target="_blank"><img src="https://opencollective.com/nest/sponsors/badge.svg" alt="Sponsors on Open Collective" /></a>
-  <a href="https://paypal.me/kamilmysliwiec" target="_blank"><img src="https://img.shields.io/badge/Donate-PayPal-ff3f59.svg" alt="Donate us"/></a>
-    <a href="https://opencollective.com/nest#sponsor"  target="_blank"><img src="https://img.shields.io/badge/Support%20us-Open%20Collective-41B883.svg" alt="Support us"></a>
-  <a href="https://twitter.com/nestframework" target="_blank"><img src="https://img.shields.io/twitter/follow/nestframework.svg?style=social&label=Follow" alt="Follow us on Twitter"></a>
-</p>
-  <!--[![Backers on Open Collective](https://opencollective.com/nest/backers/badge.svg)](https://opencollective.com/nest#backer)
-  [![Sponsors on Open Collective](https://opencollective.com/nest/sponsors/badge.svg)](https://opencollective.com/nest#sponsor)-->
+## What is implemented
 
-## Description
+- NestJS 12, TypeScript, native ESM (keep `"type": "module"`).
+- Prisma 7.10 with the PostgreSQL driver adapter.
+- Neon pooled runtime URL and separate direct CLI URL.
+- Initial User, Seller and SellerMember schema and checked-in SQL migration.
+- Environment validation, port 4000, configurable binding and CORS origins.
+- Global DTO validation and Helmet security headers.
+- Liveness and database readiness endpoints.
+- Unit and HTTP tests that never connect to Neon.
+- No placeholder Observe credentials, telemetry SDK or unused Mau deploy command.
 
-[Nest](https://github.com/nestjs/nest) framework TypeScript starter repository.
+Authentication is **not implemented**. There are no public user/seller write endpoints.
+The firebaseUid field reserves the link to Firebase Authentication for the next stage.
+Seller approval, ownership authorization and last-owner rules must be implemented in
+the application layer before exposing seller APIs. Creating a table does not implement
+those workflows.
 
-## Project setup
+## Requirements
 
-```bash
-$ npm install
+- Windows PowerShell (commands below), or equivalent shell.
+- Node.js 24 LTS, patch 24.15.0 or newer; npm 11 or newer.
+- A Neon project with an empty development database.
+- Internet access for installing dependencies and reaching Neon.
+- No local PostgreSQL, Redis or Firebase credentials are needed for this stage.
+
+Check:
+
+```powershell
+node --version
+npm --version
 ```
 
-## Compile and run the project
+## First setup on Windows
 
-```bash
-# development
-$ npm run start
+Extract the archive to a new folder. The archive contains
+`HelaCart-corrected/helacart-api`. Adjust the following path if you extract elsewhere.
 
-# watch mode
-$ npm run start:dev
-
-# production mode
-$ npm run start:prod
+```powershell
+Set-Location C:\HelaCart-corrected\helacart-api
+npm ci
+Copy-Item .env.example .env
 ```
 
-## Run tests
+Copy the environment template only on first setup; do not overwrite an existing
+configured .env when upgrading.
 
-```bash
-# unit tests
-$ npm run test
+### Configure Neon
 
-# e2e tests
-$ npm run test:e2e
+1. Create/select your HelaCart Neon project.
+2. Create/select a development branch and an empty database.
+3. Open Connect and select the same branch, database and role for both URLs.
+4. With pooling enabled, copy the full URL into DATABASE_URL in .env.
+5. With pooling disabled, copy the full URL into DIRECT_URL in .env.
+6. Preserve the query parameters Neon supplies, including its TLS settings.
+7. Use a role allowed to create tables for applying migrations.
 
-# test coverage
-$ npm run test:cov
+DATABASE_URL is used by the API. DIRECT_URL is used by the Prisma CLI.
+A Neon project API key is not a database connection URL.
+Do not paste actual credentials into screenshots, source control or shared ZIPs.
+
+### Create the tables and start
+
+The initial migration is already included. Apply it rather than generating a second
+initial migration:
+
+```powershell
+npm run db:deploy
+npm run build
+npm run start:dev
 ```
 
-## Deployment
+Expected local addresses:
 
-When you're ready to deploy your NestJS application to production, there are some key steps you can take to ensure it runs as efficiently as possible. Check out the [deployment documentation](https://docs.nestjs.com/deployment) for more information.
+| Route | Meaning |
+| --- | --- |
+| http://localhost:4000/api/v1 | HelaCart API identifier |
+| http://localhost:4000/api/v1/health | Process liveness; does not query the DB |
+| http://localhost:4000/api/v1/health/ready | Runs SELECT 1 through Prisma |
 
-If you are looking for a cloud-based platform to deploy your NestJS application, check out [Mau](https://mau.nestjs.com), our official platform for deploying NestJS applications on AWS. Mau makes deployment straightforward and fast, requiring just a few simple steps:
+Successful readiness response:
 
-```bash
-$ npm install -g @nestjs/mau
-$ mau deploy
+```json
+{"status":"ok","service":"helacart-api","database":"connected"}
 ```
 
-With Mau, you can deploy your application in just a few clicks, allowing you to focus on building features rather than managing infrastructure.
+A failed database readiness check returns HTTP 503 with a generic error.
+Readiness confirms database connectivity, not migration status; use `npm run db:status`
+to verify migrations.
 
-## Observability
+In another PowerShell terminal:
 
-In production applications, observability is essential for understanding how your system behaves, detecting issues early, and maintaining reliable performance.
+```powershell
+Invoke-RestMethod http://localhost:4000/api/v1/health/ready
+npm run db:status
+npm run db:studio
+```
 
-[NestJS Observe](https://observe.nestjs.com) automatically instruments your NestJS application, giving you deep visibility into your system with minimal setup:
+The tables should be empty. Registration and seller onboarding will populate them later.
 
-- **Distributed tracing:** Follow requests across services and understand how they flow through your system.
-- **Waterfall analysis:** Visualize request execution and identify slow operations, bottlenecks, and unexpected delays.
-- **Performance analysis:** Analyze application performance in real time and quickly pinpoint areas that need optimization.
-- **Metrics:** Track key application and infrastructure metrics to understand system health and performance trends.
-- **Logging:** Centralize and correlate logs with traces and other telemetry to make debugging easier.
-- **Error tracking:** Detect errors quickly and investigate their root causes with the surrounding context.
-- **SLA monitoring:** Track service-level objectives and identify when your application is approaching or exceeding defined thresholds.
-- **Alarms and alerts:** Set up alerts for critical errors, performance degradation, SLA violations, and other anomalies so your team can react quickly.
+## Environment settings
 
-## Resources
+| Variable | Purpose |
+| --- | --- |
+| NODE_ENV | development, test or production |
+| PORT | HTTP port; defaults to 4000 |
+| HOST | Defaults to 127.0.0.1 for local development |
+| CORS_ORIGINS | Comma-separated exact origins, e.g. http://localhost:3000 |
+| DATABASE_URL | PostgreSQL URL for application traffic |
+| DIRECT_URL | PostgreSQL URL for Prisma migration/administrative commands |
 
-Check out a few resources that may come in handy when working with NestJS:
+CORS values must not contain paths, wildcards or trailing slashes.
+CORS is browser access policy, not authentication. Cookie credentials are disabled;
+the next auth stage must explicitly design cookie/CSRF handling if cookies are used.
+Neon and production connection strings must specify sslmode=require or stronger.
+TLS verification has not been disabled in the driver.
 
-- Visit the [NestJS Documentation](https://docs.nestjs.com) to learn more about the framework.
-- For questions and support, please visit our [Discord channel](https://discord.gg/G7Qnnhy).
-- To dive deeper and get more hands-on experience, check out our official video [courses](https://courses.nestjs.com/).
-- Deploy your application to AWS with the help of [NestJS Mau](https://mau.nestjs.com) in just a few clicks.
-- Auto-instrument your application with [NestJS Observer](https://observer.nestjs.com). Distributed tracing, metrics, and logging made easy. Error tracking and performance monitoring for your NestJS applications.
-- Visualize your application graph and interact with the NestJS application in real-time using [NestJS Devtools](https://devtools.nestjs.com).
-- Need help with your project (part-time to full-time)? Check out our official [enterprise support](https://enterprise.nestjs.com).
-- To stay in the loop and get updates, follow us on [X](https://x.com/nestframework) and [LinkedIn](https://linkedin.com/company/nestjs).
-- Looking for a job, or have a job to offer? Check out our official [Jobs board](https://jobs.nestjs.com).
+For a cloud container, set HOST=0.0.0.0. For a physical phone on your local network,
+use HOST=0.0.0.0, allow the port in Windows Firewall, and connect to your computer's
+LAN IP rather than localhost. The Android emulator commonly reaches the host at
+10.0.2.2. Do not publicly expose development APIs just to test a phone.
 
-## Support
+## Commands
 
-Nest is an MIT-licensed open source project. It can grow thanks to the sponsors and support by the amazing backers. If you'd like to join them, please [read more here](https://docs.nestjs.com/support).
+| Command | Purpose |
+| --- | --- |
+| npm ci | Reproducible installation from package-lock.json |
+| npm run start:dev | Generate Prisma client and run Nest watch mode |
+| npm run build | Generate client and compile to dist |
+| npm run start:prod | Run compiled dist/main.js; requires a prior build |
+| npm run check | Schema validation, formatting, lint, typecheck, tests and build |
+| npm test | Unit tests |
+| npm run test:e2e | HTTP tests with a mocked database |
+| npm run prisma:generate | Regenerate Prisma client |
+| npm run db:deploy | Apply checked-in migrations |
+| npm run db:migrate -- --name describe_change | Create/apply a new migration in development |
+| npm run db:status | Check migration status |
+| npm run db:studio | Inspect database with Prisma Studio |
 
-## Stay in touch
+The Prisma client is generated into src/generated/prisma and is not included in
+the archive or Git. Build and relevant start/test commands regenerate it.
+No real database is required for `npm run check`; the test fixture overrides
+inherited database settings and replaces the Prisma provider.
 
-- Author - [Kamil Myśliwiec](https://twitter.com/kammysliwiec)
-- Website - [https://nestjs.com](https://nestjs.com/)
-- Twitter - [@nestframework](https://twitter.com/nestframework)
+After editing the schema, run `npm run db:migrate -- --name your_change` on a
+development database and `npm run prisma:generate`. Review and commit the migration.
+For production, use reviewed migrations with `npm run db:deploy`, never migrate dev
+or migrate reset.
 
-## License
+## Project layout
 
-Nest is [MIT licensed](https://github.com/nestjs/nest/blob/master/LICENSE).
+| Path | Purpose |
+| --- | --- |
+| src/main.ts | Bootstraps server, configured port/host and shutdown hooks |
+| src/configure-app.ts | API prefix, security headers, CORS and DTO validation |
+| src/config/environment.ts | Validates startup settings |
+| src/prisma/ | Shared Prisma module and connection lifecycle |
+| src/health/ | Liveness and readiness routes |
+| prisma/schema.prisma | Database models |
+| prisma/migrations/ | Versioned SQL migrations |
+| prisma.config.ts | CLI database configuration |
+| test/ | Isolated HTTP tests |
+
+User IDs and seller IDs are UUIDs. Users may belong to multiple sellers.
+Each user/seller membership pair is unique. Sellers default to PENDING.
+Foreign keys prevent deleting users/sellers that still have memberships.
+There is no admin privilege field or public role-assignment endpoint.
+
+## Troubleshooting
+
+**Invalid environment / DATABASE_URL:** Replace the example with the full PostgreSQL
+connection URL, not a dashboard URL. Confirm .env is beside package.json.
+
+**P1001 / timeout:** Check the selected Neon branch/endpoint, credentials, TLS
+parameters and network access to PostgreSQL. Wake the endpoint in Neon if needed.
+Do not fix TLS errors by disabling certificate verification.
+
+**Tables already exist / migration conflict:** This ZIP starts from an empty database.
+If your chosen database already contains tables, stop and use a new empty development
+database, or plan a migration baseline. Do not reset a database containing useful data.
+
+**Cannot find generated Prisma client:** Run npm run prisma:generate, then npm run build.
+Keep prisma, @prisma/client and @prisma/adapter-pg on the included matching version.
+
+**ES module / CommonJS errors:** This uploaded project was ESM and remains ESM.
+Keep the .js suffixes on relative TypeScript imports, moduleFormat="esm", and
+"type":"module". Do not paste the older CommonJS sample into this project.
+
+**Port in use:** Change PORT in .env, restart and use the matching URL.
+
+**PowerShell blocks npm.ps1:** Use npm.cmd in place of npm. Do not weaken machine-wide
+script policy just for these setup commands.
+
+## Git and ZIP hygiene
+
+No .git or nested Git repositories are included. If starting a new repository, run
+git init once in your chosen root (for example C:\HelaCart-corrected), then commit.
+Do not run git init again in helacart-api if its parent already owns the project.
+
+Commit package-lock.json, schema.prisma, migrations and .env.example.
+Do not commit .env, node_modules, dist, generated clients or database credentials.
+
+## Before a production marketplace launch
+
+Next work: Firebase token verification and profile sync; seller application and admin
+approval; seller-scoped authorization; catalog/inventory; orders, payments and payouts.
+Also add rate limits, authenticated API auditing, deployment monitoring and backup
+restore drills. These are future features, not implied by this starter's health checks.

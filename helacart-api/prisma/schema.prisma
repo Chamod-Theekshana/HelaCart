@@ -1,0 +1,56 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SellerStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum SellerMemberRole {
+  OWNER
+  MANAGER
+}
+
+model User {
+  id          String         @id @default(uuid()) @db.Uuid
+  firebaseUid String         @unique
+  email       String         @unique
+  name        String?
+  createdAt   DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt   DateTime       @updatedAt @db.Timestamptz(3)
+  memberships SellerMember[]
+}
+
+model Seller {
+  id        String         @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String         @unique
+  status    SellerStatus   @default(PENDING)
+  createdAt DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime       @updatedAt @db.Timestamptz(3)
+  members   SellerMember[]
+
+  @@index([status])
+}
+
+model SellerMember {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  sellerId  String           @db.Uuid
+  role      SellerMemberRole @default(MANAGER)
+  createdAt DateTime         @default(now()) @db.Timestamptz(3)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  seller    Seller           @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+
+  @@unique([sellerId, userId])
+  @@index([userId])
+}

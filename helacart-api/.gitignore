@@ -57,3 +57,9 @@ pids
 
 # Diagnostic reports (https://nodejs.org/api/report.html)
 report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
+
+# Secrets and generated Prisma source
+.env.*
+!.env.example
+/src/generated/prisma
+.git-backup/
