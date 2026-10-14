@@ -1,4 +1,4 @@
-# Start here: HelaCart backend with Firebase authentication
+# Start here: HelaCart seller applications and admin approval
 
 Open helacart-api/README.md for the full Windows and Neon instructions.
 See helacart-api/CHANGES.md for the review and helacart-api/VALIDATION.md for checks.
@@ -6,14 +6,18 @@ See helacart-api/CHANGES.md for the review and helacart-api/VALIDATION.md for ch
 1. Install Node.js 24 LTS (24.15.0 or newer).
 2. Open PowerShell in the helacart-api folder.
 3. Run npm ci.
-4. Copy .env.example to .env and insert both Neon development connection URLs.
+4. On a fresh install only, copy .env.example to .env and insert both Neon development
+   connection URLs. Keep your working `.env` unchanged when upgrading.
 5. Download a Firebase Admin service-account key, keep it outside this project,
    and set FIREBASE_PROJECT_ID plus GOOGLE_APPLICATION_CREDENTIALS in .env.
-6. Run npm run db:deploy against your development database.
-7. Run npm run build, then npm run start:dev.
-8. Open http://localhost:4000/api/v1/health/ready.
-9. Follow the Firebase test steps in helacart-api/README.md for /api/v1/auth/me.
+6. Add the verified admin account's Firebase UID to ADMIN_FIREBASE_UIDS in .env.
+7. Run npm run db:deploy against your development database. Never reset the database.
+8. Run npm run check, then npm run start:dev.
+9. Open http://localhost:4000/api/v1/health/ready.
+10. Follow the Firebase and seller test steps in helacart-api/README.md.
 
-This is the backend foundation and Firebase identity milestone, not a complete marketplace.
+This is the backend foundation, Firebase identity and basic seller review milestone,
+not a complete marketplace.
 No actual credentials, dependency folders, compiled files or Git repositories are included.
-If the database already contains tables, read the migration-conflict section before proceeding.
+If upgrading an existing HelaCart database, preserve its data and apply only the new
+checked-in migration. Read the migration-conflict section if Prisma reports a mismatch.

@@ -22,7 +22,7 @@ export class FirebaseAdminService {
     this.auth = getAuth(app);
   }
 
-  verifyIdToken(token: string): Promise<DecodedIdToken> {
-    return this.auth.verifyIdToken(token);
+  verifyIdToken(token: string, checkRevoked = false): Promise<DecodedIdToken> {
+    return this.auth.verifyIdToken(token, checkRevoked);
   }
 }

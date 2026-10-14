@@ -24,9 +24,43 @@ class ValidationProbeController {
 
 describe('API HTTP behavior (database mocked)', () => {
   let app: INestApplication<Server>;
+  const sellerId = 'c68e7c7c-7ad8-40b8-b2a1-a76c9a7b931c';
+  const userId = '5720886d-9210-461c-9e93-d0176b019eed';
+  const owner = {
+    uid: 'seller-uid',
+    email: 'seller@example.com',
+    email_verified: true,
+  };
+  const administrator = {
+    uid: 'admin-uid',
+    email: 'admin@example.com',
+    email_verified: true,
+  };
+  const application = {
+    name: 'Island Crafts',
+    slug: 'island-crafts',
+    contactPhone: '0771234567',
+    pickupAddress: '12 Main Street, Colombo 03',
+  };
+  const pendingSeller = {
+    id: sellerId,
+    ...application,
+    description: null,
+    status: 'PENDING',
+    reviews: [],
+  };
   const database = {
     checkConnection: vi.fn(),
     user: { upsert: vi.fn() },
+    seller: {
+      create: vi.fn(),
+      findMany: vi.fn(),
+      updateMany: vi.fn(),
+      findUnique: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
+    },
+    sellerReview: { create: vi.fn() },
+    $transaction: vi.fn(),
   };
   const firebase = { verifyIdToken: vi.fn() };
 
@@ -48,6 +82,13 @@ describe('API HTTP behavior (database mocked)', () => {
   beforeEach(() => {
     database.checkConnection.mockReset().mockResolvedValue(undefined);
     database.user.upsert.mockReset();
+    database.user.upsert.mockResolvedValue({ id: userId });
+    for (const mock of Object.values(database.seller)) mock.mockReset();
+    database.sellerReview.create.mockReset();
+    database.$transaction.mockReset();
+    database.$transaction.mockImplementation(
+      (callback: (tx: typeof database) => unknown) => callback(database),
+    );
     firebase.verifyIdToken.mockReset();
   });
   afterAll(async () => {
@@ -203,5 +244,179 @@ describe('API HTTP behavior (database mocked)', () => {
         }),
       }),
     );
+  });
+
+  it('rejects unauthenticated and unverified seller applications', async () => {
+    await request(app.getHttpServer())
+      .post('/api/v1/seller-applications')
+      .send(application)
+      .expect(401);
+    firebase.verifyIdToken.mockResolvedValue({
+      ...owner,
+      email_verified: false,
+    });
+    await request(app.getHttpServer())
+      .post('/api/v1/seller-applications')
+      .set('Authorization', 'Bearer valid-token')
+      .send(application)
+      .expect(403);
+    expect(database.seller.create).not.toHaveBeenCalled();
+  });
+
+  it('validates application input and creates a pending seller with its owner', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    await request(app.getHttpServer())
+      .post('/api/v1/seller-applications')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ ...application, slug: 'Invalid Slug', status: 'APPROVED' })
+      .expect(400);
+    expect(database.seller.create).not.toHaveBeenCalled();
+    database.seller.create.mockResolvedValue(pendingSeller);
+    await request(app.getHttpServer())
+      .post('/api/v1/seller-applications')
+      .set('Authorization', 'Bearer valid-token')
+      .send({ ...application, name: '  Island Crafts  ' })
+      .expect(201)
+      .expect(pendingSeller);
+    expect(database.seller.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          name: 'Island Crafts',
+          slug: 'island-crafts',
+          members: { create: { userId, role: 'OWNER' } },
+        }),
+      }),
+    );
+  });
+
+  it('returns only applications owned by the signed-in user', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    database.seller.findMany.mockResolvedValue([pendingSeller]);
+    await request(app.getHttpServer())
+      .get('/api/v1/seller-applications/me')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(200)
+      .expect([pendingSeller]);
+    expect(database.seller.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { members: { some: { userId, role: 'OWNER' } } },
+      }),
+    );
+  });
+
+  it('forbids non-admins and unverified admins from reviewing applications', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/seller-applications')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(403);
+    firebase.verifyIdToken.mockResolvedValue({
+      ...administrator,
+      email_verified: false,
+    });
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/seller-applications')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(403);
+    expect(database.seller.findMany).not.toHaveBeenCalled();
+  });
+
+  it('rechecks admin token revocation and rejects revoked tokens', async () => {
+    firebase.verifyIdToken.mockImplementation(
+      (_token: string, checkRevoked?: boolean) =>
+        checkRevoked
+          ? Promise.reject(new Error('revoked'))
+          : Promise.resolve(administrator),
+    );
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/seller-applications')
+      .set('Authorization', 'Bearer revoked-token')
+      .expect(401);
+    expect(database.seller.findMany).not.toHaveBeenCalled();
+  });
+
+  it('lists pending applications for a verified admin and rejects invalid filters', async () => {
+    firebase.verifyIdToken.mockResolvedValue(administrator);
+    database.seller.findMany.mockResolvedValue([pendingSeller]);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/seller-applications')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(200)
+      .expect([pendingSeller]);
+    expect(database.seller.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { status: 'PENDING' } }),
+    );
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/seller-applications?status=ANY')
+      .set('Authorization', 'Bearer valid-token')
+      .expect(400);
+  });
+
+  it('approves once and records a reviewer in the same transaction', async () => {
+    firebase.verifyIdToken.mockResolvedValue(administrator);
+    database.seller.updateMany.mockResolvedValue({ count: 1 });
+    database.sellerReview.create.mockResolvedValue({ id: 'review-id' });
+    database.seller.findUniqueOrThrow.mockResolvedValue({
+      ...pendingSeller,
+      status: 'APPROVED',
+    });
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/seller-applications/${sellerId}/approve`)
+      .set('Authorization', 'Bearer valid-token')
+      .expect(200)
+      .expect({ ...pendingSeller, status: 'APPROVED' });
+    expect(database.$transaction).toHaveBeenCalledOnce();
+    expect(database.seller.updateMany).toHaveBeenCalledWith({
+      where: { id: sellerId, status: 'PENDING' },
+      data: { status: 'APPROVED' },
+    });
+    expect(database.sellerReview.create).toHaveBeenCalledWith({
+      data: {
+        sellerId,
+        reviewerUserId: userId,
+        decision: 'APPROVED',
+        reason: null,
+      },
+    });
+    expect(firebase.verifyIdToken).toHaveBeenCalledWith('valid-token', true);
+  });
+
+  it('does not write an audit record when an application is already reviewed', async () => {
+    firebase.verifyIdToken.mockResolvedValue(administrator);
+    database.seller.updateMany.mockResolvedValue({ count: 0 });
+    database.seller.findUnique.mockResolvedValue({ id: sellerId });
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/seller-applications/${sellerId}/approve`)
+      .set('Authorization', 'Bearer valid-token')
+      .expect(409);
+    expect(database.sellerReview.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects an application with a required reason and records the decision', async () => {
+    firebase.verifyIdToken.mockResolvedValue(administrator);
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/seller-applications/${sellerId}/reject`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ reason: 'short' })
+      .expect(400);
+    database.seller.updateMany.mockResolvedValue({ count: 1 });
+    database.sellerReview.create.mockResolvedValue({ id: 'review-id' });
+    database.seller.findUniqueOrThrow.mockResolvedValue({
+      ...pendingSeller,
+      status: 'REJECTED',
+    });
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/seller-applications/${sellerId}/reject`)
+      .set('Authorization', 'Bearer valid-token')
+      .send({ reason: 'Missing contact information' })
+      .expect(200);
+    expect(database.sellerReview.create).toHaveBeenCalledWith({
+      data: {
+        sellerId,
+        reviewerUserId: userId,
+        decision: 'REJECTED',
+        reason: 'Missing contact information',
+      },
+    });
   });
 });

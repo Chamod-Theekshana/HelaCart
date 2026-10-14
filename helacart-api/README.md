@@ -1,7 +1,7 @@
 # HelaCart API
 
-Backend foundation and Firebase identity integration for the HelaCart Sri Lankan
-goods marketplace. This is a working NestJS/Neon API milestone, **not a completed
+Backend foundation, Firebase identity and seller application review for the HelaCart
+Sri Lankan goods marketplace. This is a working NestJS/Neon API milestone, **not a completed
 ecommerce API**.
 
 ## What is implemented
@@ -9,11 +9,14 @@ ecommerce API**.
 - NestJS 12, TypeScript, native ESM (keep `"type": "module"`).
 - Prisma 7.10 with the PostgreSQL driver adapter.
 - Neon pooled runtime URL and separate direct CLI URL.
-- Initial User, Seller and SellerMember schema and checked-in SQL migration.
+- User, Seller, SellerMember and SellerReview schema and checked-in SQL migrations.
 - Firebase Admin initialization through Application Default Credentials.
 - Firebase bearer-token verification and protected `GET /api/v1/auth/me`.
 - Neon user-profile creation/update from verified Firebase claims.
 - Email-verification state stored from the signed Firebase token.
+- Verified customers can apply as sellers and view their own applications.
+- Allowlisted, verified administrators can list pending applications, approve or reject
+  once, with an immutable decision record and a required rejection reason.
 - Environment validation, port 4000, configurable binding and CORS origins.
 - Global DTO validation and Helmet security headers.
 - Liveness and database readiness endpoints.
@@ -22,16 +25,16 @@ ecommerce API**.
 
 Firebase identity verification is implemented. Registration, login, password reset and
 verification-email screens belong in the future web and Flutter clients and use Firebase
-client SDKs. There are no seller application or catalog write endpoints yet.
-Seller approval, ownership authorization and last-owner rules must be implemented in
-the application layer before exposing seller APIs. Creating a table does not implement
-those workflows.
+client SDKs. There are no catalog, seller team-management or payment endpoints yet.
+Seller ownership must be enforced on every future seller-scoped route; the current
+owner membership is used for listing one's own applications only.
 
 ## Requirements
 
 - Windows PowerShell (commands below), or equivalent shell.
 - Node.js 24 LTS, patch 24.15.0 or newer; npm 11 or newer.
-- A Neon project with an empty development database.
+- A Neon development database with the existing HelaCart migrations (or an empty one
+  for a fresh install).
 - Internet access for installing dependencies and reaching Neon.
 - A Firebase project with Email/Password sign-in enabled.
 - A Firebase Admin service-account JSON key for local development.
@@ -46,10 +49,10 @@ npm --version
 ## First setup on Windows
 
 Extract the archive to a new folder. The archive contains
-`HelaCart-corrected/helacart-api`. Adjust the following path if you extract elsewhere.
+`HelaCart-pre-dev/helacart-api`. Adjust the following path if you extract elsewhere.
 
 ```powershell
-Set-Location C:\HelaCart-corrected\helacart-api
+Set-Location C:\HelaCart-pre-dev\helacart-api
 npm ci
 Copy-Item .env.example .env
 ```
@@ -57,10 +60,17 @@ Copy-Item .env.example .env
 Copy the environment template only on first setup; do not overwrite an existing
 configured .env when upgrading.
 
+If upgrading your working `C:\HelaCart\helacart-api`, back it up first, then copy
+the changed source, migration and documentation into it without overwriting `.env`
+or your private Firebase JSON. From that existing directory run `npm ci`, add the
+`ADMIN_FIREBASE_UIDS` setting described below, then `npm run db:deploy`, `npm run check`
+and restart the API. This migration adds fields and a review table; it does not erase
+existing users, sellers or memberships. Do not run `migrate reset`.
+
 ### Configure Neon
 
 1. Create/select your HelaCart Neon project.
-2. Create/select a development branch and an empty database.
+2. Create/select a development branch and database; a fresh install can use an empty one.
 3. Open Connect and select the same branch, database and role for both URLs.
 4. With pooling enabled, copy the full URL into DATABASE_URL in .env.
 5. With pooling disabled, copy the full URL into DIRECT_URL in .env.
@@ -88,7 +98,7 @@ use it to verify tokens.
 
 ### Create the tables and start
 
-The initial migration is already included. Apply it rather than generating a second
+The versioned migrations are included. Apply them rather than generating a new
 initial migration:
 
 ```powershell
@@ -105,6 +115,9 @@ Expected local addresses:
 | http://localhost:4000/api/v1/health | Process liveness; does not query the DB |
 | http://localhost:4000/api/v1/health/ready | Runs SELECT 1 through Prisma |
 | http://localhost:4000/api/v1/auth/me | Verifies a Firebase token and syncs the profile |
+| http://localhost:4000/api/v1/seller-applications | Submit a verified seller application |
+| http://localhost:4000/api/v1/seller-applications/me | List your own applications |
+| http://localhost:4000/api/v1/admin/seller-applications | Admin review queue |
 
 Successful readiness response:
 
@@ -124,7 +137,8 @@ npm run db:status
 npm run db:studio
 ```
 
-The tables should be empty. Registration and seller onboarding will populate them later.
+On an existing database, users and sellers remain in place; the seller-review table
+starts empty. On a fresh install, the first authenticated request creates a profile.
 
 ### Test Firebase authentication from PowerShell
 
@@ -132,10 +146,10 @@ Create a test Email/Password user in Firebase Authentication. Obtain the Web API
 from Firebase Project settings > General, then run:
 
 ```powershell
-$apiKey = "AIzaSyDi7n7insNugxe9Mi9H_vQL_Q6UTK-F5wI"
+$apiKey = "YOUR_FIREBASE_WEB_API_KEY"
 $body = @{
-  email = "channarox573@gmail.com"
-  password = "Chamodt20@"
+  email = "YOUR_TEST_EMAIL"
+  password = "YOUR_TEST_PASSWORD"
   returnSecureToken = $true
 } | ConvertTo-Json
 
@@ -155,6 +169,63 @@ The first successful request creates the Neon profile. Later requests update the
 email-verification flag and non-empty Firebase display name. A missing, malformed,
 expired or incorrectly signed token returns HTTP 401. The response is marked no-store.
 
+### Submit and review a seller application
+
+The seller's Firebase account must have a **verified email**. For local testing, verify
+the email in the Firebase client flow and sign in again to refresh the ID token. Use a
+separate, verified administrator account. Copy its Firebase **UID** (not its email,
+API key or service-account ID) from Firebase Console > Authentication > Users, and add
+`ADMIN_FIREBASE_UIDS=YOUR_ADMIN_FIREBASE_UID` to your existing `.env`. Multiple UIDs
+can be comma-separated. Restart the API after changing `.env`. Keep this allowlist
+private; no public API grants admin access. In production, the setting is required and
+must contain at least one UID. Protect admin accounts with MFA.
+
+Use the Firebase sign-in method above for each account with your own credentials.
+Then, in PowerShell, store their returned ID tokens in `$sellerToken` and `$adminToken`.
+For example: `$sellerToken = $sellerLogin.idToken` and
+`$adminToken = $adminLogin.idToken`. Never copy either token into source control.
+
+```powershell
+$base = "http://localhost:4000/api/v1"
+$sellerHeaders = @{ Authorization = "Bearer $sellerToken" }
+$adminHeaders = @{ Authorization = "Bearer $adminToken" }
+
+$application = Invoke-RestMethod -Method Post `
+  -Uri "$base/seller-applications" -Headers $sellerHeaders `
+  -ContentType "application/json" -Body (@{
+    name = "My Store"
+    slug = "my-store-unique"
+    description = "Local goods"
+    contactPhone = "0771234567"
+    pickupAddress = "123 Main Street, Colombo"
+  } | ConvertTo-Json)
+
+Invoke-RestMethod -Uri "$base/seller-applications/me" -Headers $sellerHeaders
+Invoke-RestMethod -Uri "$base/admin/seller-applications?status=PENDING" -Headers $adminHeaders
+
+$applicationId = $application.id
+Invoke-RestMethod -Method Patch `
+  -Uri "$base/admin/seller-applications/$applicationId/approve" `
+  -Headers $adminHeaders
+```
+
+To test rejection, create a **different** pending application and call:
+
+```powershell
+Invoke-RestMethod -Method Patch `
+  -Uri "$base/admin/seller-applications/$otherApplicationId/reject" `
+  -Headers $adminHeaders -ContentType "application/json" `
+  -Body (@{ reason = "Please supply a valid pickup address." } | ConvertTo-Json)
+```
+
+The POST creates a PENDING seller and OWNER membership together. An existing slug
+returns 409. Administrators can list up to 50 sellers per request; the default filter
+is PENDING (`APPROVED` or `REJECTED` are also supported). Approval/rejection is allowed
+only from PENDING: a repeat decision returns 409; an unknown ID returns 404. A decision
+and reviewer audit record are committed in one database transaction. Rejected sellers
+cannot resubmit the same application; appeal/reapplication is future work. This is an
+API workflow, not a seller or admin web UI.
+
 ## Environment settings
 
 | Variable | Purpose |
@@ -167,6 +238,7 @@ expired or incorrectly signed token returns HTTP 401. The response is marked no-
 | DIRECT_URL | PostgreSQL URL for Prisma migration/administrative commands |
 | FIREBASE_PROJECT_ID | Firebase project whose ID tokens this API accepts |
 | GOOGLE_APPLICATION_CREDENTIALS | Absolute path to the private Admin JSON for local use |
+| ADMIN_FIREBASE_UIDS | Comma-separated Firebase UIDs granted admin review access; required in production |
 
 CORS values must not contain paths, wildcards or trailing slashes.
 CORS is browser access policy, not authentication. Cookie credentials are disabled;
@@ -217,6 +289,7 @@ or migrate reset.
 | src/prisma/ | Shared Prisma module and connection lifecycle |
 | src/health/ | Liveness and readiness routes |
 | src/auth/ | Firebase Admin setup, auth guard, profile sync and `/auth/me` |
+| src/sellers/ | Seller application, owner list, admin guard and review endpoints |
 | prisma/schema.prisma | Database models |
 | prisma/migrations/ | Versioned SQL migrations |
 | prisma.config.ts | CLI database configuration |
@@ -225,7 +298,8 @@ or migrate reset.
 User IDs and seller IDs are UUIDs. Users may belong to multiple sellers.
 Each user/seller membership pair is unique. Sellers default to PENDING.
 Foreign keys prevent deleting users/sellers that still have memberships.
-There is no admin privilege field or public role-assignment endpoint.
+There is no public admin privilege or role-assignment endpoint. Admin rights come from
+the server-only UID allowlist and a fresh, non-revoked, email-verified Firebase token.
 
 ## Troubleshooting
 
@@ -240,9 +314,10 @@ If IPv4 reaches Neon but IPv6 times out on your network, use
 `npm run start:dev:ipv4`. This project command passes the IPv4 preference to
 Nest's watch process without changing your system-wide Node settings.
 
-**Tables already exist / migration conflict:** This ZIP starts from an empty database.
-If your chosen database already contains tables, stop and use a new empty development
-database, or plan a migration baseline. Do not reset a database containing useful data.
+**Tables already exist / migration conflict:** Existing HelaCart databases with the
+checked-in initial migrations can apply the new forward-only migration using
+`npm run db:deploy`. If your schema predates the included migrations and Prisma reports
+a conflict, stop and plan a migration baseline. Do not reset useful data.
 
 **Cannot find generated Prisma client:** Run npm run prisma:generate, then npm run build.
 Keep prisma, @prisma/client and @prisma/adapter-pg on the included matching version.
@@ -263,10 +338,14 @@ the service-account key for the same Firebase project.
 **Invalid or expired Firebase token:** Sign in again to obtain a fresh ID token. Confirm
 the client and backend use `helacart-949a0`; do not send a custom token or refresh token.
 
+**Admin route returns 403:** Check your UID is in `ADMIN_FIREBASE_UIDS`, restart the
+server, verify the admin email with Firebase and sign in again for a fresh ID token.
+Revoked/invalid tokens return 401. Seller applications also require verified email.
+
 ## Git and ZIP hygiene
 
 No .git or nested Git repositories are included. If starting a new repository, run
-git init once in your chosen root (for example C:\HelaCart-corrected), then commit.
+git init once in your chosen root (for example C:\HelaCart-pre-dev), then commit.
 Do not run git init again in helacart-api if its parent already owns the project.
 
 Commit package-lock.json, schema.prisma, migrations and .env.example.
@@ -274,7 +353,7 @@ Do not commit .env, node_modules, dist, generated clients or database credential
 
 ## Before a production marketplace launch
 
-Next work: seller application and admin approval; administrator authorization;
-seller-scoped authorization; catalog/inventory; orders, payments and payouts.
+Next work: seller suspension/reapplication and membership management; seller-scoped
+authorization for product routes; catalog/inventory; orders, payments and payouts.
 Also add rate limits, authenticated API auditing, deployment monitoring and backup
 restore drills. These are future features, not implied by this starter's health checks.

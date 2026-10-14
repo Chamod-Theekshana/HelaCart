@@ -21,26 +21,50 @@ enum SellerMemberRole {
 }
 
 model User {
-  id          String         @id @default(uuid()) @db.Uuid
-  firebaseUid String         @unique
-  email       String         @unique
-  emailVerified Boolean      @default(false)
-  name        String?
-  createdAt   DateTime       @default(now()) @db.Timestamptz(3)
-  updatedAt   DateTime       @updatedAt @db.Timestamptz(3)
-  memberships SellerMember[]
+  id            String         @id @default(uuid()) @db.Uuid
+  firebaseUid   String         @unique
+  email         String         @unique
+  emailVerified Boolean        @default(false)
+  name          String?
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
+  memberships   SellerMember[]
+  sellerReviews SellerReview[]
 }
 
 model Seller {
-  id        String         @id @default(uuid()) @db.Uuid
-  name      String
-  slug      String         @unique
-  status    SellerStatus   @default(PENDING)
-  createdAt DateTime       @default(now()) @db.Timestamptz(3)
-  updatedAt DateTime       @updatedAt @db.Timestamptz(3)
-  members   SellerMember[]
+  id            String         @id @default(uuid()) @db.Uuid
+  name          String
+  slug          String         @unique
+  description   String?
+  contactPhone  String?
+  pickupAddress String?
+  status        SellerStatus   @default(PENDING)
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
+  members       SellerMember[]
+  reviews       SellerReview[]
 
   @@index([status])
+}
+
+enum SellerReviewDecision {
+  APPROVED
+  REJECTED
+}
+
+model SellerReview {
+  id             String               @id @default(uuid()) @db.Uuid
+  sellerId       String               @db.Uuid
+  reviewerUserId String               @db.Uuid
+  decision       SellerReviewDecision
+  reason         String?
+  createdAt      DateTime             @default(now()) @db.Timestamptz(3)
+  seller         Seller               @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  reviewer       User                 @relation(fields: [reviewerUserId], references: [id], onDelete: Restrict)
+
+  @@index([sellerId, createdAt])
+  @@index([reviewerUserId])
 }
 
 model SellerMember {

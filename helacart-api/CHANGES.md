@@ -27,9 +27,10 @@ Added reliable generate/build/start scripts, credential exclusions and Windows g
 
 ## Scope
 
-This repair establishes the backend foundation. Authentication, seller approval,
-product management, checkout, payment integration, admin UI and mobile app are not
-implemented or claimed complete. See README.md and VALIDATION.md.
+This initial repair established the backend foundation; subsequent milestones added
+Firebase authentication and basic seller approval. Product management, checkout,
+payment integration, admin UI and mobile app are not implemented. See README.md and
+VALIDATION.md.
 
 ## Firebase authentication milestone
 
@@ -44,3 +45,20 @@ implemented or claimed complete. See README.md and VALIDATION.md.
 
 Firebase client registration screens, seller workflows and marketplace features remain
 outside this milestone.
+
+## Seller application and admin approval milestone
+
+- Added a forward-only migration for application details and SellerReview decisions.
+- Added verified-email application submission and owner-filtered application listing.
+- Created sellers with OWNER memberships in one database create operation.
+- Added server-configured Firebase UID admin allowlist with verified email and revoked
+  token checks; no public role-assignment endpoint.
+- Added admin queue filtering and one-time APPROVED/REJECTED decisions, each with an
+  audited reviewer record in a transaction; rejection requires a reason.
+- Added validation and HTTP tests for permission boundaries, data validation,
+  concurrent-review guard conditions and decision audit behavior.
+- Removed test credentials copied into the previous README and documented safe
+  upgrading without replacing a working `.env` or resetting a database.
+
+Suspension, reapplication, seller team management, product routes and a web UI remain
+future work.

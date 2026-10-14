@@ -71,6 +71,18 @@ export function validateEnvironment(input: Record<string, unknown>) {
   if (!/^[a-z][a-z0-9-]{4,28}[a-z0-9]$/.test(firebaseProjectId)) {
     problems.push('FIREBASE_PROJECT_ID must be a valid Firebase project ID');
   }
+  const adminUids = String(input.ADMIN_FIREBASE_UIDS ?? '')
+    .split(',')
+    .map((value) => value.trim())
+    .filter(Boolean);
+  if (adminUids.some((uid) => uid.length > 128 || /\s/.test(uid))) {
+    problems.push(
+      'ADMIN_FIREBASE_UIDS must contain comma-separated Firebase UIDs',
+    );
+  }
+  if (mode === 'production' && adminUids.length === 0) {
+    problems.push('ADMIN_FIREBASE_UIDS must be configured in production');
+  }
   if (problems.length)
     throw new Error(`Invalid environment: ${problems.join('; ')}`);
   return {
@@ -81,5 +93,6 @@ export function validateEnvironment(input: Record<string, unknown>) {
     DATABASE_URL: databaseUrl,
     CORS_ORIGINS: origins,
     FIREBASE_PROJECT_ID: firebaseProjectId,
+    ADMIN_FIREBASE_UIDS: [...new Set(adminUids)],
   };
 }

@@ -82,4 +82,21 @@ describe('Environment configuration', () => {
       validateEnvironment({ ...local, FIREBASE_PROJECT_ID: 'Invalid Project' }),
     ).toThrow('FIREBASE_PROJECT_ID');
   });
+
+  it('normalizes administrator UIDs and requires them for production', () => {
+    expect(
+      validateEnvironment({
+        ...local,
+        ADMIN_FIREBASE_UIDS: ' admin-1,admin-2,admin-1 ',
+      }).ADMIN_FIREBASE_UIDS,
+    ).toEqual(['admin-1', 'admin-2']);
+    expect(() =>
+      validateEnvironment({
+        ...local,
+        NODE_ENV: 'production',
+        DATABASE_URL:
+          'postgresql://u:p@ep-demo.aws.neon.tech/db?sslmode=require',
+      }),
+    ).toThrow('ADMIN_FIREBASE_UIDS');
+  });
 });

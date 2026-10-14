@@ -1,6 +1,6 @@
 # HelaCart project status
 
-Assessment date: 2026-10-13
+Assessment date: 2026-10-14
 
 ## Implemented in this ZIP
 
@@ -10,6 +10,11 @@ Assessment date: 2026-10-13
 - Health and database-readiness endpoints.
 - Firebase Admin initialization and bearer ID-token verification.
 - Protected `GET /api/v1/auth/me` with Neon profile synchronization.
+- Verified-email seller applications, owner-only application listing and atomic owner
+  membership creation.
+- Allowlisted Firebase UID administrator guard with verified email and revocation check.
+- Admin pending/approved/rejected lists and one-time approval/rejection with an audited
+  reviewer decision.
 - Automated unit, HTTP, type, lint, formatting and production-build checks.
 
 ## Remaining version-one work
@@ -17,8 +22,8 @@ Assessment date: 2026-10-13
 | Area | Current state | Remaining work |
 | --- | --- | --- |
 | Accounts | Firebase identity and `/auth/me` implemented | Client signup/login, verification UI, profile and address APIs |
-| Seller onboarding | Tables only | Application, review, approval, suspension and audit trail |
-| Authorization | Firebase identity only | Admin roles and seller ownership policies on every API |
+| Seller onboarding | Basic API application, approval/rejection and decision audit | Suspension, appeal/reapplication, documents and UI |
+| Authorization | Firebase identity, admin UID allowlist and owner-filtered application list | Durable admin management and seller ownership policies on future APIs |
 | Catalog | Not started | Categories, products, variants, media, moderation and search |
 | Inventory | Not started | Movements, reservations, concurrency and stock reconciliation |
 | Shopping | Not started | Cart, checkout totals, addresses and shipping calculations |
@@ -31,8 +36,8 @@ Assessment date: 2026-10-13
 
 ## Completion estimate
 
-The repository is approximately **10% of a complete version-one marketplace**. About
-**90% remains**. This percentage measures working product scope, not the number of files.
+The repository is approximately **12% of a complete version-one marketplace**. About
+**88% remains**. This is a rough product-scope estimate, not a schedule or file count.
 The foundation reduces future rework, but most customer, seller, admin, order and money
 flows have not been built.
 
@@ -43,14 +48,13 @@ one web storefront, manual payouts and a small seller group can be completed soo
 
 ## Recommended next milestone
 
-Build one complete seller publishing path:
+Build one complete seller publishing path from this approved application:
 
-1. Add administrator roles and authorization.
-2. Add seller application submission.
-3. Add admin review, approval and suspension.
-4. Enforce seller membership on every seller route.
-5. Add category and product draft models.
-6. Let an approved seller publish one moderated product.
+1. Define suspension, appeal and reapplication policies.
+2. Enforce seller membership and approved status on every seller-scoped product route.
+3. Add category and product draft models.
+4. Add product media and moderation.
+5. Let an approved seller publish one moderated product.
 
-The milestone is complete when a new user can apply, an admin can approve the seller,
-and only that seller's authorized members can create or edit its products.
+The next milestone is complete when an approved seller's authorized members can create
+or edit that seller's draft product, and no other account can do so.

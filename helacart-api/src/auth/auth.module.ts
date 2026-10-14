@@ -9,6 +9,6 @@ import { FirebaseAuthGuard } from './firebase-auth.guard.js';
   imports: [PrismaModule],
   controllers: [AuthController],
   providers: [AuthService, FirebaseAdminService, FirebaseAuthGuard],
-  exports: [FirebaseAuthGuard],
+  exports: [AuthService, FirebaseAdminService, FirebaseAuthGuard],
 })
 export class AuthModule {}
