@@ -132,10 +132,10 @@ Create a test Email/Password user in Firebase Authentication. Obtain the Web API
 from Firebase Project settings > General, then run:
 
 ```powershell
-$apiKey = "YOUR_FIREBASE_WEB_API_KEY"
+$apiKey = "AIzaSyDi7n7insNugxe9Mi9H_vQL_Q6UTK-F5wI"
 $body = @{
-  email = "test@example.com"
-  password = "YOUR_TEST_PASSWORD"
+  email = "channarox573@gmail.com"
+  password = "Chamodt20@"
   returnSecureToken = $true
 } | ConvertTo-Json
 
