@@ -36,6 +36,11 @@ model User {
   cartItems      CartItem[]
   orders         Order[]
   orderEvents    SellerOrderEvent[]
+  notifications  Notification[]
+  returnRequests ReturnRequest[] @relation("BuyerReturns")
+  returnReviews  ReturnRequest[] @relation("AdminReturns")
+  returnResolutions ReturnRequest[] @relation("AdminReturnResolutions")
+  codReviews     CodReconciliation[]
 }
 
 model Seller {
@@ -291,6 +296,8 @@ model SellerOrder {
   seller             Seller @relation(fields: [sellerId], references: [id], onDelete: Restrict)
   items              OrderItem[]
   events             SellerOrderEvent[]
+  returnRequest      ReturnRequest?
+  codReconciliations CodReconciliation[]
 
   @@unique([orderId, sellerId])
   @@index([sellerId, createdAt])
@@ -323,4 +330,76 @@ model SellerOrderEvent {
   actor         User @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@index([sellerOrderId, createdAt])
+}
+
+enum NotificationType {
+  ORDER_PLACED
+  ORDER_UPDATED
+  RETURN_REQUESTED
+  RETURN_REVIEWED
+  COD_RECONCILED
+}
+
+model Notification {
+  id        String @id @default(uuid()) @db.Uuid
+  userId    String @db.Uuid
+  type      NotificationType
+  subjectId String @db.Uuid
+  message   String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  readAt    DateTime? @db.Timestamptz(3)
+  user      User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+}
+
+enum ReturnStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RESOLVED
+}
+
+model ReturnRequest {
+  id             String @id @default(uuid()) @db.Uuid
+  sellerOrderId  String @unique @db.Uuid
+  buyerId        String @db.Uuid
+  status         ReturnStatus @default(PENDING)
+  reason         String
+  reviewReason   String?
+  resolutionNote String?
+  reviewerUserId String? @db.Uuid
+  resolverUserId String? @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  reviewedAt     DateTime? @db.Timestamptz(3)
+  resolvedAt     DateTime? @db.Timestamptz(3)
+  sellerOrder    SellerOrder @relation(fields: [sellerOrderId], references: [id], onDelete: Restrict)
+  buyer          User @relation("BuyerReturns", fields: [buyerId], references: [id], onDelete: Restrict)
+  reviewer       User? @relation("AdminReturns", fields: [reviewerUserId], references: [id], onDelete: Restrict)
+  resolver       User? @relation("AdminReturnResolutions", fields: [resolverUserId], references: [id], onDelete: Restrict)
+
+  @@index([buyerId, createdAt])
+  @@index([status, createdAt])
+}
+
+enum CodReconciliationDecision {
+  RECONCILED
+  DISPUTED
+}
+
+model CodReconciliation {
+  id                 String @id @default(uuid()) @db.Uuid
+  sellerOrderId      String @db.Uuid
+  reviewerUserId     String @db.Uuid
+  decision           CodReconciliationDecision
+  amountReceivedMinor Int
+  reference          String
+  note               String?
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  sellerOrder        SellerOrder @relation(fields: [sellerOrderId], references: [id], onDelete: Restrict)
+  reviewer           User @relation(fields: [reviewerUserId], references: [id], onDelete: Restrict)
+
+  @@unique([sellerOrderId, reference])
+  @@index([sellerOrderId, createdAt])
+  @@index([decision, createdAt])
 }

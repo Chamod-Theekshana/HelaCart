@@ -1,8 +1,7 @@
 # HelaCart API
 
-Backend foundation, Firebase identity, seller applications, moderated catalog, inventory and COD orders for the HelaCart
-Sri Lankan goods marketplace. This is a working NestJS/Neon API milestone, **not a completed
-ecommerce API**.
+Backend foundation, Firebase identity, seller applications, moderated catalog, inventory, COD orders and operating workflows for the HelaCart
+Sri Lankan goods marketplace. This is a working NestJS/Neon COD pilot backend; real-world integrations and clients still require work.
 
 ## What is implemented
 
@@ -28,6 +27,7 @@ ecommerce API**.
 - Global DTO validation and Helmet security headers.
 - Liveness and database readiness endpoints.
 - Unit and HTTP tests that never connect to Neon.
+- R2-backed authenticated product image uploads, private in-app notifications, admin-reviewed returns and append-only COD reconciliation records.
 - No placeholder Observe credentials, telemetry SDK or unused Mau deploy command.
 
 Firebase identity verification is implemented. Registration, login, password reset and
@@ -71,7 +71,7 @@ If upgrading your working `C:\HelaCart\helacart-api`, back it up first, then cop
 the changed source, migration and documentation into it without overwriting `.env`
 or your private Firebase JSON. From that existing directory run `npm ci`, then
 `npm run db:deploy`, `npm run db:status`, `npm run check` and restart the API. Keep
-the existing `ADMIN_FIREBASE_UIDS` value. The migrations add inventory and COD tables and
+the existing `ADMIN_FIREBASE_UIDS` value. The migrations add inventory, COD and operations tables and
 one zero-stock default variant per existing product;
 it does not erase existing users, sellers or memberships. Do not run `migrate reset`.
 
@@ -158,7 +158,7 @@ npm run db:studio
 ```
 
 On an existing database, users, sellers and seller-review history remain in place;
-the new catalog tables start empty. On a fresh install, the first authenticated
+the new operations tables start empty. On a fresh install, the first authenticated
 request creates a profile.
 
 ### Test Firebase authentication from PowerShell
@@ -291,7 +291,7 @@ Invoke-RestMethod -Uri "$base/products/$productId"
 ```
 
 Replace the example image URL with an actual HTTPS image you are authorized to use.
-This release stores HTTPS URLs only; it does not upload or host images. A product needs
+You can also use the authenticated R2 upload endpoint described below. A product needs
 at least one image before review. Price is an integer of LKR minor units, so 125000
 means LKR 1,250.00. A seller can list drafts with
 `GET /sellers/:sellerId/products?status=DRAFT` and can edit a product with
@@ -307,8 +307,7 @@ approved sellers in active categories; review history and raw stock counts stay 
 Category and product slugs are lowercase with hyphens; product slugs and SKUs are
 unique per seller. Variant SKUs are also unique per seller. Only allowlisted admins create categories and review products.
 Private seller and admin lists currently return at most 50 products per request;
-public browsing supports cursor pagination. Hosted image uploads, seller
-suspension and online payment are later milestones.
+public browsing supports cursor pagination. Seller suspension and online payment are later milestones.
 
 ### Variants and stock (PowerShell)
 
@@ -414,8 +413,94 @@ using `PATCH /sellers/:sellerId/orders/:sellerOrderId/status` with statuses
 `ACCEPTED`, `PACKED`, `SHIPPED`, `DELIVERED`. For delivery, send
 `{ "status": "DELIVERED", "paymentCollected": true }` only after collecting COD
 payment. Buyers can cancel while `PLACED`; sellers can cancel before `SHIPPED`.
-Cancellation restores stock and records a movement. There is no carrier tracking,
-automated courier handoff, online payment, returns workflow or payout ledger yet.
+Cancellation restores stock and records a movement. There is no carrier tracking, automated courier handoff, online payment, automated refunds or payout ledger yet.
+
+### Product images in Cloudflare R2
+
+Set up a private R2 bucket, create an R2 API token with object write/delete access to
+that bucket, and attach an HTTPS public custom domain to the bucket. Add all five
+`R2_*` variables from `.env.example` to your existing `.env`. Restart the API.
+Keep credentials on the server, not in a browser or Firebase config. The public
+domain exposes uploaded images to shoppers; do not upload private documents.
+
+An approved seller uploads a local JPEG, PNG or WebP file (up to 5 MiB) to their own
+product. This API accepts raw binary content; it does not accept multipart forms.
+The image URL is appended to the product. At most five images are allowed. Any
+change to an approved product sends it back to draft for admin review.
+
+```powershell
+$imagePath = "C:\HelaCart\basket.jpg"
+$imageBytes = [System.IO.File]::ReadAllBytes($imagePath)
+$uploaded = Invoke-RestMethod -Method Post `
+  -Uri "$base/sellers/${sellerId}/products/${productId}/images" `
+  -Headers $sellerHeaders -ContentType "image/jpeg" -Body $imageBytes
+$uploaded.imageUrl
+```
+
+Change Content-Type to `image/png` or `image/webp` to match the actual file. Missing
+R2 settings give HTTP 503. After an upload, submit and approve the draft again.
+
+### In-app notifications and returns
+
+Order placement and status updates, return reviews and COD decisions create database
+notifications. Signed-in users can fetch only their own inbox and mark an item read:
+
+```powershell
+$inbox = @(Invoke-RestMethod -Uri "$base/me/notifications" -Headers $buyerHeaders)
+if ($inbox.Count) {
+  Invoke-RestMethod -Method Patch `
+    -Uri "$base/me/notifications/$($inbox[0].id)/read" -Headers $buyerHeaders
+}
+```
+
+A buyer can request one return per delivered seller order. The buyer supplies a reason;
+an admin reviews and resolves it manually. There is no automatic restocking or refund.
+
+```powershell
+$sellerOrderId = $order.sellerOrders[0].id
+$return = Invoke-RestMethod -Method Post -Uri "$base/me/returns" `
+  -Headers $buyerHeaders -ContentType "application/json" `
+  -Body (@{ sellerOrderId = $sellerOrderId; reason = "Item arrived with visible damage" } | ConvertTo-Json)
+Invoke-RestMethod -Uri "$base/me/returns" -Headers $buyerHeaders
+Invoke-RestMethod -Uri "$base/admin/returns?status=PENDING" -Headers $adminHeaders
+Invoke-RestMethod -Method Patch -Uri "$base/admin/returns/$($return.id)/approve" `
+  -Headers $adminHeaders -ContentType "application/json" `
+  -Body (@{ reason = "Damage confirmed with the customer" } | ConvertTo-Json)
+# After manually handling the goods and the customer:
+Invoke-RestMethod -Method Patch -Uri "$base/admin/returns/$($return.id)/resolve" `
+  -Headers $adminHeaders -ContentType "application/json" `
+  -Body (@{ note = "Replacement delivered to the customer" } | ConvertTo-Json)
+```
+
+To reject a different pending request use `PATCH /admin/returns/:id/reject`
+with JSON `{ "reason": "At least ten characters explaining rejection" }`.
+
+### COD reconciliation
+
+After a seller marks a seller order delivered and confirms collection, the admin can
+compare the remittance with the order's amount. First check your actual settlement
+record outside HelaCart; the API cannot see a bank account or verify physical cash.
+All amounts are integer LKR minor units. A mismatch is recorded as `DISPUTED`; use a
+new reference when entering the corrected full remittance. Earlier decisions stay
+in history. A matching amount records `RECONCILED` and removes it from the queue.
+
+```powershell
+$queue = @(Invoke-RestMethod -Uri "$base/admin/cod/reconciliation-queue" -Headers $adminHeaders)
+$target = $queue | Where-Object id -eq $sellerOrderId | Select-Object -First 1
+if (-not $target) { throw "Delivered COD seller order not in queue." }
+Invoke-RestMethod -Method Post `
+  -Uri "$base/admin/cod/${sellerOrderId}/reconciliations" `
+  -Headers $adminHeaders -ContentType "application/json" `
+  -Body (@{
+    amountReceivedMinor = $target.totalLkrMinor
+    reference = "BANK-REMITTANCE-UNIQUE-001"
+    note = "Checked against bank remittance"
+  } | ConvertTo-Json)
+```
+
+These are manual COD records, not transfers, refunds, seller payouts or a payment
+ledger. Each queue response is limited to 50 orders; arrange operating review
+before a larger launch.
 
 ## Environment settings
 
@@ -430,6 +515,8 @@ automated courier handoff, online payment, returns workflow or payout ledger yet
 | FIREBASE_PROJECT_ID | Firebase project whose ID tokens this API accepts |
 | GOOGLE_APPLICATION_CREDENTIALS | Absolute path to the private Admin JSON for local use |
 | ADMIN_FIREBASE_UIDS | Comma-separated Firebase UIDs granted admin review access; required in production |
+| R2_ACCOUNT_ID / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY | Server-side R2 access; configure all or none |
+| R2_BUCKET / R2_PUBLIC_BASE_URL | R2 bucket and public HTTPS custom domain |
 
 CORS values must not contain paths, wildcards or trailing slashes.
 CORS is browser access policy, not authentication. Cookie credentials are disabled;
@@ -482,6 +569,10 @@ or migrate reset.
 | src/auth/ | Firebase Admin setup, auth guard, profile sync and `/auth/me` |
 | src/sellers/ | Seller application, owner list, admin guard and review endpoints |
 | src/catalog/ | Categories, seller-scoped product workflows, admin moderation and public reads |
+| src/commerce/ | Cart, checkout and fulfillment |
+| src/media/ | Authenticated R2 image upload |
+| src/notifications/ | Private inbox |
+| src/operations/ | Returns and COD reconciliation |
 | prisma/schema.prisma | Database models |
 | prisma/migrations/ | Versioned SQL migrations |
 | prisma.config.ts | CLI database configuration |
@@ -507,7 +598,7 @@ If IPv4 reaches Neon but IPv6 times out on your network, use
 Nest's watch process without changing your system-wide Node settings.
 
 **Tables already exist / migration conflict:** Existing HelaCart databases with the
-checked-in earlier migrations can apply the new forward-only inventory and COD migrations using
+checked-in earlier migrations can apply the new forward-only inventory, COD and operations migrations using
 `npm run db:deploy`. If your schema predates the included migrations and Prisma reports
 a conflict, stop and plan a migration baseline. Do not reset useful data.
 
@@ -545,7 +636,6 @@ Do not commit .env, node_modules, dist, generated clients or database credential
 
 ## Before a production marketplace launch
 
-Next work: seller suspension/reapplication and team management; hosted image uploads,
-catalog, inventory and COD orders; online payments, refunds and payouts.
+Next work: seller suspension/reapplication and team management; online payments, automated refunds and payouts, client applications and courier integration.
 Also add rate limits, authenticated API auditing, deployment monitoring and backup
 restore drills. These are future features, not implied by this starter's health checks.

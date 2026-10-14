@@ -83,6 +83,38 @@ export function validateEnvironment(input: Record<string, unknown>) {
   if (mode === 'production' && adminUids.length === 0) {
     problems.push('ADMIN_FIREBASE_UIDS must be configured in production');
   }
+  const r2Keys = [
+    'R2_ACCOUNT_ID',
+    'R2_ACCESS_KEY_ID',
+    'R2_SECRET_ACCESS_KEY',
+    'R2_BUCKET',
+    'R2_PUBLIC_BASE_URL',
+  ];
+  const configuredR2 = r2Keys.filter((key) =>
+    Boolean(String(input[key] ?? '').trim()),
+  );
+  if (configuredR2.length && configuredR2.length !== r2Keys.length)
+    problems.push('All R2 settings must be provided together');
+  if (configuredR2.length === r2Keys.length) {
+    if (!/^[0-9a-f]{32}$/i.test(String(input.R2_ACCOUNT_ID)))
+      problems.push('R2_ACCOUNT_ID must be a 32-character account ID');
+    if (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(String(input.R2_BUCKET)))
+      problems.push('R2_BUCKET must be a valid bucket name');
+    try {
+      const url = new URL(String(input.R2_PUBLIC_BASE_URL));
+      if (
+        url.protocol !== 'https:' ||
+        url.pathname !== '/' ||
+        url.search ||
+        url.hash ||
+        url.username ||
+        url.password
+      )
+        throw new Error('Invalid R2 public URL');
+    } catch {
+      problems.push('R2_PUBLIC_BASE_URL must be a public HTTPS origin');
+    }
+  }
   if (problems.length)
     throw new Error(`Invalid environment: ${problems.join('; ')}`);
   return {

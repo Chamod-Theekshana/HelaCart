@@ -138,6 +138,8 @@ describe('API HTTP behavior (database mocked)', () => {
       findUniqueOrThrow: vi.fn(),
     },
     sellerOrderEvent: { create: vi.fn() },
+    notification: { findMany: vi.fn(), updateMany: vi.fn() },
+    returnRequest: { findMany: vi.fn() },
     $queryRaw: vi.fn(),
     $transaction: vi.fn(),
   };
@@ -179,6 +181,8 @@ describe('API HTTP behavior (database mocked)', () => {
     for (const mock of Object.values(database.sellerOrder)) mock.mockReset();
     for (const mock of Object.values(database.sellerOrderEvent))
       mock.mockReset();
+    for (const mock of Object.values(database.notification)) mock.mockReset();
+    for (const mock of Object.values(database.returnRequest)) mock.mockReset();
     database.$queryRaw.mockReset();
     database.$transaction.mockReset();
     database.$transaction.mockImplementation(
@@ -1184,5 +1188,83 @@ describe('API HTTP behavior (database mocked)', () => {
       .set('Authorization', 'Bearer token')
       .expect(200)
       .expect([]);
+  });
+
+  it('scopes notification reading to the signed-in account', async () => {
+    await request(app.getHttpServer())
+      .get('/api/v1/me/notifications')
+      .expect(401);
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    database.notification.findMany.mockResolvedValue([]);
+    await request(app.getHttpServer())
+      .get('/api/v1/me/notifications')
+      .set('Authorization', 'Bearer token')
+      .expect(200)
+      .expect([]);
+    expect(database.notification.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { userId } }),
+    );
+    database.notification.updateMany.mockResolvedValue({ count: 0 });
+    await request(app.getHttpServer())
+      .patch(`/api/v1/me/notifications/${productId}/read`)
+      .set('Authorization', 'Bearer token')
+      .expect(404);
+    expect(database.notification.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: productId, userId },
+      }),
+    );
+  });
+
+  it('validates return requests and restricts their reviews to administrators', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    await request(app.getHttpServer())
+      .post('/api/v1/me/returns')
+      .set('Authorization', 'Bearer token')
+      .send({ sellerOrderId: productId, reason: 'short' })
+      .expect(400);
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/returns/${productId}/approve`)
+      .set('Authorization', 'Bearer token')
+      .send({})
+      .expect(403);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/cod/reconciliation-queue')
+      .set('Authorization', 'Bearer token')
+      .expect(403);
+    firebase.verifyIdToken.mockResolvedValue(administrator);
+    await request(app.getHttpServer())
+      .post(`/api/v1/admin/cod/${productId}/reconciliations`)
+      .set('Authorization', 'Bearer token')
+      .send({ amountReceivedMinor: -1, reference: 'ABCD' })
+      .expect(400);
+    database.returnRequest.findMany.mockResolvedValue([]);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/returns?status=PENDING')
+      .set('Authorization', 'Bearer token')
+      .expect(200)
+      .expect([]);
+  });
+
+  it('checks seller membership and image content before R2 upload', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    database.sellerMember.findUnique.mockResolvedValue(null);
+    const path = `/api/v1/sellers/${sellerId}/products/${productId}/images`;
+    await request(app.getHttpServer())
+      .post(path)
+      .set('Authorization', 'Bearer token')
+      .set('Content-Type', 'image/png')
+      .send(Buffer.from('not a PNG'))
+      .expect(403);
+    database.sellerMember.findUnique.mockResolvedValue({
+      role: 'OWNER',
+      seller: { status: 'APPROVED' },
+    });
+    await request(app.getHttpServer())
+      .post(path)
+      .set('Authorization', 'Bearer token')
+      .set('Content-Type', 'application/octet-stream')
+      .send(Buffer.from('bad'))
+      .expect(400);
   });
 });

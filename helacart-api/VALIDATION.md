@@ -3,8 +3,8 @@
 Verified on Linux with Node.js 24.19.0 and npm 11.9.0.
 Windows setup instructions are supplied, but were not executed on Windows here.
 
-The inventory and COD migrations and stock lifecycle were also exercised against an
-isolated PGlite PostgreSQL instance. This archive has not applied the new migrations
+The inventory, COD and operations migrations and workflows were exercised against
+an isolated PGlite PostgreSQL instance. This archive has not applied the new migrations
 to the user's live Neon DB.
 
 ## Automated checks
@@ -15,8 +15,8 @@ to the user's live Neon DB.
 - Prettier formatting check: passed.
 - Oxlint with warnings denied: passed.
 - Full TypeScript typecheck: passed.
-- Unit tests: 18 passed.
-- HTTP tests: 41 passed (database and Firebase providers mocked).
+- Unit tests: 19 passed in the latest operations run.
+- HTTP tests: 44 passed in the latest operations run (database and Firebase providers mocked).
 - Production compilation: passed.
 
 ## Database and runtime validation
@@ -52,7 +52,7 @@ was used for integration checks; it is not a production Neon instance.
 ## Limits
 
 The user previously confirmed Neon readiness, Firebase `/auth/me` and a successful
-seller approval on their own Windows machine. The COD migration has **not** been
+seller approval on their own Windows machine. The COD and operations migrations have **not** been
 deployed to that database by this delivery. Apply it with `npm run db:deploy`, then
 check `npm run db:status` and `/health/ready` before testing catalog endpoints.
 PGlite exercised the conditional database updates, but it does not establish
@@ -62,7 +62,20 @@ Admin and seller-access behavior was tested with a mocked Firebase verifier. Rea
 tokens, the user's database and externally hosted product images still require
 manual end-to-end testing on the user's machine. No private credential is included.
 
-Hosted image uploads, online payments, returns, notifications, payout accounting
-and courier integration do not exist yet. COD checkout uses immediate stock
+Online payments, automated refunds/payouts and courier integration are still needed. COD checkout uses immediate stock
 deduction; the internal reservation service runs its expiry loop for future flows.
 The checkout integration used PGlite, not a live Neon/Firebase environment.
+
+## COD pilot operations verification (2026-10-14)
+
+- Installed dependencies with `npm ci` and pinned `@aws-sdk/client-s3`.
+- `npm run check`: schema validation, formatting, lint, TypeScript, 19 unit
+  tests, 44 HTTP tests and production compilation (see latest run).
+- Applied all seven checked-in migrations with Prisma migrate deploy to an
+  isolated PGlite PostgreSQL database. Status and schema diff were clean.
+- Against a separate isolated database: raced two COD checkouts for one item;
+  verified idempotency, cancellation restock and fulfillment. Then exercised
+  private notifications, return ownership/uniqueness/review/resolution, COD
+  dispute followed by full reconciliation, and the unread queue.
+- R2 calls, real Firebase ID tokens and the user's Neon database were not
+  available here; verify these with your own credentials in development.

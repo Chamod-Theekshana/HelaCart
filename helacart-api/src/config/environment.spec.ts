@@ -99,4 +99,25 @@ describe('Environment configuration', () => {
       }),
     ).toThrow('ADMIN_FIREBASE_UIDS');
   });
+
+  it('requires a complete R2 configuration and public HTTPS origin', () => {
+    const r2 = {
+      R2_ACCOUNT_ID: 'a'.repeat(32),
+      R2_ACCESS_KEY_ID: 'key',
+      R2_SECRET_ACCESS_KEY: 'secret',
+      R2_BUCKET: 'helacart-images',
+      R2_PUBLIC_BASE_URL: 'https://images.example.com',
+    };
+    expect(() =>
+      validateEnvironment({ ...local, R2_BUCKET: r2.R2_BUCKET }),
+    ).toThrow('All R2');
+    expect(() => validateEnvironment({ ...local, ...r2 })).not.toThrow();
+    expect(() =>
+      validateEnvironment({
+        ...local,
+        ...r2,
+        R2_PUBLIC_BASE_URL: 'http://images.example.com',
+      }),
+    ).toThrow('R2_PUBLIC_BASE_URL');
+  });
 });

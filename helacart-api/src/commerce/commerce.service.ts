@@ -12,10 +12,12 @@ import {
   ProductStatus,
   SellerOrderStatus,
   SellerStatus,
+  NotificationType,
 } from '../generated/prisma/client.js';
 import { AuthService } from '../auth/auth.service.js';
 import { CatalogService } from '../catalog/catalog.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import {
   AddressDto,
   CheckoutDto,
@@ -47,6 +49,7 @@ export class CommerceService {
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
     private readonly catalog: CatalogService,
+    private readonly notifications: NotificationsService,
   ) {}
 
   private async buyer(identity: DecodedIdToken) {
@@ -341,6 +344,21 @@ export class CommerceService {
                 },
               });
             await tx.cartItem.deleteMany({ where: { userId: user.id } });
+            await this.notifications.forUser(
+              tx,
+              user.id,
+              NotificationType.ORDER_PLACED,
+              order.id,
+              'Your COD order was placed',
+            );
+            for (const sellerOrder of order.sellerOrders)
+              await this.notifications.forSeller(
+                tx,
+                sellerOrder.sellerId,
+                NotificationType.ORDER_PLACED,
+                sellerOrder.id,
+                'A new COD order needs fulfillment',
+              );
             return order;
           },
           {
@@ -504,6 +522,17 @@ export class CommerceService {
           toStatus: dto.status,
         },
       });
+      const buyer = await tx.sellerOrder.findUniqueOrThrow({
+        where: { id: sellerOrderId },
+        select: { order: { select: { buyerId: true } } },
+      });
+      await this.notifications.forUser(
+        tx,
+        buyer.order.buyerId,
+        NotificationType.ORDER_UPDATED,
+        sellerOrderId,
+        `Your seller order is ${dto.status.toLowerCase()}`,
+      );
       return tx.sellerOrder.findUniqueOrThrow({
         where: { id: sellerOrderId },
         include: { items: true, events: true },
@@ -562,6 +591,24 @@ export class CommerceService {
           toStatus: SellerOrderStatus.CANCELLED,
         },
       });
+      const buyer = await tx.sellerOrder.findUniqueOrThrow({
+        where: { id: sellerOrderId },
+        select: { order: { select: { buyerId: true } }, sellerId: true },
+      });
+      await this.notifications.forUser(
+        tx,
+        buyer.order.buyerId,
+        NotificationType.ORDER_UPDATED,
+        sellerOrderId,
+        'A seller order was cancelled',
+      );
+      await this.notifications.forSeller(
+        tx,
+        buyer.sellerId,
+        NotificationType.ORDER_UPDATED,
+        sellerOrderId,
+        'A seller order was cancelled',
+      );
       return tx.sellerOrder.findUniqueOrThrow({
         where: { id: sellerOrderId },
         include: { items: true, events: true },

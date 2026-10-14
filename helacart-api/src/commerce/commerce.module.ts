@@ -9,9 +9,16 @@ import {
   AdminCommerceController,
 } from './commerce.controller.js';
 import { CommerceService } from './commerce.service.js';
+import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
-  imports: [PrismaModule, AuthModule, CatalogModule, SellersModule],
+  imports: [
+    PrismaModule,
+    AuthModule,
+    CatalogModule,
+    SellersModule,
+    NotificationsModule,
+  ],
   controllers: [
     BuyerCommerceController,
     SellerCommerceController,

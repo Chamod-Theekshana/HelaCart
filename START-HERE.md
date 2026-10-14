@@ -1,25 +1,21 @@
-# Start here: HelaCart COD checkout backend
+# Start here: HelaCart COD backend update
 
-Open helacart-api/README.md for the full Windows and Neon instructions.
-See helacart-api/CHANGES.md for the review and helacart-api/VALIDATION.md for checks.
+1. Back up your current `C:\HelaCart\helacart-api` source and development database.
+2. Merge the `helacart-api` source into your working copy. Keep your existing `.env`
+   and Firebase service-account JSON; do not overwrite either. Check for your own
+   source changes before replacing files.
+3. In PowerShell inside your existing API folder run `npm ci`.
+4. Set up Cloudflare R2 and add all five `R2_*` variables from `.env.example` to
+   your existing `.env` if you want image uploads.
+5. Run `npm run db:deploy`, then `npm run db:status`. This release has seven
+   checked-in migrations including `20261015030000_operations`. Never use
+   `migrate reset` against your working database.
+6. Run `npm run check`, then restart `npm run start:dev`.
+7. Check `http://localhost:4000/api/v1/health/ready` for `database: connected`.
+8. Use `helacart-api/README.md` for PowerShell tests of image uploads,
+   notifications, admin-reviewed returns and COD reconciliation.
 
-1. Install Node.js 24 LTS (24.15.0 or newer).
-2. Open PowerShell in the helacart-api folder.
-3. Run npm ci.
-4. On a fresh install only, copy .env.example to .env and insert both Neon development
-   connection URLs. Keep your working `.env` unchanged when upgrading.
-5. Download a Firebase Admin service-account key, keep it outside this project,
-   and set FIREBASE_PROJECT_ID plus GOOGLE_APPLICATION_CREDENTIALS in .env.
-6. Add the verified admin account's Firebase UID to ADMIN_FIREBASE_UIDS in .env.
-7. Run npm run db:deploy against your development database. Never reset the database.
-8. Run npm run check, then npm run start:dev.
-9. Open http://localhost:4000/api/v1/health/ready.
-10. Follow the Firebase, seller, product publishing, inventory and COD test steps in
-    helacart-api/README.md.
-
-This is the backend foundation, Firebase identity, seller review, moderated
-catalog, inventory and COD pilot milestone, not a complete marketplace.
-No actual credentials, dependency folders, compiled files or Git repositories are included.
-If upgrading an existing HelaCart database, preserve its data and apply the new
-checked-in inventory and COD migrations. Read the migration-conflict section if Prisma reports
-a mismatch.
+This update adds backend workflows for a manually operated COD pilot. Actual R2,
+Neon/Firebase integration, web and mobile clients, real remittance and production
+security/operations must still be completed and tested. No private keys or `.env`
+files are included.

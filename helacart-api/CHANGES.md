@@ -110,3 +110,16 @@ Hosted images, buyer cart, checkout, payments and web/mobile UIs remain future w
 
 Online payments, returns, hosted image uploads, notifications, commission,
 payouts, courier integration and production deployment remain separate work.
+
+## COD pilot operations milestone
+
+- Added authenticated Cloudflare R2 product image uploads with 5 MiB limit,
+  content signature checks, seller authorization and a five-image maximum.
+- Added private buyer/seller database notifications generated within order and
+  return transactions, plus an authenticated inbox and read operation.
+- Added buyer return requests for delivered seller orders and admin approval,
+  rejection and manual resolution, preserving reviewer and resolver identities.
+- Added append-only COD reconciliation records for delivered/collected orders,
+  including disputed partial remittances and a corrected matching entry.
+- Added operations migration, endpoint coverage and isolated SQL integration
+  scenarios. Live external services and automatic refunds remain out of scope.

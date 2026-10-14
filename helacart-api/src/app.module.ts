@@ -9,6 +9,9 @@ import { PrismaModule } from './prisma/prisma.module.js';
 import { SellersModule } from './sellers/sellers.module.js';
 import { CatalogModule } from './catalog/catalog.module.js';
 import { CommerceModule } from './commerce/commerce.module.js';
+import { MediaModule } from './media/media.module.js';
+import { NotificationsModule } from './notifications/notifications.module.js';
+import { OperationsModule } from './operations/operations.module.js';
 
 @Module({
   imports: [
@@ -18,6 +21,9 @@ import { CommerceModule } from './commerce/commerce.module.js';
     SellersModule,
     CatalogModule,
     CommerceModule,
+    MediaModule,
+    NotificationsModule,
+    OperationsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],
