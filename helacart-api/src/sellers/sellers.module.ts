@@ -15,5 +15,6 @@ import { SellerApplicationsService } from './seller-applications.service.js';
     AdminSellerApplicationsController,
   ],
   providers: [SellerApplicationsService, AdminGuard],
+  exports: [AdminGuard],
 })
 export class SellersModule {}

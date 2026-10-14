@@ -30,6 +30,7 @@ model User {
   updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
   memberships   SellerMember[]
   sellerReviews SellerReview[]
+  productReviews ProductReview[]
 }
 
 model Seller {
@@ -44,6 +45,7 @@ model Seller {
   updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
   members       SellerMember[]
   reviews       SellerReview[]
+  products      Product[]
 
   @@index([status])
 }
@@ -78,4 +80,63 @@ model SellerMember {
 
   @@unique([sellerId, userId])
   @@index([userId])
+}
+
+model Category {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String    @unique
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  products  Product[]
+}
+
+enum ProductStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  HIDDEN
+}
+
+model Product {
+  id            String        @id @default(uuid()) @db.Uuid
+  sellerId      String        @db.Uuid
+  categoryId    String        @db.Uuid
+  title         String
+  slug          String
+  description   String
+  sku           String
+  priceLkrMinor Int
+  imageUrls     String[]      @default([])
+  status        ProductStatus @default(DRAFT)
+  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
+  seller        Seller        @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  category      Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  reviews       ProductReview[]
+
+  @@unique([sellerId, slug])
+  @@unique([sellerId, sku])
+  @@index([status, createdAt])
+  @@index([categoryId, status])
+}
+
+enum ProductReviewDecision {
+  APPROVED
+  REJECTED
+}
+
+model ProductReview {
+  id             String                @id @default(uuid()) @db.Uuid
+  productId      String                @db.Uuid
+  reviewerUserId String                @db.Uuid
+  decision       ProductReviewDecision
+  reason         String?
+  createdAt      DateTime              @default(now()) @db.Timestamptz(3)
+  product        Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
+  reviewer       User                  @relation(fields: [reviewerUserId], references: [id], onDelete: Restrict)
+
+  @@index([productId, createdAt])
+  @@index([reviewerUserId])
 }

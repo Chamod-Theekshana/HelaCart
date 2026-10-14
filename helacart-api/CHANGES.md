@@ -60,5 +60,20 @@ outside this milestone.
 - Removed test credentials copied into the previous README and documented safe
   upgrading without replacing a working `.env` or resetting a database.
 
-Suspension, reapplication, seller team management, product routes and a web UI remain
-future work.
+Suspension, reapplication, seller team management and a web UI remain future work.
+
+## Product catalog and seller authorization milestone
+
+- Added forward-only Category, Product and ProductReview schema/migration.
+- Added validated seller product drafts with per-seller slug/SKU uniqueness and LKR
+  minor-unit prices; HTTPS image URLs are references, not hosted uploads.
+- Scoped every seller product read to a verified membership; writes also require the
+  seller to be APPROVED. Managers and owners can both manage products.
+- Added draft submission, admin approve/reject with transactional review records,
+  approved-product hiding and automatic unpublishing when an approved product is edited.
+- Added public category and product reads that filter seller/category/product status.
+- Tested permissions and transitions through HTTP mocks; deployed all migrations and
+  exercised a complete product lifecycle against an isolated PGlite PostgreSQL instance.
+
+Stock, variants, hosting images, cart, checkout, payments and web/mobile UIs are not
+included in this milestone.

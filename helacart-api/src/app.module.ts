@@ -7,6 +7,7 @@ import { validateEnvironment } from './config/environment.js';
 import { HealthController } from './health/health.controller.js';
 import { PrismaModule } from './prisma/prisma.module.js';
 import { SellersModule } from './sellers/sellers.module.js';
+import { CatalogModule } from './catalog/catalog.module.js';
 
 @Module({
   imports: [
@@ -14,6 +15,7 @@ import { SellersModule } from './sellers/sellers.module.js';
     PrismaModule,
     AuthModule,
     SellersModule,
+    CatalogModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService],

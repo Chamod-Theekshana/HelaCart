@@ -15,6 +15,10 @@ Assessment date: 2026-10-14
 - Allowlisted Firebase UID administrator guard with verified email and revocation check.
 - Admin pending/approved/rejected lists and one-time approval/rejection with an audited
   reviewer decision.
+- Admin-created categories, seller-owned product drafts and HTTPS image references.
+- Seller membership and approved-status checks on product routes; changes to approved
+  products return to draft for review.
+- Product moderation with audited decisions and public approved-product filtering.
 - Automated unit, HTTP, type, lint, formatting and production-build checks.
 
 ## Remaining version-one work
@@ -23,8 +27,8 @@ Assessment date: 2026-10-14
 | --- | --- | --- |
 | Accounts | Firebase identity and `/auth/me` implemented | Client signup/login, verification UI, profile and address APIs |
 | Seller onboarding | Basic API application, approval/rejection and decision audit | Suspension, appeal/reapplication, documents and UI |
-| Authorization | Firebase identity, admin UID allowlist and owner-filtered application list | Durable admin management and seller ownership policies on future APIs |
-| Catalog | Not started | Categories, products, variants, media, moderation and search |
+| Authorization | Firebase identity, admin UID allowlist and seller-scoped product checks | Durable admin management and ownership checks on future seller/order APIs |
+| Catalog | Basic categories, drafts, HTTPS image URLs, moderation and title search | Hosted image uploads, variants, richer search and merchandising |
 | Inventory | Not started | Movements, reservations, concurrency and stock reconciliation |
 | Shopping | Not started | Cart, checkout totals, addresses and shipping calculations |
 | Orders | Not started | Parent order, seller orders, fulfillment, cancellation and returns |
@@ -36,8 +40,8 @@ Assessment date: 2026-10-14
 
 ## Completion estimate
 
-The repository is approximately **12% of a complete version-one marketplace**. About
-**88% remains**. This is a rough product-scope estimate, not a schedule or file count.
+The repository is approximately **15% of a complete version-one marketplace**. About
+**85% remains**. This is a rough product-scope estimate, not a schedule or file count.
 The foundation reduces future rework, but most customer, seller, admin, order and money
 flows have not been built.
 
@@ -48,13 +52,14 @@ one web storefront, manual payouts and a small seller group can be completed soo
 
 ## Recommended next milestone
 
-Build one complete seller publishing path from this approved application:
+Build inventory and a safe purchase path from the moderated catalog:
 
-1. Define suspension, appeal and reapplication policies.
-2. Enforce seller membership and approved status on every seller-scoped product route.
-3. Add category and product draft models.
-4. Add product media and moderation.
-5. Let an approved seller publish one moderated product.
+1. Choose durable image hosting and implement authenticated uploads.
+2. Add variants/SKUs and stock movement records.
+3. Reserve/release stock safely under simultaneous checkout attempts.
+4. Add cart, addresses and server-side price/delivery quotes.
+5. Add seller-specific orders and idempotent order placement.
 
-The next milestone is complete when an approved seller's authorized members can create
-or edit that seller's draft product, and no other account can do so.
+The next milestone is complete when a buyer's basket can be priced on the server and
+one stock unit cannot be sold twice. Payment integration follows approved provider
+and business decisions.

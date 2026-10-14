@@ -1,6 +1,6 @@
 # HelaCart API
 
-Backend foundation, Firebase identity and seller application review for the HelaCart
+Backend foundation, Firebase identity, seller applications and a moderated catalog for the HelaCart
 Sri Lankan goods marketplace. This is a working NestJS/Neon API milestone, **not a completed
 ecommerce API**.
 
@@ -9,7 +9,7 @@ ecommerce API**.
 - NestJS 12, TypeScript, native ESM (keep `"type": "module"`).
 - Prisma 7.10 with the PostgreSQL driver adapter.
 - Neon pooled runtime URL and separate direct CLI URL.
-- User, Seller, SellerMember and SellerReview schema and checked-in SQL migrations.
+- User, seller, category, product and review schema with checked-in SQL migrations.
 - Firebase Admin initialization through Application Default Credentials.
 - Firebase bearer-token verification and protected `GET /api/v1/auth/me`.
 - Neon user-profile creation/update from verified Firebase claims.
@@ -17,6 +17,8 @@ ecommerce API**.
 - Verified customers can apply as sellers and view their own applications.
 - Allowlisted, verified administrators can list pending applications, approve or reject
   once, with an immutable decision record and a required rejection reason.
+- Approved sellers can manage their own product drafts; admins can create categories
+  and approve/reject submitted products; shoppers can browse approved listings.
 - Environment validation, port 4000, configurable binding and CORS origins.
 - Global DTO validation and Helmet security headers.
 - Liveness and database readiness endpoints.
@@ -25,9 +27,9 @@ ecommerce API**.
 
 Firebase identity verification is implemented. Registration, login, password reset and
 verification-email screens belong in the future web and Flutter clients and use Firebase
-client SDKs. There are no catalog, seller team-management or payment endpoints yet.
-Seller ownership must be enforced on every future seller-scoped route; the current
-owner membership is used for listing one's own applications only.
+client SDKs. There is no seller team-management, inventory, checkout or payment API yet.
+Every current seller product route checks membership and the seller ID; writes also
+require approved seller status. Apply the same policy to future seller-scoped routes.
 
 ## Requirements
 
@@ -62,10 +64,10 @@ configured .env when upgrading.
 
 If upgrading your working `C:\HelaCart\helacart-api`, back it up first, then copy
 the changed source, migration and documentation into it without overwriting `.env`
-or your private Firebase JSON. From that existing directory run `npm ci`, add the
-`ADMIN_FIREBASE_UIDS` setting described below, then `npm run db:deploy`, `npm run check`
-and restart the API. This migration adds fields and a review table; it does not erase
-existing users, sellers or memberships. Do not run `migrate reset`.
+or your private Firebase JSON. From that existing directory run `npm ci`, then
+`npm run db:deploy`, `npm run db:status`, `npm run check` and restart the API. Keep
+the existing `ADMIN_FIREBASE_UIDS` value. The new migration adds catalog tables;
+it does not erase existing users, sellers or memberships. Do not run `migrate reset`.
 
 ### Configure Neon
 
@@ -118,6 +120,10 @@ Expected local addresses:
 | http://localhost:4000/api/v1/seller-applications | Submit a verified seller application |
 | http://localhost:4000/api/v1/seller-applications/me | List your own applications |
 | http://localhost:4000/api/v1/admin/seller-applications | Admin review queue |
+| http://localhost:4000/api/v1/categories | Public category list |
+| http://localhost:4000/api/v1/products | Public approved catalog with filters and cursor |
+| http://localhost:4000/api/v1/sellers/:sellerId/products | Seller's private catalog |
+| http://localhost:4000/api/v1/admin/products | Admin product review queue |
 
 Successful readiness response:
 
@@ -137,8 +143,9 @@ npm run db:status
 npm run db:studio
 ```
 
-On an existing database, users and sellers remain in place; the seller-review table
-starts empty. On a fresh install, the first authenticated request creates a profile.
+On an existing database, users, sellers and seller-review history remain in place;
+the new catalog tables start empty. On a fresh install, the first authenticated
+request creates a profile.
 
 ### Test Firebase authentication from PowerShell
 
@@ -226,6 +233,69 @@ and reviewer audit record are committed in one database transaction. Rejected se
 cannot resubmit the same application; appeal/reapplication is future work. This is an
 API workflow, not a seller or admin web UI.
 
+### Create and publish a product (PowerShell)
+
+First finish the seller approval above. Use a fresh `$sellerToken` for that seller and
+`$adminToken` for a verified UID in `ADMIN_FIREBASE_UIDS`. If your PowerShell session
+was restarted, repeat Firebase sign-in and define `$base`, `$sellerHeaders` and
+`$adminHeaders` as above. The admin creates a category (choose a different slug if
+`crafts` already exists). The approved seller's membership supplies `$sellerId`:
+
+```powershell
+$category = Invoke-RestMethod -Method Post `
+  -Uri "$base/admin/categories" -Headers $adminHeaders `
+  -ContentType "application/json" `
+  -Body (@{ name = "Crafts"; slug = "crafts" } | ConvertTo-Json)
+
+$approvedSellers = @(Invoke-RestMethod `
+  -Uri "$base/seller-applications/me" -Headers $sellerHeaders)
+$sellerId = ($approvedSellers | Where-Object status -eq 'APPROVED' |
+  Select-Object -First 1).id
+if (-not $sellerId) { throw "Approve the seller application first." }
+
+$product = Invoke-RestMethod -Method Post `
+  -Uri "$base/sellers/$sellerId/products" -Headers $sellerHeaders `
+  -ContentType "application/json" -Body (@{
+    title = "Handmade Basket"
+    slug = "handmade-basket"
+    description = "A handmade woven basket from Sri Lanka."
+    sku = "BASKET-001"
+    categoryId = $category.id
+    priceLkrMinor = 125000
+    imageUrls = @("https://example.com/basket.jpg")
+  } | ConvertTo-Json)
+$productId = $product.id
+if (-not $productId) { throw "Product creation did not return an ID." }
+
+Invoke-RestMethod -Method Post `
+  -Uri "$base/sellers/$sellerId/products/$productId/submit" `
+  -Headers $sellerHeaders
+Invoke-RestMethod -Uri "$base/admin/products?status=PENDING" -Headers $adminHeaders
+Invoke-RestMethod -Method Patch `
+  -Uri "$base/admin/products/$productId/approve" -Headers $adminHeaders
+Invoke-RestMethod -Uri "$base/products/$productId"
+```
+
+Replace the example image URL with an actual HTTPS image you are authorized to use.
+This release stores HTTPS URLs only; it does not upload or host images. A product needs
+at least one image before review. Price is an integer of LKR minor units, so 125000
+means LKR 1,250.00. A seller can list drafts with
+`GET /sellers/:sellerId/products?status=DRAFT` and can edit a product with
+`PATCH /sellers/:sellerId/products/:productId`. An edit to an approved product
+immediately makes it DRAFT and removes it from the public catalog until resubmitted
+and approved. `PATCH .../:productId/hide` hides an approved product. Admin rejection
+uses `PATCH /admin/products/:productId/reject` with JSON `{ "reason": "At least ten characters" }`.
+
+Public `GET /products?category=crafts&q=basket&limit=20` returns
+`{ "items": [...], "nextCursor": null }`. To fetch the next page, pass a non-null
+`nextCursor` as `cursor`. Public endpoints return only approved products belonging to
+approved sellers in active categories; seller SKU and review history stay private.
+Category and product slugs are lowercase with hyphens; product slugs and SKUs are
+unique per seller. Only allowlisted admins create categories and review products.
+Private seller and admin lists currently return at most 50 products per request;
+public browsing supports cursor pagination. Inventory, variants, real image storage
+and seller suspension are later milestones.
+
 ## Environment settings
 
 | Variable | Purpose |
@@ -290,6 +360,7 @@ or migrate reset.
 | src/health/ | Liveness and readiness routes |
 | src/auth/ | Firebase Admin setup, auth guard, profile sync and `/auth/me` |
 | src/sellers/ | Seller application, owner list, admin guard and review endpoints |
+| src/catalog/ | Categories, seller-scoped product workflows, admin moderation and public reads |
 | prisma/schema.prisma | Database models |
 | prisma/migrations/ | Versioned SQL migrations |
 | prisma.config.ts | CLI database configuration |
@@ -315,7 +386,7 @@ If IPv4 reaches Neon but IPv6 times out on your network, use
 Nest's watch process without changing your system-wide Node settings.
 
 **Tables already exist / migration conflict:** Existing HelaCart databases with the
-checked-in initial migrations can apply the new forward-only migration using
+checked-in earlier migrations can apply the new forward-only catalog migration using
 `npm run db:deploy`. If your schema predates the included migrations and Prisma reports
 a conflict, stop and plan a migration baseline. Do not reset useful data.
 
@@ -353,7 +424,7 @@ Do not commit .env, node_modules, dist, generated clients or database credential
 
 ## Before a production marketplace launch
 
-Next work: seller suspension/reapplication and membership management; seller-scoped
-authorization for product routes; catalog/inventory; orders, payments and payouts.
+Next work: seller suspension/reapplication and team management; hosted image uploads,
+variants and inventory; cart, orders, payments and payouts.
 Also add rate limits, authenticated API auditing, deployment monitoring and backup
 restore drills. These are future features, not implied by this starter's health checks.

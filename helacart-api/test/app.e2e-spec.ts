@@ -7,6 +7,7 @@ import { AppModule } from '../src/app.module.js';
 import { FirebaseAdminService } from '../src/auth/firebase-admin.service.js';
 import { configureApp } from '../src/configure-app.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
+import { Prisma } from '../src/generated/prisma/client.js';
 
 class ProbeDto {
   @IsString()
@@ -26,6 +27,9 @@ describe('API HTTP behavior (database mocked)', () => {
   let app: INestApplication<Server>;
   const sellerId = 'c68e7c7c-7ad8-40b8-b2a1-a76c9a7b931c';
   const userId = '5720886d-9210-461c-9e93-d0176b019eed';
+  const productId = 'fd72a1b7-a16e-43f8-bf99-6e84f0e7db57';
+  const categoryId = '44a84ea8-e101-467f-b6ec-3c54cf953348';
+  const otherSellerId = '0daa6d81-a735-436d-afad-1a999c283a9e';
   const owner = {
     uid: 'seller-uid',
     email: 'seller@example.com',
@@ -49,6 +53,28 @@ describe('API HTTP behavior (database mocked)', () => {
     status: 'PENDING',
     reviews: [],
   };
+  const productDraft = {
+    id: productId,
+    sellerId,
+    categoryId,
+    title: 'Handmade Basket',
+    slug: 'handmade-basket',
+    description: 'Handmade woven basket from Sri Lanka',
+    sku: 'BASKET-001',
+    priceLkrMinor: 125000,
+    imageUrls: ['https://images.example.com/basket.jpg'],
+    status: 'DRAFT',
+    reviews: [],
+  };
+  const productInput = {
+    title: productDraft.title,
+    slug: productDraft.slug,
+    description: productDraft.description,
+    sku: productDraft.sku,
+    categoryId,
+    priceLkrMinor: productDraft.priceLkrMinor,
+    imageUrls: productDraft.imageUrls,
+  };
   const database = {
     checkConnection: vi.fn(),
     user: { upsert: vi.fn() },
@@ -60,6 +86,17 @@ describe('API HTTP behavior (database mocked)', () => {
       findUniqueOrThrow: vi.fn(),
     },
     sellerReview: { create: vi.fn() },
+    sellerMember: { findUnique: vi.fn() },
+    category: { create: vi.fn(), findMany: vi.fn(), findUnique: vi.fn() },
+    product: {
+      create: vi.fn(),
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      findUnique: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
+      updateMany: vi.fn(),
+    },
+    productReview: { create: vi.fn() },
     $transaction: vi.fn(),
   };
   const firebase = { verifyIdToken: vi.fn() };
@@ -85,6 +122,10 @@ describe('API HTTP behavior (database mocked)', () => {
     database.user.upsert.mockResolvedValue({ id: userId });
     for (const mock of Object.values(database.seller)) mock.mockReset();
     database.sellerReview.create.mockReset();
+    database.sellerMember.findUnique.mockReset();
+    for (const mock of Object.values(database.category)) mock.mockReset();
+    for (const mock of Object.values(database.product)) mock.mockReset();
+    database.productReview.create.mockReset();
     database.$transaction.mockReset();
     database.$transaction.mockImplementation(
       (callback: (tx: typeof database) => unknown) => callback(database),
@@ -418,5 +459,439 @@ describe('API HTTP behavior (database mocked)', () => {
         reason: 'Missing contact information',
       },
     });
+  });
+
+  it('allows only a verified admin to add a category', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    await request(app.getHttpServer())
+      .post('/api/v1/admin/categories')
+      .set('Authorization', 'Bearer seller-token')
+      .send({ name: 'Home', slug: 'home' })
+      .expect(403);
+    firebase.verifyIdToken.mockResolvedValue(administrator);
+    await request(app.getHttpServer())
+      .post('/api/v1/admin/categories')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ name: 'Home', slug: 'Invalid Slug' })
+      .expect(400);
+    database.category.create.mockResolvedValue({
+      id: categoryId,
+      name: 'Home',
+      slug: 'home',
+    });
+    await request(app.getHttpServer())
+      .post('/api/v1/admin/categories')
+      .set('Authorization', 'Bearer admin-token')
+      .send({ name: '  Home  ', slug: 'home' })
+      .expect(201)
+      .expect({ id: categoryId, name: 'Home', slug: 'home' });
+    expect(database.category.create).toHaveBeenCalledWith({
+      data: { name: 'Home', slug: 'home' },
+    });
+    expect(firebase.verifyIdToken).toHaveBeenCalledWith('admin-token', true);
+  });
+
+  it('filters public products by approved seller, active category and status', async () => {
+    database.product.findMany.mockResolvedValue([
+      { id: productId, title: productDraft.title },
+    ]);
+    await request(app.getHttpServer())
+      .get('/api/v1/products?category=home&q=basket&limit=10')
+      .expect(200)
+      .expect({
+        items: [{ id: productId, title: productDraft.title }],
+        nextCursor: null,
+      });
+    expect(database.product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          status: 'APPROVED',
+          seller: { status: 'APPROVED' },
+          category: { isActive: true, slug: 'home' },
+          title: { contains: 'basket', mode: 'insensitive' },
+        },
+        take: 11,
+      }),
+    );
+    await request(app.getHttpServer())
+      .get('/api/v1/products?limit=999')
+      .expect(400);
+    await request(app.getHttpServer())
+      .get('/api/v1/products?cursor=bad')
+      .expect(400);
+    database.product.findFirst.mockResolvedValue(null);
+    await request(app.getHttpServer())
+      .get(`/api/v1/products/${productId}`)
+      .expect(404);
+    expect(database.product.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: {
+          id: productId,
+          status: 'APPROVED',
+          seller: { status: 'APPROVED' },
+          category: { isActive: true },
+        },
+      }),
+    );
+  });
+
+  it('requires verified membership and approved seller status to write products', async () => {
+    await request(app.getHttpServer())
+      .post(`/api/v1/sellers/${sellerId}/products`)
+      .send(productInput)
+      .expect(401);
+    firebase.verifyIdToken.mockResolvedValue({
+      ...owner,
+      email_verified: false,
+    });
+    await request(app.getHttpServer())
+      .post(`/api/v1/sellers/${sellerId}/products`)
+      .set('Authorization', 'Bearer seller-token')
+      .send(productInput)
+      .expect(403);
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    database.sellerMember.findUnique.mockResolvedValue(null);
+    await request(app.getHttpServer())
+      .post(`/api/v1/sellers/${sellerId}/products`)
+      .set('Authorization', 'Bearer seller-token')
+      .send(productInput)
+      .expect(403);
+    expect(database.sellerMember.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { sellerId_userId: { sellerId, userId } },
+      }),
+    );
+    database.sellerMember.findUnique.mockResolvedValue({
+      role: 'OWNER',
+      seller: { status: 'PENDING' },
+    });
+    await request(app.getHttpServer())
+      .post(`/api/v1/sellers/${sellerId}/products`)
+      .set('Authorization', 'Bearer seller-token')
+      .send(productInput)
+      .expect(403);
+    expect(database.product.create).not.toHaveBeenCalled();
+  });
+
+  it('validates a draft and creates it for the authorized seller only', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    database.sellerMember.findUnique.mockResolvedValue({
+      role: 'OWNER',
+      seller: { status: 'APPROVED' },
+    });
+    await request(app.getHttpServer())
+      .post(`/api/v1/sellers/${sellerId}/products`)
+      .set('Authorization', 'Bearer seller-token')
+      .send({
+        ...productInput,
+        imageUrls: ['http://insecure.example/a.jpg'],
+        status: 'APPROVED',
+      })
+      .expect(400);
+    database.category.findUnique.mockResolvedValue({ isActive: true });
+    database.product.create.mockResolvedValue(productDraft);
+    await request(app.getHttpServer())
+      .post(`/api/v1/sellers/${sellerId}/products`)
+      .set('Authorization', 'Bearer seller-token')
+      .send({ ...productInput, title: '  Handmade Basket  ' })
+      .expect(201)
+      .expect(productDraft);
+    expect(database.product.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sellerId,
+          title: 'Handmade Basket',
+          status: 'DRAFT',
+          priceLkrMinor: 125000,
+        }),
+      }),
+    );
+  });
+
+  it('scopes private list and detail queries to the member seller', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    database.sellerMember.findUnique.mockResolvedValue({
+      role: 'MANAGER',
+      seller: { status: 'APPROVED' },
+    });
+    database.product.findMany.mockResolvedValue([productDraft]);
+    await request(app.getHttpServer())
+      .get(`/api/v1/sellers/${sellerId}/products?status=DRAFT`)
+      .set('Authorization', 'Bearer seller-token')
+      .expect(200)
+      .expect([productDraft]);
+    expect(database.product.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { sellerId, status: 'DRAFT' } }),
+    );
+    database.product.findFirst.mockResolvedValue(productDraft);
+    await request(app.getHttpServer())
+      .get(`/api/v1/sellers/${sellerId}/products/${productId}`)
+      .set('Authorization', 'Bearer seller-token')
+      .expect(200);
+    expect(database.product.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: productId, sellerId } }),
+    );
+    database.sellerMember.findUnique.mockResolvedValue(null);
+    await request(app.getHttpServer())
+      .get(`/api/v1/sellers/${otherSellerId}/products/${productId}`)
+      .set('Authorization', 'Bearer seller-token')
+      .expect(403);
+  });
+
+  it('removes an approved product from public view when a member edits it', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    database.sellerMember.findUnique.mockResolvedValue({
+      role: 'OWNER',
+      seller: { status: 'APPROVED' },
+    });
+    database.product.updateMany.mockResolvedValue({ count: 1 });
+    database.product.findUniqueOrThrow.mockResolvedValue(productDraft);
+    await request(app.getHttpServer())
+      .patch(`/api/v1/sellers/${sellerId}/products/${productId}`)
+      .set('Authorization', 'Bearer seller-token')
+      .send({ title: 'New Basket Title' })
+      .expect(200)
+      .expect(productDraft);
+    expect(database.product.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: productId,
+          sellerId,
+          seller: { status: 'APPROVED' },
+        }),
+        data: { title: 'New Basket Title', status: 'DRAFT' },
+      }),
+    );
+    database.product.updateMany.mockResolvedValue({ count: 0 });
+    database.product.findFirst.mockResolvedValue({ id: productId });
+    await request(app.getHttpServer())
+      .patch(`/api/v1/sellers/${sellerId}/products/${productId}`)
+      .set('Authorization', 'Bearer seller-token')
+      .send({ title: 'New Basket Title' })
+      .expect(409);
+  });
+
+  it('submits an image-bearing draft once and hides an approved product', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    database.sellerMember.findUnique.mockResolvedValue({
+      role: 'OWNER',
+      seller: { status: 'APPROVED' },
+    });
+    database.product.findFirst.mockResolvedValueOnce({
+      id: productId,
+      imageUrls: [],
+    });
+    await request(app.getHttpServer())
+      .post(`/api/v1/sellers/${sellerId}/products/${productId}/submit`)
+      .set('Authorization', 'Bearer seller-token')
+      .expect(400);
+    database.product.findFirst.mockResolvedValue({
+      id: productId,
+      imageUrls: productDraft.imageUrls,
+    });
+    database.product.updateMany.mockResolvedValue({ count: 1 });
+    database.product.findUniqueOrThrow.mockResolvedValue({
+      ...productDraft,
+      status: 'PENDING',
+    });
+    await request(app.getHttpServer())
+      .post(`/api/v1/sellers/${sellerId}/products/${productId}/submit`)
+      .set('Authorization', 'Bearer seller-token')
+      .expect(201);
+    expect(database.product.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          id: productId,
+          sellerId,
+          category: { isActive: true },
+          status: { in: ['DRAFT', 'REJECTED'] },
+        }),
+        data: { status: 'PENDING' },
+      }),
+    );
+    database.product.findUniqueOrThrow.mockResolvedValue({
+      ...productDraft,
+      status: 'HIDDEN',
+    });
+    await request(app.getHttpServer())
+      .patch(`/api/v1/sellers/${sellerId}/products/${productId}/hide`)
+      .set('Authorization', 'Bearer seller-token')
+      .expect(200);
+    expect(database.product.updateMany).toHaveBeenLastCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ status: 'APPROVED' }),
+        data: { status: 'HIDDEN' },
+      }),
+    );
+  });
+
+  it('permits only an admin to approve a pending product with an audit record', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/products/${productId}/approve`)
+      .set('Authorization', 'Bearer seller-token')
+      .expect(403);
+    firebase.verifyIdToken.mockResolvedValue(administrator);
+    database.product.findUnique.mockResolvedValue({
+      status: 'PENDING',
+      imageUrls: productDraft.imageUrls,
+    });
+    database.product.updateMany.mockResolvedValue({ count: 1 });
+    database.productReview.create.mockResolvedValue({ id: 'review-id' });
+    database.product.findUniqueOrThrow.mockResolvedValue({
+      ...productDraft,
+      status: 'APPROVED',
+    });
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/products/${productId}/approve`)
+      .set('Authorization', 'Bearer admin-token')
+      .expect(200);
+    expect(database.product.updateMany).toHaveBeenCalledWith({
+      where: {
+        id: productId,
+        status: 'PENDING',
+        seller: { status: 'APPROVED' },
+        category: { isActive: true },
+      },
+      data: { status: 'APPROVED' },
+    });
+    expect(database.productReview.create).toHaveBeenCalledWith({
+      data: {
+        productId,
+        reviewerUserId: userId,
+        decision: 'APPROVED',
+        reason: null,
+      },
+    });
+  });
+
+  it('requires a reason for rejection and disallows repeated reviews', async () => {
+    firebase.verifyIdToken.mockResolvedValue(administrator);
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/products/${productId}/reject`)
+      .set('Authorization', 'Bearer admin-token')
+      .send({ reason: 'short' })
+      .expect(400);
+    database.product.findUnique.mockResolvedValue({
+      status: 'PENDING',
+      imageUrls: productDraft.imageUrls,
+    });
+    database.product.updateMany.mockResolvedValue({ count: 1 });
+    database.product.findUniqueOrThrow.mockResolvedValue({
+      ...productDraft,
+      status: 'REJECTED',
+    });
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/products/${productId}/reject`)
+      .set('Authorization', 'Bearer admin-token')
+      .send({ reason: 'Product image does not match listing' })
+      .expect(200);
+    expect(database.productReview.create).toHaveBeenCalledWith({
+      data: {
+        productId,
+        reviewerUserId: userId,
+        decision: 'REJECTED',
+        reason: 'Product image does not match listing',
+      },
+    });
+    database.product.findUnique.mockResolvedValue({
+      status: 'APPROVED',
+      imageUrls: productDraft.imageUrls,
+    });
+    database.productReview.create.mockClear();
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/products/${productId}/approve`)
+      .set('Authorization', 'Bearer admin-token')
+      .expect(409);
+    expect(database.productReview.create).not.toHaveBeenCalled();
+  });
+
+  it('rejects invalid catalog input and inactive categories', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    database.sellerMember.findUnique.mockResolvedValue({
+      role: 'OWNER',
+      seller: { status: 'APPROVED' },
+    });
+    await request(app.getHttpServer())
+      .post(`/api/v1/sellers/${sellerId}/products`)
+      .set('Authorization', 'Bearer seller-token')
+      .send({ ...productInput, imageUrls: ['http://example.com/image.jpg'] })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post(`/api/v1/sellers/${sellerId}/products`)
+      .set('Authorization', 'Bearer seller-token')
+      .send({ ...productInput, priceLkrMinor: -50 })
+      .expect(400);
+    database.category.findUnique.mockResolvedValue({ isActive: false });
+    await request(app.getHttpServer())
+      .post(`/api/v1/sellers/${sellerId}/products`)
+      .set('Authorization', 'Bearer seller-token')
+      .send(productInput)
+      .expect(400);
+    expect(database.product.create).not.toHaveBeenCalled();
+  });
+
+  it('returns a conflict for a seller-duplicate product slug or SKU', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    database.sellerMember.findUnique.mockResolvedValue({
+      role: 'OWNER',
+      seller: { status: 'APPROVED' },
+    });
+    database.category.findUnique.mockResolvedValue({ isActive: true });
+    database.product.create.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Unique constraint', {
+        code: 'P2002',
+        clientVersion: '7.10.0',
+      }),
+    );
+    await request(app.getHttpServer())
+      .post(`/api/v1/sellers/${sellerId}/products`)
+      .set('Authorization', 'Bearer seller-token')
+      .send(productInput)
+      .expect(409);
+  });
+
+  it('does not audit approval when the seller is no longer approved', async () => {
+    firebase.verifyIdToken.mockResolvedValue(administrator);
+    database.product.findUnique.mockResolvedValue({
+      status: 'PENDING',
+      imageUrls: productDraft.imageUrls,
+    });
+    database.product.updateMany.mockResolvedValue({ count: 0 });
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/products/${productId}/approve`)
+      .set('Authorization', 'Bearer admin-token')
+      .expect(409);
+    expect(database.productReview.create).not.toHaveBeenCalled();
+  });
+
+  it('paginates public catalog results and protects the admin queue', async () => {
+    database.product.findMany.mockResolvedValue(
+      Array.from({ length: 21 }, (_, i) => ({
+        id: `product-${i}`,
+        title: 'Basket',
+      })),
+    );
+    const page = await request(app.getHttpServer())
+      .get('/api/v1/products?limit=20')
+      .expect(200);
+    expect(page.body.items).toHaveLength(20);
+    expect(page.body.nextCursor).toBe('product-19');
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/products')
+      .set('Authorization', 'Bearer seller-token')
+      .expect(403);
+    firebase.verifyIdToken.mockResolvedValue(administrator);
+    database.product.findMany.mockResolvedValue([productDraft]);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/products?status=PENDING')
+      .set('Authorization', 'Bearer admin-token')
+      .expect(200)
+      .expect([productDraft]);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/products?status=UNLISTED')
+      .set('Authorization', 'Bearer admin-token')
+      .expect(400);
   });
 });
