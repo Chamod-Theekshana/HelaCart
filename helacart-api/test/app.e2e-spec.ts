@@ -82,6 +82,7 @@ describe('API HTTP behavior (database mocked)', () => {
       create: vi.fn(),
       findMany: vi.fn(),
       updateMany: vi.fn(),
+      update: vi.fn(),
       findUnique: vi.fn(),
       findUniqueOrThrow: vi.fn(),
     },
@@ -97,6 +98,47 @@ describe('API HTTP behavior (database mocked)', () => {
       updateMany: vi.fn(),
     },
     productReview: { create: vi.fn() },
+    productVariant: {
+      create: vi.fn(),
+      update: vi.fn(),
+      updateMany: vi.fn(),
+      findFirst: vi.fn(),
+    },
+    inventoryMovement: { create: vi.fn(), findMany: vi.fn() },
+    inventoryReservation: {
+      findUnique: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      updateMany: vi.fn(),
+    },
+    buyerAddress: {
+      create: vi.fn(),
+      count: vi.fn(),
+      findMany: vi.fn(),
+      updateMany: vi.fn(),
+    },
+    cartItem: {
+      findMany: vi.fn(),
+      findUnique: vi.fn(),
+      count: vi.fn(),
+      upsert: vi.fn(),
+      deleteMany: vi.fn(),
+    },
+    order: {
+      findUnique: vi.fn(),
+      findMany: vi.fn(),
+      findFirst: vi.fn(),
+      create: vi.fn(),
+    },
+    sellerOrder: {
+      findMany: vi.fn(),
+      updateMany: vi.fn(),
+      findFirst: vi.fn(),
+      findUniqueOrThrow: vi.fn(),
+    },
+    sellerOrderEvent: { create: vi.fn() },
+    $queryRaw: vi.fn(),
     $transaction: vi.fn(),
   };
   const firebase = { verifyIdToken: vi.fn() };
@@ -126,6 +168,18 @@ describe('API HTTP behavior (database mocked)', () => {
     for (const mock of Object.values(database.category)) mock.mockReset();
     for (const mock of Object.values(database.product)) mock.mockReset();
     database.productReview.create.mockReset();
+    for (const mock of Object.values(database.productVariant)) mock.mockReset();
+    for (const mock of Object.values(database.inventoryMovement))
+      mock.mockReset();
+    for (const mock of Object.values(database.inventoryReservation))
+      mock.mockReset();
+    for (const mock of Object.values(database.buyerAddress)) mock.mockReset();
+    for (const mock of Object.values(database.cartItem)) mock.mockReset();
+    for (const mock of Object.values(database.order)) mock.mockReset();
+    for (const mock of Object.values(database.sellerOrder)) mock.mockReset();
+    for (const mock of Object.values(database.sellerOrderEvent))
+      mock.mockReset();
+    database.$queryRaw.mockReset();
     database.$transaction.mockReset();
     database.$transaction.mockImplementation(
       (callback: (tx: typeof database) => unknown) => callback(database),
@@ -499,7 +553,7 @@ describe('API HTTP behavior (database mocked)', () => {
       .get('/api/v1/products?category=home&q=basket&limit=10')
       .expect(200)
       .expect({
-        items: [{ id: productId, title: productDraft.title }],
+        items: [{ id: productId, title: productDraft.title, variants: [] }],
         nextCursor: null,
       });
     expect(database.product.findMany).toHaveBeenCalledWith(
@@ -893,5 +947,242 @@ describe('API HTTP behavior (database mocked)', () => {
       .get('/api/v1/admin/products?status=UNLISTED')
       .set('Authorization', 'Bearer admin-token')
       .expect(400);
+  });
+
+  it('requires seller membership and validates variant options before changing a listing', async () => {
+    const path = `/api/v1/sellers/${sellerId}/products/${productId}/variants`;
+    const input = {
+      position: 1,
+      sku: 'BASKET-LARGE',
+      priceLkrMinor: 155000,
+      optionValues: { size: 'Large' },
+    };
+    await request(app.getHttpServer()).post(path).send(input).expect(401);
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    database.sellerMember.findUnique.mockResolvedValue(null);
+    await request(app.getHttpServer())
+      .post(path)
+      .set('Authorization', 'Bearer seller-token')
+      .send(input)
+      .expect(403);
+    database.sellerMember.findUnique.mockResolvedValue({
+      role: 'OWNER',
+      seller: { status: 'APPROVED' },
+    });
+    await request(app.getHttpServer())
+      .post(path)
+      .set('Authorization', 'Bearer seller-token')
+      .send({ ...input, optionValues: { size: ['Large'] } })
+      .expect(400);
+    expect(database.product.updateMany).not.toHaveBeenCalled();
+    database.product.updateMany.mockResolvedValue({ count: 1 });
+    database.productVariant.create.mockResolvedValue({
+      id: 'new-variant',
+      ...input,
+    });
+    await request(app.getHttpServer())
+      .post(path)
+      .set('Authorization', 'Bearer seller-token')
+      .send(input)
+      .expect(201);
+    expect(database.product.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { status: 'DRAFT' } }),
+    );
+    expect(database.productVariant.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sellerId,
+          productId,
+          sku: 'BASKET-LARGE',
+        }),
+      }),
+    );
+  });
+
+  it('atomically audits a seller stock change and rejects adjustments below reserved stock', async () => {
+    const variantId = 'ba423ed7-8e75-43c7-9712-1073d78e67ab';
+    const path = `/api/v1/sellers/${sellerId}/products/${productId}/variants/${variantId}/stock-adjustments`;
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    database.sellerMember.findUnique.mockResolvedValue({
+      role: 'OWNER',
+      seller: { status: 'APPROVED' },
+    });
+    await request(app.getHttpServer())
+      .post(path)
+      .set('Authorization', 'Bearer seller-token')
+      .send({ delta: 0, reason: 'Counted stock' })
+      .expect(400);
+    database.$queryRaw.mockResolvedValueOnce([
+      { id: variantId, onHand: 10, reserved: 3 },
+    ]);
+    await request(app.getHttpServer())
+      .post(path)
+      .set('Authorization', 'Bearer seller-token')
+      .send({ delta: 10, reason: 'Opening stock count' })
+      .expect(201)
+      .expect({ id: variantId, onHand: 10, reserved: 3, availableQuantity: 7 });
+    expect(database.inventoryMovement.create).toHaveBeenCalledWith({
+      data: {
+        variantId,
+        actorUserId: userId,
+        delta: 10,
+        reason: 'Opening stock count',
+      },
+    });
+    database.$queryRaw.mockResolvedValueOnce([]);
+    database.productVariant.findFirst.mockResolvedValue({ id: variantId });
+    await request(app.getHttpServer())
+      .post(path)
+      .set('Authorization', 'Bearer seller-token')
+      .send({ delta: -9, reason: 'Stock correction' })
+      .expect(409);
+    expect(database.inventoryMovement.create).toHaveBeenCalledTimes(1);
+    database.sellerMember.findUnique.mockResolvedValue(null);
+    await request(app.getHttpServer())
+      .post(path)
+      .set('Authorization', 'Bearer seller-token')
+      .send({ delta: 1, reason: 'Stock correction' })
+      .expect(403);
+  });
+
+  it('updates the legacy product SKU and default variant SKU together', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    database.sellerMember.findUnique.mockResolvedValue({
+      role: 'OWNER',
+      seller: { status: 'APPROVED' },
+    });
+    database.product.updateMany.mockResolvedValue({ count: 1 });
+    database.productVariant.updateMany.mockResolvedValue({ count: 1 });
+    database.product.findUniqueOrThrow.mockResolvedValue({
+      ...productDraft,
+      sku: 'BASKET-NEW',
+    });
+    await request(app.getHttpServer())
+      .patch(`/api/v1/sellers/${sellerId}/products/${productId}`)
+      .set('Authorization', 'Bearer seller-token')
+      .send({ sku: 'BASKET-NEW' })
+      .expect(200);
+    expect(database.$transaction).toHaveBeenCalledOnce();
+    expect(database.productVariant.updateMany).toHaveBeenCalledWith({
+      where: { productId, sellerId, position: 0 },
+      data: { sku: 'BASKET-NEW', priceLkrMinor: undefined },
+    });
+  });
+
+  it('returns available quantity without raw stock counts in the public catalog', async () => {
+    database.product.findMany.mockResolvedValue([
+      {
+        id: productId,
+        variants: [
+          {
+            id: 'variant-id',
+            position: 0,
+            sku: 'BASKET-001',
+            optionValues: {},
+            priceLkrMinor: 125000,
+            onHand: 7,
+            reserved: 2,
+          },
+        ],
+      },
+    ]);
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/products')
+      .expect(200);
+    expect(response.body.items[0].variants[0]).toMatchObject({
+      availableQuantity: 5,
+    });
+    expect(response.body.items[0].variants[0]).not.toHaveProperty('onHand');
+    expect(response.body.items[0].variants[0]).not.toHaveProperty('reserved');
+  });
+
+  it('requires a verified buyer and validates address, cart and checkout input', async () => {
+    await request(app.getHttpServer()).get('/api/v1/me/cart').expect(401);
+    firebase.verifyIdToken.mockResolvedValue({
+      ...owner,
+      email_verified: false,
+    });
+    await request(app.getHttpServer())
+      .get('/api/v1/me/cart')
+      .set('Authorization', 'Bearer token')
+      .expect(403);
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    await request(app.getHttpServer())
+      .post('/api/v1/me/addresses')
+      .set('Authorization', 'Bearer token')
+      .send({
+        recipient: 'A',
+        phone: 'bad',
+        line1: 'x',
+        city: 'Colombo',
+        district: 'Colombo',
+        postalCode: '00100',
+      })
+      .expect(400);
+    await request(app.getHttpServer())
+      .put(`/api/v1/me/cart/items/${productId}`)
+      .set('Authorization', 'Bearer token')
+      .send({ quantity: 0 })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post('/api/v1/me/orders/checkout')
+      .set('Authorization', 'Bearer token')
+      .send({ addressId: categoryId, checkoutKey: 'same-key' })
+      .expect(400);
+  });
+
+  it('forbids cross-seller delivery setting changes and accepts only valid fees', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    database.sellerMember.findUnique.mockResolvedValue(null);
+    const path = `/api/v1/sellers/${otherSellerId}/delivery-settings`;
+    await request(app.getHttpServer())
+      .patch(path)
+      .set('Authorization', 'Bearer token')
+      .send({ shippingFeeLkrMinor: 500 })
+      .expect(403);
+    expect(database.seller.update).not.toHaveBeenCalled();
+    database.sellerMember.findUnique.mockResolvedValue({
+      role: 'OWNER',
+      seller: { status: 'APPROVED' },
+    });
+    await request(app.getHttpServer())
+      .patch(path)
+      .set('Authorization', 'Bearer token')
+      .send({ shippingFeeLkrMinor: -1 })
+      .expect(400);
+    database.seller.update.mockResolvedValue({
+      id: otherSellerId,
+      shippingFeeLkrMinor: 500,
+    });
+    await request(app.getHttpServer())
+      .patch(path)
+      .set('Authorization', 'Bearer token')
+      .send({ shippingFeeLkrMinor: 500 })
+      .expect(200);
+    expect(database.sellerMember.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { sellerId_userId: { sellerId: otherSellerId, userId } },
+      }),
+    );
+  });
+
+  it('restricts order queues to sellers and verified administrators', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    database.sellerMember.findUnique.mockResolvedValue(null);
+    await request(app.getHttpServer())
+      .get(`/api/v1/sellers/${sellerId}/orders`)
+      .set('Authorization', 'Bearer token')
+      .expect(403);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/orders')
+      .set('Authorization', 'Bearer token')
+      .expect(403);
+    firebase.verifyIdToken.mockResolvedValue(administrator);
+    database.order.findMany.mockResolvedValue([]);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/orders')
+      .set('Authorization', 'Bearer token')
+      .expect(200)
+      .expect([]);
   });
 });

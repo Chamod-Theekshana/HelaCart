@@ -8,6 +8,10 @@ import {
   SellerCatalogController,
 } from './catalog.controller.js';
 import { CatalogService } from './catalog.service.js';
+import { InventoryController } from './inventory.controller.js';
+import { InventoryService } from './inventory.service.js';
+import { ReservationService } from './reservation.service.js';
+import { ReservationExpiryService } from './reservation-expiry.service.js';
 
 @Module({
   imports: [AuthModule, PrismaModule, SellersModule],
@@ -15,7 +19,14 @@ import { CatalogService } from './catalog.service.js';
     PublicCatalogController,
     SellerCatalogController,
     AdminCatalogController,
+    InventoryController,
   ],
-  providers: [CatalogService],
+  providers: [
+    CatalogService,
+    InventoryService,
+    ReservationService,
+    ReservationExpiryService,
+  ],
+  exports: [CatalogService, ReservationService],
 })
 export class CatalogModule {}

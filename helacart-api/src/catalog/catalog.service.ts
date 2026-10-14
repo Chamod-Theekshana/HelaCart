@@ -31,6 +31,18 @@ const publicProduct = {
   updatedAt: true,
   category: { select: { id: true, name: true, slug: true } },
   seller: { select: { id: true, name: true, slug: true } },
+  variants: {
+    orderBy: { position: 'asc' as const },
+    select: {
+      id: true,
+      position: true,
+      sku: true,
+      optionValues: true,
+      priceLkrMinor: true,
+      onHand: true,
+      reserved: true,
+    },
+  },
 } as const;
 
 const privateProduct = {
@@ -91,7 +103,7 @@ export class CatalogService {
       select: publicProduct,
     });
     return {
-      items: rows.slice(0, limit),
+      items: rows.slice(0, limit).map((row) => this.withAvailability(row)),
       nextCursor: rows.length > limit ? rows[limit - 1].id : null,
     };
   }
@@ -107,7 +119,7 @@ export class CatalogService {
       select: publicProduct,
     });
     if (!product) throw new NotFoundException('Product not found');
-    return product;
+    return this.withAvailability(product);
   }
 
   async createProduct(
@@ -119,7 +131,19 @@ export class CatalogService {
     await this.requireCategory(dto.categoryId);
     try {
       return await this.prisma.product.create({
-        data: { ...dto, sellerId, status: ProductStatus.DRAFT },
+        data: {
+          ...dto,
+          sellerId,
+          status: ProductStatus.DRAFT,
+          variants: {
+            create: {
+              sellerId,
+              position: 0,
+              sku: dto.sku,
+              priceLkrMinor: dto.priceLkrMinor,
+            },
+          },
+        },
         select: privateProduct,
       });
     } catch (error) {
@@ -169,25 +193,40 @@ export class CatalogService {
       throw new BadRequestException('Supply at least one product field');
     if (dto.categoryId) await this.requireCategory(dto.categoryId);
     try {
-      const updated = await this.prisma.product.updateMany({
-        where: {
-          id: productId,
-          sellerId,
-          seller: { status: SellerStatus.APPROVED },
-          status: {
-            in: [
-              ProductStatus.DRAFT,
-              ProductStatus.REJECTED,
-              ProductStatus.APPROVED,
-              ProductStatus.HIDDEN,
-            ],
+      const update = async (tx: Prisma.TransactionClient) => {
+        const updated = await tx.product.updateMany({
+          where: {
+            id: productId,
+            sellerId,
+            seller: { status: SellerStatus.APPROVED },
+            status: {
+              in: [
+                ProductStatus.DRAFT,
+                ProductStatus.REJECTED,
+                ProductStatus.APPROVED,
+                ProductStatus.HIDDEN,
+              ],
+            },
           },
-        },
-        // Editing an approved product immediately removes it from the public catalog.
-        data: { ...dto, status: ProductStatus.DRAFT },
-      });
-      if (updated.count !== 1)
-        await this.productTransitionError(sellerId, productId);
+          // Editing an approved product immediately removes it from the public catalog.
+          data: { ...dto, status: ProductStatus.DRAFT },
+        });
+        if (updated.count !== 1)
+          await this.productTransitionError(sellerId, productId);
+        if (dto.sku !== undefined || dto.priceLkrMinor !== undefined) {
+          const variant = await tx.productVariant.updateMany({
+            where: { productId, sellerId, position: 0 },
+            data: { sku: dto.sku, priceLkrMinor: dto.priceLkrMinor },
+          });
+          if (variant.count !== 1)
+            throw new ConflictException(
+              'Default variant missing; apply the inventory migration',
+            );
+        }
+      };
+      if (dto.sku !== undefined || dto.priceLkrMinor !== undefined)
+        await this.prisma.$transaction(update);
+      else await update(this.prisma);
     } catch (error) {
       this.throwUniqueConflict(
         error,
@@ -321,7 +360,7 @@ export class CatalogService {
     });
   }
 
-  private async requireSellerMember(
+  async requireSellerMember(
     sellerId: string,
     identity: DecodedIdToken,
     requireApproved: boolean,
@@ -340,6 +379,31 @@ export class CatalogService {
       throw new ForbiddenException(
         'Seller must be approved to manage products',
       );
+    return profile;
+  }
+
+  private withAvailability<
+    T extends {
+      variants?: Array<{
+        id: string;
+        position: number;
+        sku: string;
+        optionValues: unknown;
+        priceLkrMinor: number;
+        onHand: number;
+        reserved: number;
+      }>;
+    },
+  >(product: T) {
+    return {
+      ...product,
+      variants: (product.variants ?? []).map(
+        ({ onHand, reserved, ...variant }) => ({
+          ...variant,
+          availableQuantity: onHand - reserved,
+        }),
+      ),
+    };
   }
 
   private async requireCategory(categoryId: string) {

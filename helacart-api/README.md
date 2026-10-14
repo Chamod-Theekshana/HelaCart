@@ -1,6 +1,6 @@
 # HelaCart API
 
-Backend foundation, Firebase identity, seller applications and a moderated catalog for the HelaCart
+Backend foundation, Firebase identity, seller applications, moderated catalog, inventory and COD orders for the HelaCart
 Sri Lankan goods marketplace. This is a working NestJS/Neon API milestone, **not a completed
 ecommerce API**.
 
@@ -9,7 +9,7 @@ ecommerce API**.
 - NestJS 12, TypeScript, native ESM (keep `"type": "module"`).
 - Prisma 7.10 with the PostgreSQL driver adapter.
 - Neon pooled runtime URL and separate direct CLI URL.
-- User, seller, category, product and review schema with checked-in SQL migrations.
+- User, seller, category, product, variant, stock movement and reservation schema with checked-in SQL migrations.
 - Firebase Admin initialization through Application Default Credentials.
 - Firebase bearer-token verification and protected `GET /api/v1/auth/me`.
 - Neon user-profile creation/update from verified Firebase claims.
@@ -19,6 +19,11 @@ ecommerce API**.
   once, with an immutable decision record and a required rejection reason.
 - Approved sellers can manage their own product drafts; admins can create categories
   and approve/reject submitted products; shoppers can browse approved listings.
+- Existing products gain a default variant with their original SKU and price; approved sellers
+  can add options and adjust stock. Public listings show available quantity per variant.
+- Internal reservation operations for future payment methods have a periodic expiry worker.
+- Buyer addresses and carts, seller configured delivery fee, atomic multi-seller COD
+  checkout, order snapshots, cancellations and seller fulfillment status history.
 - Environment validation, port 4000, configurable binding and CORS origins.
 - Global DTO validation and Helmet security headers.
 - Liveness and database readiness endpoints.
@@ -27,7 +32,7 @@ ecommerce API**.
 
 Firebase identity verification is implemented. Registration, login, password reset and
 verification-email screens belong in the future web and Flutter clients and use Firebase
-client SDKs. There is no seller team-management, inventory, checkout or payment API yet.
+client SDKs. There is no seller team-management or online payment gateway yet.
 Every current seller product route checks membership and the seller ID; writes also
 require approved seller status. Apply the same policy to future seller-scoped routes.
 
@@ -66,7 +71,8 @@ If upgrading your working `C:\HelaCart\helacart-api`, back it up first, then cop
 the changed source, migration and documentation into it without overwriting `.env`
 or your private Firebase JSON. From that existing directory run `npm ci`, then
 `npm run db:deploy`, `npm run db:status`, `npm run check` and restart the API. Keep
-the existing `ADMIN_FIREBASE_UIDS` value. The new migration adds catalog tables;
+the existing `ADMIN_FIREBASE_UIDS` value. The migrations add inventory and COD tables and
+one zero-stock default variant per existing product;
 it does not erase existing users, sellers or memberships. Do not run `migrate reset`.
 
 ### Configure Neon
@@ -123,7 +129,15 @@ Expected local addresses:
 | http://localhost:4000/api/v1/categories | Public category list |
 | http://localhost:4000/api/v1/products | Public approved catalog with filters and cursor |
 | http://localhost:4000/api/v1/sellers/:sellerId/products | Seller's private catalog |
+| http://localhost:4000/api/v1/sellers/:sellerId/products/:productId/variants | Add a seller product variant |
+| http://localhost:4000/api/v1/sellers/:sellerId/products/:productId/variants/:variantId/stock-adjustments | Add or subtract counted stock |
 | http://localhost:4000/api/v1/admin/products | Admin product review queue |
+| http://localhost:4000/api/v1/me/addresses | Buyer delivery addresses |
+| http://localhost:4000/api/v1/me/cart | Buyer cart and live quote |
+| http://localhost:4000/api/v1/me/orders/checkout | Atomic COD checkout |
+| http://localhost:4000/api/v1/me/orders | Buyer order history |
+| http://localhost:4000/api/v1/sellers/:sellerId/orders | Seller fulfillment queue |
+| http://localhost:4000/api/v1/admin/orders | Admin order queue |
 
 Successful readiness response:
 
@@ -289,12 +303,119 @@ uses `PATCH /admin/products/:productId/reject` with JSON `{ "reason": "At least 
 Public `GET /products?category=crafts&q=basket&limit=20` returns
 `{ "items": [...], "nextCursor": null }`. To fetch the next page, pass a non-null
 `nextCursor` as `cursor`. Public endpoints return only approved products belonging to
-approved sellers in active categories; seller SKU and review history stay private.
+approved sellers in active categories; review history and raw stock counts stay private.
 Category and product slugs are lowercase with hyphens; product slugs and SKUs are
-unique per seller. Only allowlisted admins create categories and review products.
+unique per seller. Variant SKUs are also unique per seller. Only allowlisted admins create categories and review products.
 Private seller and admin lists currently return at most 50 products per request;
-public browsing supports cursor pagination. Inventory, variants, real image storage
-and seller suspension are later milestones.
+public browsing supports cursor pagination. Hosted image uploads, seller
+suspension and online payment are later milestones.
+
+### Variants and stock (PowerShell)
+
+Apply the migration first (`npm run db:deploy`), restart the API and check
+`npm run db:status`. Keep `$base`, `$sellerHeaders`, `$adminHeaders`, `$sellerId`
+and `$productId` from the product example. If starting a new PowerShell window,
+sign in again and set those variables before continuing. An existing product
+automatically has a default variant (position `0`) with **zero** stock:
+
+```powershell
+$base = "http://localhost:4000/api/v1"
+$product = Invoke-RestMethod -Uri "$base/sellers/${sellerId}/products/${productId}" -Headers $sellerHeaders
+$defaultVariant = $product.variants | Where-Object position -eq 0 | Select-Object -First 1
+if (-not $defaultVariant.id) { throw "Default variant missing: check db:status." }
+
+Invoke-RestMethod -Method Post `
+  -Uri "$base/sellers/${sellerId}/products/${productId}/variants/$($defaultVariant.id)/stock-adjustments" `
+  -Headers $sellerHeaders -ContentType "application/json" `
+  -Body (@{ delta = 10; reason = "Opening stock count" } | ConvertTo-Json)
+
+$suffix = [guid]::NewGuid().ToString("N").Substring(0,8).ToUpperInvariant()
+$variant = Invoke-RestMethod -Method Post `
+  -Uri "$base/sellers/${sellerId}/products/${productId}/variants" `
+  -Headers $sellerHeaders -ContentType "application/json" `
+  -Body (@{
+    position = 1
+    sku = "BASKET-LARGE-$suffix"
+    optionValues = @{ size = "Large"; color = "Natural" }
+    priceLkrMinor = 155000
+  } | ConvertTo-Json -Depth 5)
+
+Invoke-RestMethod -Method Post `
+  -Uri "$base/sellers/${sellerId}/products/${productId}/variants/$($variant.id)/stock-adjustments" `
+  -Headers $sellerHeaders -ContentType "application/json" `
+  -Body (@{ delta = 3; reason = "Opening large basket count" } | ConvertTo-Json)
+
+Invoke-RestMethod -Uri "$base/sellers/${sellerId}/products/${productId}/variants/$($variant.id)/stock-movements" -Headers $sellerHeaders
+```
+
+Adding or editing a variant sends an approved product back to `DRAFT`. Resubmit it with
+`POST /sellers/:sellerId/products/:productId/submit`, then approve with
+`PATCH /admin/products/:productId/approve`. Stock adjustments alone do not require
+new product approval. A negative `delta` cannot reduce stock below reservations.
+The default variant's SKU and price are edited using the existing product `PATCH`
+route so product and variant values stay in sync. Other variants can be edited with
+`PATCH .../variants/:variantId` using `sku`, `optionValues` or `priceLkrMinor`.
+Positions start at `1` for extra variants and are unique per product. Public product
+responses contain `variants[].availableQuantity` (stock on hand minus reserved stock).
+
+The reservation service remains internal for a future online payment flow. Its
+one-minute expiry loop cleans up stale holds. COD checkout immediately deducts stock
+and creates the order atomically; it does not create a temporary reservation.
+
+### Cash on Delivery checkout (PowerShell)
+
+Seller: configure a delivery fee charged once for this seller's portion of an order.
+Use your approved seller token and ID from the earlier steps:
+
+```powershell
+$base = "http://localhost:4000/api/v1"
+Invoke-RestMethod -Method Patch `
+  -Uri "$base/sellers/${sellerId}/delivery-settings" `
+  -Headers $sellerHeaders -ContentType "application/json" `
+  -Body (@{ shippingFeeLkrMinor = 50000 } | ConvertTo-Json)
+```
+
+Here `50000` means LKR 500.00. Buyer: sign in using a **different** verified
+Firebase account and set `$buyerHeaders = @{ Authorization = "Bearer $buyerToken" }`.
+Use a published product with stock. Example:
+
+```powershell
+$address = Invoke-RestMethod -Method Post -Uri "$base/me/addresses" `
+  -Headers $buyerHeaders -ContentType "application/json" `
+  -Body (@{
+    recipient = "Buyer Name"; phone = "0771234567"
+    line1 = "123 Main Street"; city = "Colombo"
+    district = "Colombo"; postalCode = "00100"
+  } | ConvertTo-Json)
+
+$publicProduct = Invoke-RestMethod -Uri "$base/products/${productId}"
+$variantId = ($publicProduct.variants | Where-Object position -eq 0 | Select-Object -First 1).id
+if (-not $variantId) { throw "Approve and stock the product first." }
+
+Invoke-RestMethod -Method Put -Uri "$base/me/cart/items/${variantId}" `
+  -Headers $buyerHeaders -ContentType "application/json" `
+  -Body (@{ quantity = 1 } | ConvertTo-Json)
+Invoke-RestMethod -Uri "$base/me/cart" -Headers $buyerHeaders
+
+$checkoutKey = [guid]::NewGuid().ToString()
+$order = Invoke-RestMethod -Method Post -Uri "$base/me/orders/checkout" `
+  -Headers $buyerHeaders -ContentType "application/json" `
+  -Body (@{ addressId = $address.id; checkoutKey = $checkoutKey } | ConvertTo-Json)
+$order | Format-List
+```
+
+Save `$checkoutKey` and repeat the same request to retrieve the same order if the
+network response is lost. Use a **new key for a new order**. Checkout reads current
+prices, availability and seller delivery fees from the server and stores an immutable
+snapshot. It fails without stock or a configured seller delivery fee.
+
+The seller sees their order at `GET /sellers/:sellerId/orders` and advances it
+using `PATCH /sellers/:sellerId/orders/:sellerOrderId/status` with statuses
+`ACCEPTED`, `PACKED`, `SHIPPED`, `DELIVERED`. For delivery, send
+`{ "status": "DELIVERED", "paymentCollected": true }` only after collecting COD
+payment. Buyers can cancel while `PLACED`; sellers can cancel before `SHIPPED`.
+Cancellation restores stock and records a movement. There is no carrier tracking,
+automated courier handoff, online payment, returns workflow or payout ledger yet.
 
 ## Environment settings
 
@@ -386,7 +507,7 @@ If IPv4 reaches Neon but IPv6 times out on your network, use
 Nest's watch process without changing your system-wide Node settings.
 
 **Tables already exist / migration conflict:** Existing HelaCart databases with the
-checked-in earlier migrations can apply the new forward-only catalog migration using
+checked-in earlier migrations can apply the new forward-only inventory and COD migrations using
 `npm run db:deploy`. If your schema predates the included migrations and Prisma reports
 a conflict, stop and plan a migration baseline. Do not reset useful data.
 
@@ -425,6 +546,6 @@ Do not commit .env, node_modules, dist, generated clients or database credential
 ## Before a production marketplace launch
 
 Next work: seller suspension/reapplication and team management; hosted image uploads,
-variants and inventory; cart, orders, payments and payouts.
+catalog, inventory and COD orders; online payments, refunds and payouts.
 Also add rate limits, authenticated API auditing, deployment monitoring and backup
 restore drills. These are future features, not implied by this starter's health checks.

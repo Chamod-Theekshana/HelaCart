@@ -1,4 +1,4 @@
-# Start here: HelaCart moderated product catalog
+# Start here: HelaCart COD checkout backend
 
 Open helacart-api/README.md for the full Windows and Neon instructions.
 See helacart-api/CHANGES.md for the review and helacart-api/VALIDATION.md for checks.
@@ -14,12 +14,12 @@ See helacart-api/CHANGES.md for the review and helacart-api/VALIDATION.md for ch
 7. Run npm run db:deploy against your development database. Never reset the database.
 8. Run npm run check, then npm run start:dev.
 9. Open http://localhost:4000/api/v1/health/ready.
-10. Follow the Firebase, seller and product publishing test steps in
+10. Follow the Firebase, seller, product publishing, inventory and COD test steps in
     helacart-api/README.md.
 
-This is the backend foundation, Firebase identity, seller review and first
-moderated product catalog milestone, not a complete marketplace.
+This is the backend foundation, Firebase identity, seller review, moderated
+catalog, inventory and COD pilot milestone, not a complete marketplace.
 No actual credentials, dependency folders, compiled files or Git repositories are included.
 If upgrading an existing HelaCart database, preserve its data and apply the new
-checked-in catalog migration. Read the migration-conflict section if Prisma reports
+checked-in inventory and COD migrations. Read the migration-conflict section if Prisma reports
 a mismatch.

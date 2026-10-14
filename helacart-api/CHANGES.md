@@ -75,5 +75,38 @@ Suspension, reapplication, seller team management and a web UI remain future wor
 - Tested permissions and transitions through HTTP mocks; deployed all migrations and
   exercised a complete product lifecycle against an isolated PGlite PostgreSQL instance.
 
-Stock, variants, hosting images, cart, checkout, payments and web/mobile UIs are not
-included in this milestone.
+At that milestone, stock and variants had not yet been implemented.
+
+## Inventory and variants milestone
+
+- Added a forward-only migration that gives each existing product a position-zero
+  variant with its original SKU and price; stock starts at zero.
+- Added seller-scoped creation and editing of additional SKU, option and price
+  combinations; variant edits return products to DRAFT for moderation.
+- Preserved the existing product fields and API; editing its default SKU or price
+  updates the default variant in the same transaction.
+- Added authenticated seller stock adjustments, guarded by available quantity and
+  recorded as stock movements with an actor and reason.
+- Added public per-variant availability and an internal, idempotent reservation
+  service with atomic reserve, release, commit and expiration methods.
+- Verified backfill, stock limits, simultaneous reservations, release, commit and
+  movement history against an isolated PGlite database; see VALIDATION.md.
+
+Hosted images, buyer cart, checkout, payments and web/mobile UIs remain future work.
+
+## COD commerce milestone
+
+- Added a forward-only migration for buyer addresses, carts, parent and seller
+  orders, immutable item/address/price snapshots and fulfillment event history.
+- Added seller-configured flat delivery fees, server-calculated cart quotes and
+  idempotent checkout keys scoped to the buyer.
+- COD checkout updates every stock row and creates all seller orders in one
+  serializable database transaction. Insufficient stock rolls back the whole order.
+- Added buyer and seller cancellation before shipping with audited stock restoration.
+- Added seller status transitions and explicit confirmation of COD collection on
+  delivery. Added a bounded reservation expiry loop for future online payments.
+- Verified two simultaneous checkouts for one available item using an isolated
+  PostgreSQL-compatible database; only one order succeeded.
+
+Online payments, returns, hosted image uploads, notifications, commission,
+payouts, courier integration and production deployment remain separate work.

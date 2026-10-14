@@ -19,6 +19,14 @@ Assessment date: 2026-10-14
 - Seller membership and approved-status checks on product routes; changes to approved
   products return to draft for review.
 - Product moderation with audited decisions and public approved-product filtering.
+- Product variants with SKU, options, price and zero-stock migration backfill.
+- Seller-scoped stock adjustments, movement history and public availability.
+- Internal idempotent stock reservations with guarded concurrent updates, release,
+  commit and periodic expiry handling (reserved for future online payments).
+- Buyer addresses and carts; server-priced, idempotent, atomic COD checkout with
+  per-seller delivery charges and stock movements.
+- Multi-seller order snapshots, seller fulfillment workflow, COD collection marker,
+  buyer/seller cancellation, stock restoration and order event history.
 - Automated unit, HTTP, type, lint, formatting and production-build checks.
 
 ## Remaining version-one work
@@ -28,11 +36,11 @@ Assessment date: 2026-10-14
 | Accounts | Firebase identity and `/auth/me` implemented | Client signup/login, verification UI, profile and address APIs |
 | Seller onboarding | Basic API application, approval/rejection and decision audit | Suspension, appeal/reapplication, documents and UI |
 | Authorization | Firebase identity, admin UID allowlist and seller-scoped product checks | Durable admin management and ownership checks on future seller/order APIs |
-| Catalog | Basic categories, drafts, HTTPS image URLs, moderation and title search | Hosted image uploads, variants, richer search and merchandising |
-| Inventory | Not started | Movements, reservations, concurrency and stock reconciliation |
-| Shopping | Not started | Cart, checkout totals, addresses and shipping calculations |
-| Orders | Not started | Parent order, seller orders, fulfillment, cancellation and returns |
-| Money | Not started | Approved payment flow, callbacks, refunds, ledger, commission and payouts |
+| Catalog | Categories, variants, HTTPS image URLs, moderation and title search | Hosted image uploads, richer search and merchandising |
+| Inventory | Seller adjustments, movements, internal reservations and expiry loop | Stock reconciliation and operational monitoring |
+| Shopping | Address, cart, COD checkout and seller delivery fee quote | Taxes or promotions if required, advanced delivery rules |
+| Orders | Parent/seller orders, snapshots, fulfillment and pre-shipment cancellation | Returns, disputes, notifications and courier tracking |
+| Money | COD collection marker | Gateway, callbacks, refunds, ledger, commission and payouts |
 | Web | Not started in this ZIP | Storefront, seller dashboard and admin panel |
 | Flutter | Not started in this ZIP | Customer application and Firebase client integration |
 | Operations | Foundation only | Jobs, notifications, logs, monitoring, backups and deployment |
@@ -40,8 +48,11 @@ Assessment date: 2026-10-14
 
 ## Completion estimate
 
-The repository is approximately **15% of a complete version-one marketplace**. About
-**85% remains**. This is a rough product-scope estimate, not a schedule or file count.
+The repository is approximately **30% of a complete version-one marketplace**. About
+**70% remains**, because web and mobile clients, deployment and operations remain large.
+For the **backend alone**, a COD pilot is roughly **60% implemented**, with roughly
+**40% remaining** before a production-ready marketplace backend. These are rough
+scope estimates, not a schedule or file count.
 The foundation reduces future rework, but most customer, seller, admin, order and money
 flows have not been built.
 
@@ -52,14 +63,15 @@ one web storefront, manual payouts and a small seller group can be completed soo
 
 ## Recommended next milestone
 
-Build inventory and a safe purchase path from the moderated catalog:
+The next work after this COD pilot is:
 
 1. Choose durable image hosting and implement authenticated uploads.
-2. Add variants/SKUs and stock movement records.
-3. Reserve/release stock safely under simultaneous checkout attempts.
-4. Add cart, addresses and server-side price/delivery quotes.
-5. Add seller-specific orders and idempotent order placement.
+2. Build seller/customer/admin UI and end-to-end journeys with real Firebase tokens.
+3. Add notifications, returns and disputes, stock reconciliation and operating dashboards.
+4. Add a payment provider, secure callbacks, refunds, commission and payouts if online
+   payments are required; COD collection still needs accounting and reconciliation.
+5. Test on staging with real shipping and operational policies before a limited pilot.
 
-The next milestone is complete when a buyer's basket can be priced on the server and
-one stock unit cannot be sold twice. Payment integration follows approved provider
-and business decisions.
+The buyer basket, COD order and stock concurrency flow are implemented and exercised
+against an isolated PostgreSQL-compatible database. Live Neon/Firebase, sellers,
+couriers and real fulfillment still require staging validation.
