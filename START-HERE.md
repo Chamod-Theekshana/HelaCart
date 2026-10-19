@@ -15,7 +15,8 @@
 8. Use `helacart-api/README.md` for PowerShell tests of image uploads,
    notifications, admin-reviewed returns and COD reconciliation.
 
-This update adds backend workflows for a manually operated COD pilot. Actual R2,
+This update adds operational safeguards to the COD pilot backend. Read
+`helacart-api/OPERATIONS-RUNBOOK.md` before a public release. Actual R2,
 Neon/Firebase integration, web and mobile clients, real remittance and production
 security/operations must still be completed and tested. No private keys or `.env`
 files are included.

@@ -13,6 +13,8 @@ describe('Environment configuration', () => {
     });
     expect(result.PORT).toBe(4000);
     expect(result.HOST).toBe('127.0.0.1');
+    expect(result.TRUST_PROXY_HOPS).toBe(0);
+    expect(result.RETURN_WINDOW_DAYS).toBe(14);
     expect(result.CORS_ORIGINS).toEqual([
       'http://localhost:3000',
       'https://shop.example.com',
@@ -119,5 +121,21 @@ describe('Environment configuration', () => {
         R2_PUBLIC_BASE_URL: 'http://images.example.com',
       }),
     ).toThrow('R2_PUBLIC_BASE_URL');
+  });
+
+  it('validates return deadline and proxy trust settings', () => {
+    expect(() =>
+      validateEnvironment({ ...local, RETURN_WINDOW_DAYS: '0' }),
+    ).toThrow('RETURN_WINDOW_DAYS');
+    expect(() =>
+      validateEnvironment({ ...local, TRUST_PROXY_HOPS: 'true' }),
+    ).toThrow('TRUST_PROXY_HOPS');
+    expect(
+      validateEnvironment({
+        ...local,
+        RETURN_WINDOW_DAYS: '30',
+        TRUST_PROXY_HOPS: '1',
+      }).RETURN_WINDOW_DAYS,
+    ).toBe(30);
   });
 });

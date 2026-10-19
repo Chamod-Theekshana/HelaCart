@@ -1,6 +1,6 @@
 # HelaCart project status
 
-Assessment: 2026-10-14. Scope: COD-first marketplace backend and future clients.
+Assessment: 2026-10-19. Scope: COD-first marketplace backend and future clients.
 
 ## Implemented in this package
 
@@ -11,6 +11,7 @@ Assessment: 2026-10-14. Scope: COD-first marketplace backend and future clients.
 - In-app buyer/seller notifications, buyer-initiated returns with admin review and resolution.
 - Admin COD remittance queue, disputed amounts and append-only reconciliation records.
 - Versioned migrations, isolated database integration verification, unit and HTTP tests.
+- Per-process API request limits, return deadline, paginated admin queues and a deployment runbook.
 
 ## Still needed for a real launch
 
@@ -25,11 +26,11 @@ Assessment: 2026-10-14. Scope: COD-first marketplace backend and future clients.
 
 ## Estimate
 
-Backend feature coverage for a **limited, manually operated COD pilot** is roughly
-**75–80%**; about **20–25%** remains for integration and operational hardening. This
-is a scope estimate, not a verified production-readiness percentage. The complete
-marketplace with website and Flutter client is substantially less complete. No
-source-only milestone proves live Neon, Firebase, R2, bank or courier behavior.
+The defined **COD pilot backend code** is now broadly implemented, including its
+request limits and operating queues. A production-readiness percentage cannot be
+claimed without verifying deployment, backups, policies, security and real orders
+on the user's infrastructure. The complete marketplace with website, admin/seller
+interfaces and Flutter client is still substantially incomplete.
 
 The user's existing database was not modified by preparing this archive. Read
 `START-HERE.md`, then `helacart-api/README.md` for exact Windows steps.

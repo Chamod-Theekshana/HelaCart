@@ -27,7 +27,17 @@ export class ResolveReturnDto {
   @Transform(trim) @IsString() @Length(10, 1000) note!: string;
 }
 
-export class ListReturnsDto {
+export class PageDto {
+  @IsOptional() @IsUUID('4') cursor?: string;
+  @Transform(({ value }: { value: unknown }) => Number(value))
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(50)
+  limit?: number;
+}
+
+export class ListReturnsDto extends PageDto {
   @IsOptional() @IsEnum(ReturnStatus) status?: ReturnStatus;
 }
 

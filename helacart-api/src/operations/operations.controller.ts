@@ -19,6 +19,7 @@ import { ReturnStatus } from '../generated/prisma/client.js';
 import { AdminGuard } from '../sellers/admin.guard.js';
 import {
   ListReturnsDto,
+  PageDto,
   ReconcileCodDto,
   RequestReturnDto,
   ResolveReturnDto,
@@ -53,6 +54,11 @@ export class AdminOperationsController {
     @Query() query: ListReturnsDto,
   ) {
     return this.operations.returns(query.status);
+  }
+  @Get('returns/page') @Header('Cache-Control', 'no-store') returnsPage(
+    @Query() query: ListReturnsDto,
+  ) {
+    return this.operations.returnsPage(query);
   }
   @Patch('returns/:id/approve') @Header('Cache-Control', 'no-store') approve(
     @Req() request: AuthenticatedRequest,
@@ -89,6 +95,11 @@ export class AdminOperationsController {
   @Header('Cache-Control', 'no-store')
   codQueue() {
     return this.operations.codQueue();
+  }
+  @Get('cod/reconciliation-queue/page')
+  @Header('Cache-Control', 'no-store')
+  codQueuePage(@Query() query: PageDto) {
+    return this.operations.codQueuePage(query);
   }
   @Post('cod/:sellerOrderId/reconciliations')
   @Header('Cache-Control', 'no-store')

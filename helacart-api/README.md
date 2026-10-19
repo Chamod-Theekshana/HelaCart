@@ -639,3 +639,33 @@ Do not commit .env, node_modules, dist, generated clients or database credential
 Next work: seller suspension/reapplication and team management; online payments, automated refunds and payouts, client applications and courier integration.
 Also add rate limits, authenticated API auditing, deployment monitoring and backup
 restore drills. These are future features, not implied by this starter's health checks.
+
+## COD pilot launch safeguards
+
+The API limits traffic per client address to 180 requests per minute. Checkout,
+return and product-image write attempts share a 20-per-minute limit. This
+in-process safeguard is not shared between API replicas: apply a Cloudflare or
+other ingress limit before scaling beyond one instance. If there is exactly
+one trusted proxy and direct access is blocked, set `TRUST_PROXY_HOPS=1`; keep
+`0` for local use. See `OPERATIONS-RUNBOOK.md`.
+
+Buyer return requests must be made within `RETURN_WINDOW_DAYS` (default: 14)
+of the seller order's delivered event. Set this to match your published policy.
+The original admin queue endpoints still return at most 50 records. For more
+records, use the following paginated endpoints and pass `nextCursor` as `cursor`:
+
+```powershell
+$first = Invoke-RestMethod -Uri "$base/admin/returns/page?status=PENDING&limit=20" -Headers $adminHeaders
+$first.items
+if ($first.nextCursor) {
+  Invoke-RestMethod -Uri "$base/admin/returns/page?status=PENDING&limit=20&cursor=$($first.nextCursor)" -Headers $adminHeaders
+}
+$codPage = Invoke-RestMethod -Uri "$base/admin/cod/reconciliation-queue/page?limit=20" -Headers $adminHeaders
+$codPage.items
+```
+
+A Dockerfile is included for staging/production builds. Migrations run
+separately with `npm run db:deploy` before a release. `OPERATIONS-RUNBOOK.md`
+contains the rollout, daily queue and recovery steps. This backend still
+requires real hosting, private keys, verified backup restoration and real COD
+operating procedures before public launch.

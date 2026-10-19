@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { DecodedIdToken } from 'firebase-admin/auth';
+import { ConfigService } from '@nestjs/config';
 import {
   CodReconciliationDecision,
   NotificationType,
@@ -16,7 +17,12 @@ import {
 import { AuthService } from '../auth/auth.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { ReconcileCodDto, RequestReturnDto } from './operations.dto.js';
+import {
+  ListReturnsDto,
+  PageDto,
+  ReconcileCodDto,
+  RequestReturnDto,
+} from './operations.dto.js';
 
 @Injectable()
 export class OperationsService {
@@ -24,6 +30,7 @@ export class OperationsService {
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
     private readonly notifications: NotificationsService,
+    private readonly config: ConfigService,
   ) {}
 
   async requestReturn(identity: DecodedIdToken, dto: RequestReturnDto) {
@@ -32,18 +39,30 @@ export class OperationsService {
         'Verify your email before requesting a return',
       );
     const buyer = await this.auth.getOrCreateProfile(identity);
+    const cutoff = new Date(
+      Date.now() -
+        this.config.getOrThrow<number>('RETURN_WINDOW_DAYS') * 86_400_000,
+    );
     try {
       return await this.prisma.$transaction(async (tx) => {
         const order = await tx.sellerOrder.findFirst({
           where: {
             id: dto.sellerOrderId,
             status: SellerOrderStatus.DELIVERED,
+            events: {
+              some: {
+                toStatus: SellerOrderStatus.DELIVERED,
+                createdAt: { gte: cutoff },
+              },
+            },
             order: { buyerId: buyer.id },
           },
           select: { id: true, sellerId: true },
         });
         if (!order)
-          throw new NotFoundException('Delivered seller order not found');
+          throw new NotFoundException(
+            'Eligible delivered seller order not found within return window',
+          );
         const created = await tx.returnRequest.create({
           data: {
             sellerOrderId: order.id,
@@ -87,6 +106,21 @@ export class OperationsService {
       take: 50,
       include: { sellerOrder: { include: { items: true } } },
     });
+  }
+
+  async returnsPage(query: ListReturnsDto) {
+    const limit = query.limit ?? 20;
+    const rows = await this.prisma.returnRequest.findMany({
+      where: { status: query.status ?? ReturnStatus.PENDING },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+      take: limit + 1,
+      include: { sellerOrder: { include: { items: true } } },
+    });
+    return {
+      items: rows.slice(0, limit),
+      nextCursor: rows.length > limit ? rows[limit - 1].id : null,
+    };
   }
 
   async reviewReturn(
@@ -185,6 +219,33 @@ export class OperationsService {
         codReconciliations: { orderBy: { createdAt: 'desc' }, take: 1 },
       },
     });
+  }
+
+  async codQueuePage(query: PageDto) {
+    const limit = query.limit ?? 20;
+    const rows = await this.prisma.sellerOrder.findMany({
+      where: {
+        status: SellerOrderStatus.DELIVERED,
+        paymentCollectedAt: { not: null },
+        codReconciliations: {
+          none: { decision: CodReconciliationDecision.RECONCILED },
+        },
+      },
+      orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
+      ...(query.cursor ? { cursor: { id: query.cursor }, skip: 1 } : {}),
+      take: limit + 1,
+      select: {
+        id: true,
+        sellerId: true,
+        totalLkrMinor: true,
+        paymentCollectedAt: true,
+        codReconciliations: { orderBy: { createdAt: 'desc' }, take: 1 },
+      },
+    });
+    return {
+      items: rows.slice(0, limit),
+      nextCursor: rows.length > limit ? rows[limit - 1].id : null,
+    };
   }
 
   async reconcileCod(

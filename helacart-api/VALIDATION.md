@@ -79,3 +79,14 @@ The checkout integration used PGlite, not a live Neon/Firebase environment.
   dispute followed by full reconciliation, and the unread queue.
 - R2 calls, real Firebase ID tokens and the user's Neon database were not
   available here; verify these with your own credentials in development.
+
+## COD pilot safeguard verification (2026-10-19)
+
+- `npm run check` passed: Prisma validation, formatting, lint, typecheck,
+  21 unit tests, 45 HTTP tests and a production build.
+- Local PostgreSQL-compatible integration repeated concurrent checkout,
+  cancellation, fulfillment, notification, return and COD reconciliation
+  flows with the return deadline and paginated admin queues.
+- The Dockerfile was inspected against compiled `dist` and generated Prisma
+  client paths; Docker is unavailable in this workspace, so image build and
+  hosted staging checks remain operator verification items.

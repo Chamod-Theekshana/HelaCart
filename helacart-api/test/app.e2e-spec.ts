@@ -1267,4 +1267,32 @@ describe('API HTTP behavior (database mocked)', () => {
       .send(Buffer.from('bad'))
       .expect(400);
   });
+
+  it('validates paginated admin queues and keeps them admin-only', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/returns/page?limit=1')
+      .set('Authorization', 'Bearer token')
+      .expect(403);
+    firebase.verifyIdToken.mockResolvedValue(administrator);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/returns/page?limit=1000')
+      .set('Authorization', 'Bearer token')
+      .expect(400);
+    database.returnRequest.findMany.mockResolvedValue([]);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/returns/page?limit=2')
+      .set('Authorization', 'Bearer token')
+      .expect(200)
+      .expect({ items: [], nextCursor: null });
+    expect(database.returnRequest.findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ take: 3 }),
+    );
+    database.sellerOrder.findMany.mockResolvedValue([]);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/cod/reconciliation-queue/page?limit=1')
+      .set('Authorization', 'Bearer token')
+      .expect(200)
+      .expect({ items: [], nextCursor: null });
+  });
 });

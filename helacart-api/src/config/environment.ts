@@ -20,6 +20,16 @@ export function validateEnvironment(input: Record<string, unknown>) {
   if (host !== 'localhost' && !isIP(host)) {
     problems.push('HOST must be localhost or an IP address');
   }
+  const proxyHops = Number(input.TRUST_PROXY_HOPS ?? '0');
+  if (!Number.isInteger(proxyHops) || proxyHops < 0 || proxyHops > 2)
+    problems.push('TRUST_PROXY_HOPS must be 0, 1 or 2');
+  const returnWindowDays = Number(input.RETURN_WINDOW_DAYS ?? '14');
+  if (
+    !Number.isInteger(returnWindowDays) ||
+    returnWindowDays < 1 ||
+    returnWindowDays > 90
+  )
+    problems.push('RETURN_WINDOW_DAYS must be from 1 to 90');
   const databaseUrl = String(input.DATABASE_URL ?? '');
   try {
     const url = new URL(databaseUrl);
@@ -122,6 +132,8 @@ export function validateEnvironment(input: Record<string, unknown>) {
     NODE_ENV: mode,
     PORT: port,
     HOST: host,
+    TRUST_PROXY_HOPS: proxyHops,
+    RETURN_WINDOW_DAYS: returnWindowDays,
     DATABASE_URL: databaseUrl,
     CORS_ORIGINS: origins,
     FIREBASE_PROJECT_ID: firebaseProjectId,

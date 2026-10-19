@@ -123,3 +123,15 @@ payouts, courier integration and production deployment remain separate work.
   including disputed partial remittances and a corrected matching entry.
 - Added operations migration, endpoint coverage and isolated SQL integration
   scenarios. Live external services and automatic refunds remain out of scope.
+
+## COD pilot launch safeguards
+
+- Added a bounded per-process request guard with an extra limit for sensitive
+  writes and an explicit proxy trust setting; ingress limits remain required
+  for multiple replicas.
+- Enforced a configurable return-request deadline from the recorded delivery
+  event, defaulting to 14 days.
+- Added cursor-based admin return and COD queues without changing legacy list
+  response shapes.
+- Added a production Dockerfile, secret-safe build exclusions and a staging,
+  remittance, backup and recovery runbook.
