@@ -1,36 +1,38 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# HelaCart buyer storefront
 
-## Getting Started
+This is the Next.js 16 storefront inside `HelaCart-pre-dev`, rebuilt from the supplied Stitch screens. It includes home, catalog/search, product detail, Firebase email/password sign-in, cart, address/COD checkout, order confirmation, and buyer account/orders.
 
-First, run the development server:
+## Run it on Windows
 
-```bash
+In PowerShell:
+
+```powershell
+Set-Location C:\HelaCart\HelaCart-pre-dev\helacart-storefront
+Copy-Item .env.example .env.local
+npm ci
 npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Open http://localhost:3000. Without an API URL, this runs an **explicit design preview** with example products and orders. You can inspect the cart UI; placing an order is disabled.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+To connect the backend, set these in `.env.local`:
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+```dotenv
+NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1
+NEXT_PUBLIC_FIREBASE_API_KEY=your-web-api-key
+NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN=your-project.firebaseapp.com
+NEXT_PUBLIC_FIREBASE_PROJECT_ID=your-project-id
+NEXT_PUBLIC_FIREBASE_APP_ID=your-web-app-id
+```
 
-## Learn More
+Restart `npm run dev` after changing the variables. Enable Email/Password in Firebase Authentication. Your API must run on port 4000 with `CORS_ORIGINS=http://localhost:3000`. These Firebase settings are public client configuration, never a service account or database URL.
 
-To learn more about Next.js, take a look at the following resources:
+When connected, the storefront uses the existing NestJS endpoints: public categories/products, Firebase ID token protected addresses/cart/COD checkout/orders, notifications, and return requests. It shows only approved products that the backend returns. Buyer email verification, stock, shipping fees, and totals are enforced by the backend.
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+The Stitch ZIP supplied example product photographs by remote Google URLs. They are used **only in preview mode** and may stop loading. Real catalog images come from the API's `imageUrls`. The original supplied logo is in `public/helacart-logo.png`.
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+## Production readiness
 
-## Deploy on Vercel
+A deployed web app cannot reach `localhost:4000` on your PC. Host the API at a public HTTPS URL, put that URL plus `/api/v1` in `NEXT_PUBLIC_API_URL`, add the web origin to API CORS and Firebase Authorized domains, then rebuild. Test a verified buyer, approved seller/product, stocked variant, seller delivery fee, address, and COD checkout before taking real orders.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
-
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+The Stitch designs contain illustrative ratings, discounts, courier names, guarantees and support numbers that are not backed by this API. Those claims were not made live in the UI. Seller/admin dashboards are outside this buyer storefront milestone.
