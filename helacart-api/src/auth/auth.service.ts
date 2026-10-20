@@ -47,7 +47,7 @@ export class AuthService {
             select: {
               role: true,
               seller: {
-                select: { id: true, name: true, slug: true, status: true },
+                select: { id: true, name: true, slug: true, status: true, shippingFeeLkrMinor: true },
               },
             },
           },

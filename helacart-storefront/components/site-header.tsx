@@ -44,6 +44,7 @@ export function SiteHeader({ categories }: { categories: Category[] }) {
         <div className="container nav-inner">
           <Link className="nav-all" href="/products" onClick={() => setMenuOpen(false)}><Menu size={16} /> All Categories</Link>
           <Link href="/" onClick={() => setMenuOpen(false)}>Home</Link>
+          <Link href="/seller" onClick={() => setMenuOpen(false)}>Seller Center</Link>
           {categories.slice(0, 5).map((item) =>
             <Link key={item.id} href={`/products?category=${encodeURIComponent(item.slug)}`}
               onClick={() => setMenuOpen(false)}>{item.name}</Link>)}

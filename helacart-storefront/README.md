@@ -2,6 +2,8 @@
 
 This is the Next.js 16 storefront inside `HelaCart-pre-dev`, rebuilt from the supplied Stitch screens. It includes home, catalog/search, product detail, Firebase email/password sign-in, cart, address/COD checkout, order confirmation, and buyer account/orders.
 
+The same Next.js app has a Seller Center at `/seller` using the buyer site's teal and navy theme. Its Merchant Hub design follows the supplied Stitch seller dashboard ZIP: fixed merchant sidebar, utility bar, overview cards, catalog tabs and table, stock matrix, COD order queue, delivery receipt preview, product editor and application states. Approved sellers can use products, variants and stock, COD orders, and delivery settings screens. New sellers can apply at `/seller/apply`. Pending or rejected sellers see the corresponding application state. Every seller operation sends the Firebase ID token to the existing guarded API; the browser UI alone does not grant access.
+
 ## Run it on Windows
 
 In PowerShell:
@@ -29,10 +31,16 @@ Restart `npm run dev` after changing the variables. Enable Email/Password in Fir
 
 When connected, the storefront uses the existing NestJS endpoints: public categories/products, Firebase ID token protected addresses/cart/COD checkout/orders, notifications, and return requests. It shows only approved products that the backend returns. Buyer email verification, stock, shipping fees, and totals are enforced by the backend.
 
+The Seller Center uses `/auth/me` to identify approved memberships and `/seller-applications/me` for application status. It loads the seller's private product list and orders, creates/edits products, uploads images to configured R2 storage, submits products for admin review, adjusts stock with movement history, advances or cancels COD orders, and saves the per-seller delivery fee. The included API has one small addition: `/auth/me` also returns each member store's `shippingFeeLkrMinor` so the settings page can show its current value. Use the included backend or apply that change to your local backend if you extract only the storefront ZIP.
+
+Some useful routes: `/seller`, `/seller/products`, `/seller/products/new`, `/seller/inventory`, `/seller/orders`, `/seller/settings`. A product's detail and stock history are available from the products list. The catalog tabs, category and stock filters, and CSV export operate on the currently loaded rows. Product lists and orders load the latest 50 rows supplied by the current API. The UI reports this limit when reached. The delivery checkout receipt uses a clearly labelled illustrative item subtotal with the real configured fee.
+
 The Stitch ZIP supplied example product photographs by remote Google URLs. They are used **only in preview mode** and may stop loading. Real catalog images come from the API's `imageUrls`. The original supplied logo is in `public/helacart-logo.png`.
+
+Without `NEXT_PUBLIC_API_URL`, Seller Center shows a clearly labelled visual preview with sample store records; all writes are disabled. For live seller testing, use a Firebase account with a verified email and an approved seller membership. If image uploads are needed, configure the API's R2 variables; alternatively the product editor accepts HTTPS image URLs.
 
 ## Production readiness
 
 A deployed web app cannot reach `localhost:4000` on your PC. Host the API at a public HTTPS URL, put that URL plus `/api/v1` in `NEXT_PUBLIC_API_URL`, add the web origin to API CORS and Firebase Authorized domains, then rebuild. Test a verified buyer, approved seller/product, stocked variant, seller delivery fee, address, and COD checkout before taking real orders.
 
-The Stitch designs contain illustrative ratings, discounts, courier names, guarantees and support numbers that are not backed by this API. Those claims were not made live in the UI. Seller/admin dashboards are outside this buyer storefront milestone.
+The Stitch designs contain illustrative courier SLAs, COD settlements, commissions, conversion claims, support numbers and product certifications that are not backed by this API. Those claims are not presented as live seller data. This release does not add a real payout dashboard or courier dispatch integration.

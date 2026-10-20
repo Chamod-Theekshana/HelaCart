@@ -12,6 +12,14 @@ Assessment: 2026-10-19. Scope: COD-first marketplace backend and future clients.
 - Admin COD remittance queue, disputed amounts and append-only reconciliation records.
 - Versioned migrations, isolated database integration verification, unit and HTTP tests.
 - Per-process API request limits, return deadline, paginated admin queues and a deployment runbook.
+- Next.js buyer storefront UI based on the supplied Stitch design: home, catalog, product
+  detail, Firebase email/password forms, cart, COD checkout, account and order views.
+  It uses clearly labelled sample data until browser API/Firebase settings are supplied.
+- Next.js Seller Center UI adapted to all seven supplied Stitch merchant screens:
+  overview, product listings, product editor, variants and stock, COD orders,
+  delivery settings, and seller application/access states. Existing API backed
+  actions and approval gating are retained. Mock settlement and courier claims
+  from the reference images are deliberately omitted.
 
 ## Still needed for a real launch
 
@@ -19,7 +27,7 @@ Assessment: 2026-10-19. Scope: COD-first marketplace backend and future clients.
 | --- | --- |
 | Live configuration | Apply migration 7 to the existing Neon development branch; set R2 credentials and custom domain; test with real Firebase tokens. |
 | Real COD operations | Agree on return windows, actual refund/replacement actions, seller remittance evidence and payout procedures; validate with pilot sellers. |
-| Clients | Build customer storefront and seller/admin dashboards; build Flutter app if it remains part of scope. |
+| Clients | Test buyer and seller UIs with a running API and real Firebase users; build the admin dashboard and Flutter app if still in scope. |
 | Infrastructure | Hosted environment, TLS domain, secret storage, backup restore, monitoring, rate limits, security and load review. |
 | Expanded commerce | Courier tracking, richer search, stocktaking, discounts/tax rules where needed, seller suspension and reapplication. |
 | Online payments | Gateway and verified callbacks, refunds, commissions, payouts and a proper money ledger if this feature is required. |
@@ -29,8 +37,9 @@ Assessment: 2026-10-19. Scope: COD-first marketplace backend and future clients.
 The defined **COD pilot backend code** is now broadly implemented, including its
 request limits and operating queues. A production-readiness percentage cannot be
 claimed without verifying deployment, backups, policies, security and real orders
-on the user's infrastructure. The complete marketplace with website, admin/seller
-interfaces and Flutter client is still substantially incomplete.
+on the user's infrastructure. The buyer and seller UIs build, but their real
+flows have not been tested against a deployed API. The admin interface, Flutter
+client and production operations are still incomplete.
 
 The user's existing database was not modified by preparing this archive. Read
 `START-HERE.md`, then `helacart-api/README.md` for exact Windows steps.
