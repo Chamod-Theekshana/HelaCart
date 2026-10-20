@@ -7,6 +7,7 @@ import { AppChrome } from "@/components/app-chrome";
 import "./globals.css";
 import "./seller.css";
 import "./seller-stitch.css";
+import "./admin.css";
 
 export const metadata: Metadata = {
   title: { default: "HelaCart | Shop Sri Lankan Goods", template: "%s | HelaCart" },

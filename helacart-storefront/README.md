@@ -44,3 +44,9 @@ Without `NEXT_PUBLIC_API_URL`, Seller Center shows a clearly labelled visual pre
 A deployed web app cannot reach `localhost:4000` on your PC. Host the API at a public HTTPS URL, put that URL plus `/api/v1` in `NEXT_PUBLIC_API_URL`, add the web origin to API CORS and Firebase Authorized domains, then rebuild. Test a verified buyer, approved seller/product, stocked variant, seller delivery fee, address, and COD checkout before taking real orders.
 
 The Stitch designs contain illustrative courier SLAs, COD settlements, commissions, conversion claims, support numbers and product certifications that are not backed by this API. Those claims are not presented as live seller data. This release does not add a real payout dashboard or courier dispatch integration.
+
+## Admin Operations
+
+Open `/admin` in the same Next.js app. The Stitch-themed admin area includes an overview, seller applications, product approvals, categories, read-only orders, returns and COD reconciliation. It reads the existing API and allows confirmed administrative decisions through its guarded endpoints. In preview mode, sample data is labelled and all admin writes are disabled.
+
+For live use, set the API's `ADMIN_FIREBASE_UIDS` to the Firebase UID of an email-verified administrator, restart the API, and sign in on the storefront. The API re-verifies the bearer token and admin allowlist on protected requests. Current lists have a 50-row limit; local searches filter only the loaded records. See `../ADMIN-STITCH-IMPLEMENTATION.md` for the route list and setup checklist. The ZIP's illustrative payout and courier screens have no corresponding API workflow, so the admin UI does not present them as working features.

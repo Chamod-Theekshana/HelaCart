@@ -33,7 +33,8 @@ export default function AuthPage() {
         setNotice("Account created. Please use the verification link in your email before shopping.");
       } else {
         await signInWithEmailAndPassword(auth, email, password);
-        router.push("/account");
+        const next = new URLSearchParams(window.location.search).get("next");
+        router.push(next === "/admin" ? "/admin" : "/account");
       }
     } catch (issue) { setError(errorMessage(issue)); }
     finally { setBusy(false); }

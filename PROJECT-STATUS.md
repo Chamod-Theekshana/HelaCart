@@ -1,6 +1,6 @@
 # HelaCart project status
 
-Assessment: 2026-10-19. Scope: COD-first marketplace backend and future clients.
+Assessment: 2026-10-20. Scope: COD-first marketplace backend and future clients.
 
 ## Implemented in this package
 
@@ -20,6 +20,9 @@ Assessment: 2026-10-19. Scope: COD-first marketplace backend and future clients.
   delivery settings, and seller application/access states. Existing API backed
   actions and approval gating are retained. Mock settlement and courier claims
   from the reference images are deliberately omitted.
+- Next.js admin area at `/admin` based on the supplied Stitch reference:
+  overview, seller and product approval, categories, read-only orders, returns,
+  and COD reconciliation. Protected operations call the existing admin API.
 
 ## Still needed for a real launch
 
@@ -27,7 +30,7 @@ Assessment: 2026-10-19. Scope: COD-first marketplace backend and future clients.
 | --- | --- |
 | Live configuration | Apply migration 7 to the existing Neon development branch; set R2 credentials and custom domain; test with real Firebase tokens. |
 | Real COD operations | Agree on return windows, actual refund/replacement actions, seller remittance evidence and payout procedures; validate with pilot sellers. |
-| Clients | Test buyer and seller UIs with a running API and real Firebase users; build the admin dashboard and Flutter app if still in scope. |
+| Clients | Test buyer, seller and admin UIs with a running API and real Firebase users; build the Flutter app if still in scope. |
 | Infrastructure | Hosted environment, TLS domain, secret storage, backup restore, monitoring, rate limits, security and load review. |
 | Expanded commerce | Courier tracking, richer search, stocktaking, discounts/tax rules where needed, seller suspension and reapplication. |
 | Online payments | Gateway and verified callbacks, refunds, commissions, payouts and a proper money ledger if this feature is required. |
@@ -38,8 +41,9 @@ The defined **COD pilot backend code** is now broadly implemented, including its
 request limits and operating queues. A production-readiness percentage cannot be
 claimed without verifying deployment, backups, policies, security and real orders
 on the user's infrastructure. The buyer and seller UIs build, but their real
-flows have not been tested against a deployed API. The admin interface, Flutter
-client and production operations are still incomplete.
+flows have not been tested against a deployed API. The admin interface builds
+but has not been tested against the user's live API; the Flutter client and
+production operations are still incomplete.
 
 The user's existing database was not modified by preparing this archive. Read
 `START-HERE.md`, then `helacart-api/README.md` for exact Windows steps.

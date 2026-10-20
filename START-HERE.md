@@ -47,3 +47,10 @@ Replace the storefront source with the included updated folder while preserving
 your `.env.local`, then run `npm ci`, `npm run build` and `npm run dev`.
 Open `http://localhost:3000/seller`. The included API is the same previous
 Seller Center backend; no migration is required for this visual update.
+
+## Admin Operations UI
+
+The storefront now includes the Stitch-themed `/admin` area for seller and
+product approvals, categories, read-only orders, return cases and COD
+reconciliation. Use a verified Firebase UID in the API's `ADMIN_FIREBASE_UIDS`.
+See `ADMIN-STITCH-IMPLEMENTATION.md` for setup, routes and current API limits.
