@@ -2,6 +2,8 @@ import { demoCategories, demoProducts } from "./demo";
 import type { Category } from "./types";
 
 export type SellerStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
+export type IdentityDocumentType = "NATIONAL_ID" | "DRIVING_LICENCE";
+export type SellerDocument = { id: string; kind: "IDENTITY_FRONT" | "IDENTITY_BACK" | "BUSINESS_REGISTRATION"; contentType: string; byteSize: number };
 export type ProductStatus = "DRAFT" | "PENDING" | "APPROVED" | "REJECTED" | "HIDDEN";
 export type OrderStatus = "PLACED" | "ACCEPTED" | "PACKED" | "SHIPPED" | "DELIVERED" | "CANCELLED";
 export type SellerAccount = {
@@ -14,6 +16,7 @@ export type SellerProfile = {
   memberships: SellerMembership[];
 };
 export type SellerApplication = SellerAccount & {
+  identityDocumentType: IdentityDocumentType | null; documents: SellerDocument[];
   description: string | null; contactPhone: string | null; pickupAddress: string | null;
   reviews: { decision: string; reason: string | null }[];
 };

@@ -1,10 +1,11 @@
-import type { SellerProduct } from "@/lib/seller";
+import type { IdentityDocumentType, SellerDocument, SellerProduct } from "@/lib/seller";
 
 export type AdminSellerStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
 export type AdminApplication = {
   id: string; name: string; slug: string; status: AdminSellerStatus;
   description: string | null; contactPhone: string | null; pickupAddress: string | null;
   createdAt: string; updatedAt: string;
+  identityDocumentType: IdentityDocumentType | null; documents: SellerDocument[];
   members: { user: { id: string; email: string; emailVerified: boolean } }[];
   reviews: { decision: string; reason: string | null; createdAt: string }[];
 };
@@ -42,6 +43,7 @@ const seller: AdminApplication = {
   createdAt: "2026-10-18T08:30:00Z", updatedAt: "2026-10-18T08:30:00Z",
   members: [{ user: { id: "sample-user-1", email: "seller@example.com", emailVerified: true } }],
   reviews: [],
+  identityDocumentType: null, documents: [],
 };
 export const previewApplications: AdminApplication[] = [seller, {
   ...seller, id: "sample-seller-2", name: "Southern Crafts Studio", slug: "southern-crafts",

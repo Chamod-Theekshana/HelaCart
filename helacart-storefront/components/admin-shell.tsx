@@ -3,7 +3,7 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BadgeCheck, ClipboardCheck, ClipboardList, ExternalLink, FolderTree, LayoutDashboard, LogOut, Menu, RotateCcw, ShieldCheck, ShoppingBag, Store, Wallet, X } from "lucide-react";
+import { BadgeCheck, ClipboardCheck, ClipboardList, ExternalLink, Flag, FolderTree, LayoutDashboard, LogOut, Menu, RotateCcw, ShieldCheck, ShoppingBag, Store, Wallet, X } from "lucide-react";
 import { useShop } from "./shop-provider";
 import { useAdmin } from "./admin-provider";
 import { Brand } from "./site-header";
@@ -12,6 +12,7 @@ const items = [
   { href: "/admin", title: "Overview", icon: LayoutDashboard, section: "CORE PLATFORM" },
   { href: "/admin/seller-applications", title: "Seller applications", icon: Store, section: "MODERATION & GOVERNANCE" },
   { href: "/admin/products", title: "Product approvals", icon: BadgeCheck },
+  { href: "/admin/review-reports", title: "Review reports", icon: Flag },
   { href: "/admin/categories", title: "Categories", icon: FolderTree },
   { href: "/admin/orders", title: "Orders", icon: ShoppingBag, section: "FULFILMENT & SETTLEMENTS" },
   { href: "/admin/returns", title: "Returns", icon: RotateCcw },

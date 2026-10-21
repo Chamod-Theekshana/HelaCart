@@ -26,12 +26,17 @@ export class RequestLimitGuard implements CanActivate {
       request.method !== 'OPTIONS'
     ) {
       if (
-        /^\/api\/v1\/(?:me\/orders\/checkout|me\/returns|sellers\/[^/]+\/products\/[^/]+\/images)$/.test(
+        /^\/api\/v1\/(?:me\/orders\/checkout|me\/returns|seller-applications|sellers\/[^/]+\/products\/[^/]+\/images|sellers\/[^/]+\/shop\/images\/(?:logo|cover))$/.test(
           request.path,
         )
       ) {
         this.consume(`sensitive:${ip}`, 20, now);
       }
+      if (
+        /^\/api\/v1\/shops\/[^/]+\/reviews\//.test(request.path) ||
+        /^\/api\/v1\/sellers\/[^/]+\/reviews\//.test(request.path)
+      )
+        this.consume(`reviews:${ip}`, 20, now);
     }
     return true;
   }

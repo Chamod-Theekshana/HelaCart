@@ -19,7 +19,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const categories: Category[] = hasApi
     ? await api<Category[]>("/categories").catch(() => [])
     : demoCategories;
-  return <html lang="en"><body>
+  return <html lang="en" data-scroll-behavior="smooth"><body>
     <ShopProvider>
       <AppChrome categories={categories}>{children}</AppChrome>
     </ShopProvider>

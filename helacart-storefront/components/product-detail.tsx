@@ -6,6 +6,7 @@ import Link from "next/link";
 import { ArrowRight, Banknote, Minus, PackageCheck, Plus, ShieldCheck, ShoppingBag, Store } from "lucide-react";
 import { errorMessage, money } from "@/lib/api";
 import type { Product } from "@/lib/types";
+import { shopPath } from "@/lib/shops";
 import { useShop } from "./shop-provider";
 
 export function ProductDetail({ product }: { product: Product }) {
@@ -38,7 +39,7 @@ export function ProductDetail({ product }: { product: Product }) {
           </button>)}</div>}
       </div>
       <div className="detail-copy">
-        <div className="seller-label"><Store size={15} /> Sold by {product.seller.name}</div>
+        <Link href={shopPath(product.seller)} className="seller-label"><Store size={15} /> Sold by {product.seller.name} <ArrowRight size={14} /></Link>
         <span className="category-pill">{product.category.name}</span>
         <h1>{product.title}</h1>
         <p className="product-sku">{variant?.sku ?? "Product details"}</p>
@@ -61,6 +62,6 @@ export function ProductDetail({ product }: { product: Product }) {
         <div className="detail-benefits"><div><Banknote size={19} /><span><strong>Cash on Delivery</strong><small>Available at checkout</small></span></div><div><PackageCheck size={19} /><span><strong>Delivery total</strong><small>Calculated from the seller's settings in your cart</small></span></div><div><ShieldCheck size={19} /><span><strong>Listed on HelaCart</strong><small>Browse approved marketplace products</small></span></div></div>
       </div>
     </div>
-    <section className="spec-section"><div><span className="section-kicker">PRODUCT DETAILS</span><h2>About this item</h2><p>{product.description || "The seller has not added a description yet."}</p></div><div><span className="section-kicker">SELLER</span><h2>{product.seller.name}</h2><p>Explore more goods from Sri Lankan sellers in the HelaCart catalog.</p><Link href="/products" className="text-link">Continue shopping <ArrowRight size={16} /></Link></div></section>
+    <section className="spec-section"><div><span className="section-kicker">PRODUCT DETAILS</span><h2>About this item</h2><p>{product.description || "The seller has not added a description yet."}</p></div><div><span className="section-kicker">SELLER</span><h2>{product.seller.name}</h2><p>Explore this seller&apos;s products and read verified buyer reviews.</p><Link href={shopPath(product.seller)} className="text-link">Visit shop <ArrowRight size={16} /></Link></div></section>
   </>;
 }

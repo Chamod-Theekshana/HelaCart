@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import Link from "next/link";
 import { CircleCheck, Info, MapPin, ShoppingBag } from "lucide-react";
 import { errorMessage, money } from "@/lib/api";
 import { rupeesToMinor, type SellerAccount } from "@/lib/seller";
@@ -44,6 +45,6 @@ function DeliverySettingsForm({ seller, isPreview, request, refreshProfile }: {
         <div className="seller-preview-receipt"><div><span>Example item subtotal</span><b>{money(420000)}</b></div><div><span>Delivery fee ({seller?.name ?? "Your store"})</span><b>{seller?.shippingFeeLkrMinor == null ? "Set a fee" : money(seller.shippingFeeLkrMinor)}</b></div><div className="total"><span>Example COD total</span><b>{seller?.shippingFeeLkrMinor == null ? "—" : money(420000 + seller.shippingFeeLkrMinor)}</b></div><small>Illustrative subtotal only. Actual checkout totals depend on the buyer&apos;s cart.</small></div>
       </div><div className="seller-card seller-form"><div className="seller-card-heading"><div><h2>Store information</h2></div><MapPin size={21} /></div>
         <dl className="seller-info-list"><dt>Store name</dt><dd>{seller?.name ?? "—"}</dd><dt>Store slug</dt><dd>{seller?.slug ?? "—"}</dd><dt>Approval</dt><dd>{seller?.status.toLowerCase() ?? "—"}</dd></dl>
-        <p className="seller-muted">Store profile editing is not available in the current API.</p></div></div></div>
+        <p className="seller-muted"><Link className="text-link" href="/seller/shop">Edit your public shop profile</Link></p></div></div></div>
   </>;
 }

@@ -1,9 +1,11 @@
 import Link from "next/link";
-import { ArrowRight, Banknote, Headphones, House, Shirt, ShoppingBag, Sparkles, Truck, UtensilsCrossed } from "lucide-react";
+import { ArrowRight, Headphones, House, Shirt, Sparkles, Truck, UtensilsCrossed } from "lucide-react";
 import { api, hasApi } from "@/lib/api";
 import { demoCategories, demoProducts } from "@/lib/demo";
 import type { Category, ProductPage } from "@/lib/types";
-import { ProductCard, ProductImage } from "@/components/product-card";
+import { ProductCard } from "@/components/product-card";
+import { StorefrontHero } from "@/components/storefront-hero";
+import { shopPath } from "@/lib/shops";
 
 export default async function HomePage() {
   let error = false;
@@ -13,27 +15,12 @@ export default async function HomePage() {
     hasApi ? api<Category[]>("/categories").catch(() => []) : Promise.resolve(demoCategories),
   ]);
   const products = list.items;
-  const spotlight = products.slice(0, 3);
   const sellers = [...new Map(products.map((entry) => [entry.seller.name, entry])).values()].slice(0, 3);
   return <>
     <div className="container home-page">
-      <section className="hero-grid">
-        <div className="hero-panel">
-          <span className="hero-kicker"><Sparkles size={14} /> SRI LANKAN MULTI-SELLER MARKETPLACE</span>
-          <h1>Everyday essentials.<br /><span>Local discoveries.</span></h1>
-          <p>Browse quality goods from sellers across Sri Lanka. Find your next favorite for home, work and everything in between.</p>
-          <div className="hero-actions"><Link className="primary-btn" href="/products">Shop all products <ArrowRight size={18} /></Link><Link className="light-btn" href="#categories">Explore categories</Link></div>
-          <div className="hero-benefits"><span><Banknote size={17} /> Cash on delivery</span><span><ShoppingBag size={17} /> Multi-seller finds</span><span><Truck size={17} /> Delivery shown at checkout</span></div>
-        </div>
-        <div className="hero-collage">
-          {spotlight.map((item, index) => <Link className={`collage-card collage-${index}`} key={item.id} href={`/products/${item.id}`}>
-            <ProductImage product={item} /><span>{item.category.name}<strong>{item.title}</strong></span>
-          </Link>)}
-          {!spotlight.length && <div className="collage-empty">New discoveries are on the way.</div>}
-        </div>
-      </section>
+      <StorefrontHero />
 
-      <section id="categories" className="home-section categories-section">
+      <section id="categories" className="home-section categories-section" tabIndex={-1}>
         <div className="section-heading"><div><span className="section-kicker">EXPLORE CATALOG</span><h2>Explore core categories</h2></div><Link className="text-link" href="/products">Shop everything <ArrowRight size={17} /></Link></div>
         <div className="category-grid">{categories.map((category, index) => {
           const icons = [Shirt, Headphones, House, Sparkles, UtensilsCrossed, Truck];
@@ -51,8 +38,8 @@ export default async function HomePage() {
 
       {sellers.length > 0 && <section className="home-section seller-section">
         <div className="section-heading"><div><span className="section-kicker">MEET THE MAKERS</span><h2>Explore local sellers</h2><p>Discover the shops behind the goods.</p></div></div>
-        <div className="seller-grid">{sellers.map((product) => <Link className="storefront-seller-card" key={product.seller.name} href={`/products/${product.id}`}>
-          <span className="seller-avatar">{product.seller.name.slice(0, 1)}</span><div><strong>{product.seller.name}</strong><p>Explore a product from this seller</p></div><ArrowRight size={18} />
+        <div className="seller-grid">{sellers.map((product) => <Link className="storefront-seller-card" key={product.seller.name} href={shopPath(product.seller)}>
+          <span className="seller-avatar">{product.seller.name.slice(0, 1)}</span><div><strong>{product.seller.name}</strong><p>Visit shop & read customer reviews</p></div><ArrowRight size={18} />
         </Link>)}</div>
       </section>}
 

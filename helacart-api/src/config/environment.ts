@@ -103,11 +103,32 @@ export function validateEnvironment(input: Record<string, unknown>) {
   const configuredR2 = r2Keys.filter((key) =>
     Boolean(String(input[key] ?? '').trim()),
   );
-  if (configuredR2.length && configuredR2.length !== r2Keys.length)
+  const privateBucket = String(input.R2_PRIVATE_BUCKET ?? '').trim();
+  const privateOnly =
+    Boolean(privateBucket) && !input.R2_BUCKET && !input.R2_PUBLIC_BASE_URL;
+  if (
+    configuredR2.length &&
+    configuredR2.length !== r2Keys.length &&
+    !privateOnly
+  )
     problems.push('All R2 settings must be provided together');
-  if (configuredR2.length === r2Keys.length) {
+  if (privateBucket) {
+    if (
+      !r2Keys
+        .slice(0, 3)
+        .every((key) => Boolean(String(input[key] ?? '').trim()))
+    )
+      problems.push('R2_PRIVATE_BUCKET requires all three R2 credentials');
+    if (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(privateBucket))
+      problems.push('R2_PRIVATE_BUCKET must be a valid bucket name');
+    if (privateBucket === String(input.R2_BUCKET ?? '').trim())
+      problems.push('R2_PRIVATE_BUCKET must differ from the public R2_BUCKET');
+  }
+  if (configuredR2.length === r2Keys.length || privateBucket) {
     if (!/^[0-9a-f]{32}$/i.test(String(input.R2_ACCOUNT_ID)))
       problems.push('R2_ACCOUNT_ID must be a 32-character account ID');
+  }
+  if (configuredR2.length === r2Keys.length) {
     if (!/^[a-z0-9][a-z0-9.-]{1,61}[a-z0-9]$/.test(String(input.R2_BUCKET)))
       problems.push('R2_BUCKET must be a valid bucket name');
     try {
@@ -138,5 +159,6 @@ export function validateEnvironment(input: Record<string, unknown>) {
     CORS_ORIGINS: origins,
     FIREBASE_PROJECT_ID: firebaseProjectId,
     ADMIN_FIREBASE_UIDS: [...new Set(adminUids)],
+    R2_PRIVATE_BUCKET: privateBucket,
   };
 }

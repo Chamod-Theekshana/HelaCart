@@ -138,4 +138,28 @@ describe('Environment configuration', () => {
       }).RETURN_WINDOW_DAYS,
     ).toBe(30);
   });
+
+  it('allows a private-only document bucket and rejects public bucket reuse', () => {
+    const privateR2 = {
+      R2_ACCOUNT_ID: 'a'.repeat(32),
+      R2_ACCESS_KEY_ID: 'key',
+      R2_SECRET_ACCESS_KEY: 'secret',
+      R2_PRIVATE_BUCKET: 'helacart-verification',
+    };
+    expect(() => validateEnvironment({ ...local, ...privateR2 })).not.toThrow();
+    expect(() =>
+      validateEnvironment({
+        ...local,
+        R2_PRIVATE_BUCKET: privateR2.R2_PRIVATE_BUCKET,
+      }),
+    ).toThrow('R2_PRIVATE_BUCKET requires');
+    expect(() =>
+      validateEnvironment({
+        ...local,
+        ...privateR2,
+        R2_BUCKET: privateR2.R2_PRIVATE_BUCKET,
+        R2_PUBLIC_BASE_URL: 'https://images.example.com',
+      }),
+    ).toThrow('must differ');
+  });
 });

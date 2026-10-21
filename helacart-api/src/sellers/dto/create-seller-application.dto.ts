@@ -1,16 +1,21 @@
 import { Transform } from 'class-transformer';
 import {
   IsOptional,
+  IsEnum,
   IsString,
   Length,
   Matches,
   MaxLength,
 } from 'class-validator';
+import { SellerIdentityDocumentType } from '../../generated/prisma/client.js';
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
 export class CreateSellerApplicationDto {
+  @IsEnum(SellerIdentityDocumentType)
+  identityDocumentType!: SellerIdentityDocumentType;
+
   @Transform(trim)
   @IsString()
   @Length(2, 100)

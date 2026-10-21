@@ -38,6 +38,38 @@ refunds/replacements, reverse logistics and shipping fees will be handled.
 
 ## Daily admin queue
 
+### Seller identity verification
+
+New seller applications use `multipart/form-data` with `identityDocumentType`
+(`NATIONAL_ID` or `DRIVING_LICENCE`), required `identityFront` and `identityBack`
+photos, and an optional `businessRegistration` photo. Each file must be JPEG,
+PNG or WebP and at most 5 MB. The existing store fields are unchanged.
+
+Deploy migration `20261021000000_seller_verification_documents` before releasing
+the updated API. Existing approved sellers are unaffected. Older pending
+applications without identity photos cannot be approved under the new rule;
+review them and request a new complete application before granting access.
+
+Set `R2_PRIVATE_BUCKET` to a separate private bucket that the API credentials
+can read/write. Keep its `r2.dev` URL and custom domains disabled. Do not set
+it to the public product image bucket. An optional setup helper,
+`node scripts/setup-private-documents.mjs`, creates a fresh private bucket,
+checks object access using a non-sensitive temporary object, and saves the
+bucket name in the local `.env` without changing credentials. It requires an
+R2 token with bucket creation and object permissions.
+
+Application responses contain document metadata only. Authorized administrators
+retrieve photos from `GET /api/v1/admin/seller-applications/:id/documents/:documentId`.
+The endpoint requires a verified administrator token and returns `private,
+no-store` image bytes; the admin UI uses temporary blob previews. Storage keys,
+public document URLs and original file names are not exposed. Do not log image
+bytes or tokens. Restrict access to the private bucket in the hosting account.
+
+Reference: [Cloudflare bucket access defaults](https://developers.cloudflare.com/r2/buckets/create-buckets/)
+and [S3 operation support](https://developers.cloudflare.com/r2/api/s3/api/).
+
+### Orders and settlement
+
 - Review `GET /api/v1/admin/returns/page?status=PENDING&limit=20`; pass the
   returned `nextCursor` as `cursor` to read the following page.
 - Confirm COD cash/deposit evidence outside the API, then review

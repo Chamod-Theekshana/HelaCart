@@ -5,6 +5,7 @@ import Link from "next/link";
 import { ArrowRight, ShoppingBag } from "lucide-react";
 import { errorMessage, money } from "@/lib/api";
 import type { Product } from "@/lib/types";
+import { shopPath } from "@/lib/shops";
 import { useShop } from "./shop-provider";
 
 export function ProductImage({ product, className = "" }: { product: Product; className?: string }) {
@@ -35,7 +36,7 @@ export function ProductCard({ product }: { product: Product }) {
       <ProductImage product={product} /><span className="photo-category">{product.category.name}</span>
     </Link>
     <div className="product-card-body">
-      <span className="product-seller">{product.seller.name}</span>
+      <Link className="product-seller" href={shopPath(product.seller)}>{product.seller.name}</Link>
       <Link className="product-card-title" href={`/products/${product.id}`}>{product.title}</Link>
       <div className="availability">{variant ? "In stock" : "Unavailable"} <span>·</span> {product.category.name}</div>
       <div className="product-card-bottom"><strong>{money(variant?.priceLkrMinor ?? product.priceLkrMinor)}</strong>

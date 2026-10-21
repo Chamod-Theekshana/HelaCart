@@ -29,7 +29,7 @@ export type OrderItem = {
   unitLkrMinor: number; lineLkrMinor: number; quantity: number;
 };
 export type SellerOrder = {
-  id: string; status: string; seller: { name: string };
+  id: string; status: string; seller: { id?: string; name: string; slug?: string };
   totalLkrMinor: number; items: OrderItem[];
 };
 export type Order = {

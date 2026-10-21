@@ -55,7 +55,7 @@ export const demoOrders: Order[] = [
     id: "PREVIEW-98241", createdAt: "2026-10-16T09:22:00.000Z",
     recipient: "Sample customer", line1: "Sample address", city: "Colombo", district: "Colombo",
     paymentMethod: "COD", subtotalLkrMinor: 2690000, shippingLkrMinor: 0, totalLkrMinor: 2690000,
-    sellerOrders: [{ id: "PREVIEW-S1", status: "SHIPPED", seller: { name: "Colombo Tech Hub" },
+    sellerOrders: [{ id: "PREVIEW-S1", status: "SHIPPED", seller: { name: "Colombo Tech Hub", slug: "colombo-tech-hub" },
       totalLkrMinor: 2690000, items: [
         { id: "item1", productTitle: demoProducts[0].title, sku: "PREVIEW-1", optionValues: {}, unitLkrMinor: 2450000, quantity: 1, lineLkrMinor: 2450000 },
         { id: "item2", productTitle: "Headphone Stand", sku: "PREVIEW-2", optionValues: {}, unitLkrMinor: 240000, quantity: 1, lineLkrMinor: 240000 },

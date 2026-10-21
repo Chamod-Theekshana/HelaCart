@@ -8,6 +8,7 @@ import { FirebaseAdminService } from '../src/auth/firebase-admin.service.js';
 import { configureApp } from '../src/configure-app.js';
 import { PrismaService } from '../src/prisma/prisma.service.js';
 import { Prisma } from '../src/generated/prisma/client.js';
+import { SellerDocumentsService } from '../src/sellers/seller-documents.service.js';
 
 class ProbeDto {
   @IsString()
@@ -41,6 +42,7 @@ describe('API HTTP behavior (database mocked)', () => {
     email_verified: true,
   };
   const application = {
+    identityDocumentType: 'NATIONAL_ID',
     name: 'Island Crafts',
     slug: 'island-crafts',
     contactPhone: '0771234567',
@@ -144,6 +146,22 @@ describe('API HTTP behavior (database mocked)', () => {
     $transaction: vi.fn(),
   };
   const firebase = { verifyIdToken: vi.fn() };
+  const documentStorage = { upload: vi.fn(), remove: vi.fn(), read: vi.fn() };
+  const pngPhoto = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
+  const identityDocuments = [
+    {
+      kind: 'IDENTITY_FRONT',
+      storageKey: 'front-key',
+      contentType: 'image/png',
+      byteSize: pngPhoto.length,
+    },
+    {
+      kind: 'IDENTITY_BACK',
+      storageKey: 'back-key',
+      contentType: 'image/png',
+      byteSize: pngPhoto.length,
+    },
+  ];
 
   beforeAll(async () => {
     const moduleFixture = await Test.createTestingModule({
@@ -158,6 +176,10 @@ describe('API HTTP behavior (database mocked)', () => {
     app = moduleFixture.createNestApplication();
     configureApp(app);
     await app.init();
+    const documents = app.get(SellerDocumentsService);
+    vi.spyOn(documents, 'upload').mockImplementation(documentStorage.upload);
+    vi.spyOn(documents, 'remove').mockImplementation(documentStorage.remove);
+    vi.spyOn(documents, 'read').mockImplementation(documentStorage.read);
   });
 
   beforeEach(() => {
@@ -189,6 +211,11 @@ describe('API HTTP behavior (database mocked)', () => {
       (callback: (tx: typeof database) => unknown) => callback(database),
     );
     firebase.verifyIdToken.mockReset();
+    documentStorage.upload.mockReset().mockResolvedValue(identityDocuments);
+    documentStorage.remove.mockReset().mockResolvedValue(undefined);
+    documentStorage.read
+      .mockReset()
+      .mockResolvedValue({ bytes: pngPhoto, contentType: 'image/png' });
   });
   afterAll(async () => {
     await app.close();
@@ -374,7 +401,15 @@ describe('API HTTP behavior (database mocked)', () => {
     await request(app.getHttpServer())
       .post('/api/v1/seller-applications')
       .set('Authorization', 'Bearer valid-token')
-      .send({ ...application, name: '  Island Crafts  ' })
+      .field({ ...application, name: '  Island Crafts  ' })
+      .attach('identityFront', pngPhoto, {
+        filename: 'front.png',
+        contentType: 'image/png',
+      })
+      .attach('identityBack', pngPhoto, {
+        filename: 'back.png',
+        contentType: 'image/png',
+      })
       .expect(201)
       .expect(pendingSeller);
     expect(database.seller.create).toHaveBeenCalledWith(
@@ -383,9 +418,124 @@ describe('API HTTP behavior (database mocked)', () => {
           name: 'Island Crafts',
           slug: 'island-crafts',
           members: { create: { userId, role: 'OWNER' } },
+          documents: { create: identityDocuments },
         }),
       }),
     );
+  });
+
+  it('requires both identity photos and a supported document type', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    await request(app.getHttpServer())
+      .post('/api/v1/seller-applications')
+      .set('Authorization', 'Bearer valid-token')
+      .send(application)
+      .expect(400);
+    await request(app.getHttpServer())
+      .post('/api/v1/seller-applications')
+      .set('Authorization', 'Bearer valid-token')
+      .field(application)
+      .attach('identityFront', pngPhoto, {
+        filename: 'front.png',
+        contentType: 'image/png',
+      })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post('/api/v1/seller-applications')
+      .set('Authorization', 'Bearer valid-token')
+      .field({ ...application, identityDocumentType: 'PASSPORT' })
+      .attach('identityFront', pngPhoto, {
+        filename: 'front.png',
+        contentType: 'image/png',
+      })
+      .attach('identityBack', pngPhoto, {
+        filename: 'back.png',
+        contentType: 'image/png',
+      })
+      .expect(400);
+    expect(documentStorage.upload).not.toHaveBeenCalled();
+    expect(database.seller.create).not.toHaveBeenCalled();
+  });
+
+  it('accepts a driving licence and an optional business registration photo', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    database.seller.create.mockResolvedValue(pendingSeller);
+    await request(app.getHttpServer())
+      .post('/api/v1/seller-applications')
+      .set('Authorization', 'Bearer valid-token')
+      .field({ ...application, identityDocumentType: 'DRIVING_LICENCE' })
+      .attach('identityFront', pngPhoto, {
+        filename: 'front.png',
+        contentType: 'image/png',
+      })
+      .attach('identityBack', pngPhoto, {
+        filename: 'back.png',
+        contentType: 'image/png',
+      })
+      .attach('businessRegistration', pngPhoto, {
+        filename: 'business.png',
+        contentType: 'image/png',
+      })
+      .expect(201);
+    expect(documentStorage.upload).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        businessRegistration: [
+          expect.objectContaining({ mimetype: 'image/png' }),
+        ],
+      }),
+    );
+    expect(database.seller.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          identityDocumentType: 'DRIVING_LICENCE',
+        }),
+      }),
+    );
+  });
+
+  it('removes uploaded photos if application creation fails', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    database.seller.create.mockRejectedValue(
+      new Prisma.PrismaClientKnownRequestError('Duplicate slug', {
+        code: 'P2002',
+        clientVersion: '7.10.0',
+      }),
+    );
+    await request(app.getHttpServer())
+      .post('/api/v1/seller-applications')
+      .set('Authorization', 'Bearer valid-token')
+      .field(application)
+      .attach('identityFront', pngPhoto, {
+        filename: 'front.png',
+        contentType: 'image/png',
+      })
+      .attach('identityBack', pngPhoto, {
+        filename: 'back.png',
+        contentType: 'image/png',
+      })
+      .expect(409);
+    expect(documentStorage.remove).toHaveBeenCalledWith(identityDocuments);
+  });
+
+  it('protects verification photos behind administrator authentication', async () => {
+    const documentPath = `/api/v1/admin/seller-applications/${sellerId}/documents/${productId}`;
+    await request(app.getHttpServer()).get(documentPath).expect(401);
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    await request(app.getHttpServer())
+      .get(documentPath)
+      .set('Authorization', 'Bearer seller-token')
+      .expect(403);
+    expect(documentStorage.read).not.toHaveBeenCalled();
+    firebase.verifyIdToken.mockResolvedValue(administrator);
+    const response = await request(app.getHttpServer())
+      .get(documentPath)
+      .set('Authorization', 'Bearer admin-token')
+      .expect(200);
+    expect(response.headers['cache-control']).toBe('private, no-store');
+    expect(response.headers['content-type']).toContain('image/png');
+    expect(response.headers['x-content-type-options']).toBe('nosniff');
+    expect(documentStorage.read).toHaveBeenCalledWith(sellerId, productId);
   });
 
   it('returns only applications owned by the signed-in user', async () => {
@@ -466,7 +616,15 @@ describe('API HTTP behavior (database mocked)', () => {
       .expect({ ...pendingSeller, status: 'APPROVED' });
     expect(database.$transaction).toHaveBeenCalledOnce();
     expect(database.seller.updateMany).toHaveBeenCalledWith({
-      where: { id: sellerId, status: 'PENDING' },
+      where: {
+        id: sellerId,
+        status: 'PENDING',
+        identityDocumentType: { not: null },
+        AND: [
+          { documents: { some: { kind: 'IDENTITY_FRONT' } } },
+          { documents: { some: { kind: 'IDENTITY_BACK' } } },
+        ],
+      },
       data: { status: 'APPROVED' },
     });
     expect(database.sellerReview.create).toHaveBeenCalledWith({

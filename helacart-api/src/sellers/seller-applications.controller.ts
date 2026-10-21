@@ -10,7 +10,11 @@ import {
   Query,
   Req,
   UseGuards,
+  UseInterceptors,
+  UploadedFiles,
+  StreamableFile,
 } from '@nestjs/common';
+import { FileFieldsInterceptor } from '@nestjs/platform-express';
 import { SellerReviewDecision } from '../generated/prisma/client.js';
 import type { AuthenticatedRequest } from '../auth/firebase-auth.guard.js';
 import { FirebaseAuthGuard } from '../auth/firebase-auth.guard.js';
@@ -19,6 +23,11 @@ import { CreateSellerApplicationDto } from './dto/create-seller-application.dto.
 import { ListSellerApplicationsDto } from './dto/list-seller-applications.dto.js';
 import { RejectSellerApplicationDto } from './dto/reject-seller-application.dto.js';
 import { SellerApplicationsService } from './seller-applications.service.js';
+import {
+  SellerDocumentsService,
+  sellerDocumentMaxBytes,
+  type ApplicationFiles,
+} from './seller-documents.service.js';
 
 @Controller('seller-applications')
 @UseGuards(FirebaseAuthGuard)
@@ -27,11 +36,30 @@ export class SellerApplicationsController {
 
   @Post()
   @Header('Cache-Control', 'no-store')
+  @UseInterceptors(
+    FileFieldsInterceptor(
+      [
+        { name: 'identityFront', maxCount: 1 },
+        { name: 'identityBack', maxCount: 1 },
+        { name: 'businessRegistration', maxCount: 1 },
+      ],
+      {
+        limits: {
+          fileSize: sellerDocumentMaxBytes,
+          files: 3,
+          fields: 6,
+          fieldSize: 4000,
+          parts: 9,
+        },
+      },
+    ),
+  )
   apply(
     @Req() request: AuthenticatedRequest,
     @Body() dto: CreateSellerApplicationDto,
+    @UploadedFiles() files: ApplicationFiles,
   ) {
-    return this.applications.apply(request.user, dto);
+    return this.applications.apply(request.user, dto, files);
   }
 
   @Get('me')
@@ -44,7 +72,29 @@ export class SellerApplicationsController {
 @Controller('admin/seller-applications')
 @UseGuards(FirebaseAuthGuard, AdminGuard)
 export class AdminSellerApplicationsController {
-  constructor(private readonly applications: SellerApplicationsService) {}
+  constructor(
+    private readonly applications: SellerApplicationsService,
+    private readonly documents: SellerDocumentsService,
+  ) {}
+
+  @Get(':id/documents/:documentId')
+  @Header('Cache-Control', 'private, no-store')
+  @Header('X-Content-Type-Options', 'nosniff')
+  async document(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) sellerId: string,
+    @Param('documentId', new ParseUUIDPipe({ version: '4' }))
+    documentId: string,
+  ) {
+    const { bytes, contentType } = await this.documents.read(
+      sellerId,
+      documentId,
+    );
+    return new StreamableFile(bytes, {
+      type: contentType,
+      disposition: 'inline',
+      length: bytes.length,
+    });
+  }
 
   @Get()
   @Header('Cache-Control', 'no-store')

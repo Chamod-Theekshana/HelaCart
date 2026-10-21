@@ -7,6 +7,7 @@ import { Bell, Check, ClipboardList, House, LogOut, MapPin, Package, RotateCcw, 
 import { reload, sendEmailVerification } from "firebase/auth";
 import { api, errorMessage, money } from "@/lib/api";
 import { demoOrders } from "@/lib/demo";
+import { shopPath } from "@/lib/shops";
 import type { Address, Notification, Order, SellerOrder } from "@/lib/types";
 import { Breadcrumbs } from "./breadcrumbs";
 import { useShop } from "./shop-provider";
@@ -89,10 +90,11 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
             {loading ? <div className="empty-panel">Loading your orders...</div> : orders.length ? orders.map((order) => <section className="panel account-order" key={order.id}>
               <div className="account-order-heading"><div><small>ORDER #{order.id.slice(0, 8).toUpperCase()}</small><h3>{new Date(order.createdAt).toLocaleDateString("en-LK", { day: "numeric", month: "long", year: "numeric" })}</h3><span>Cash on Delivery · {order.city}, {order.district}</span></div><div><small>TOTAL</small><strong>{money(order.totalLkrMinor)}</strong></div></div>
               {order.sellerOrders.map((sellerOrder: SellerOrder) => <div className="seller-order" key={sellerOrder.id}>
-                <div className="seller-order-name"><House size={17} /><strong>{sellerOrder.seller.name}</strong><span className="status-pill">{sellerOrder.status.replaceAll("_", " ")}</span></div>
+                <div className="seller-order-name"><House size={17} /><Link href={shopPath(sellerOrder.seller)}><strong>{sellerOrder.seller.name}</strong></Link><span className="status-pill">{sellerOrder.status.replaceAll("_", " ")}</span></div>
                 {sellerOrder.status !== "CANCELLED" && <div className="order-progress">{progress.map((stage) => <span className={progress.indexOf(stage) <= progress.indexOf(sellerOrder.status) ? "done" : ""} key={stage}>{stage.toLowerCase()}</span>)}</div>}
                 {sellerOrder.items.map((item) => <div className="order-item" key={item.id}><span className="order-item-icon"><Package size={20} /></span><div><strong>{item.productTitle}</strong><small>Qty {item.quantity} · {item.sku}</small></div><b>{money(item.lineLkrMinor)}</b></div>)}
-                {sellerOrder.status === "DELIVERED" && !isPreview && <button className="outline-btn return-trigger" onClick={() => setReturnOrder(sellerOrder.id)}><RotateCcw size={15} /> Request return</button>}
+                  {sellerOrder.status === "DELIVERED" && <Link className="outline-btn return-trigger" href={`${shopPath(sellerOrder.seller)}#reviews`}>Review this shop</Link>}
+                  {sellerOrder.status === "DELIVERED" && !isPreview && <button className="outline-btn return-trigger" onClick={() => setReturnOrder(sellerOrder.id)}><RotateCcw size={15} /> Request return</button>}
               </div>)}
             </section>) : <div className="empty-panel"><Package size={32} /><h3>No orders yet</h3><p>Your order history will appear here.</p><Link className="primary-btn" href="/products">Shop products</Link></div>}
             {returnOrder && <form className="panel return-form" onSubmit={requestReturn}><h3>Request a return</h3><p>Tell the seller why you would like to return this delivered order.</p><textarea required minLength={10} maxLength={1000} value={reason} onChange={(event) => setReason(event.target.value)} /><div><button className="primary-btn" type="submit">Send request</button><button className="outline-btn" type="button" onClick={() => setReturnOrder(null)}>Cancel</button></div></form>}

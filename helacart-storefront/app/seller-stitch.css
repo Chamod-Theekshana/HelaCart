@@ -112,7 +112,7 @@
 .seller-form :is(h2,h3){line-height:1.5}
 .seller-form p{font-size:12px;line-height:1.75}
 .seller-fields{gap:20px}
-.seller-fields label,.seller-form>label,.seller-adjust-panel label{font-size:12px;line-height:1.6;gap:8px}
+.seller-fields>label,.seller-form>label,.seller-adjust-panel label{font-size:12px;line-height:1.6;gap:8px}
 .seller-fields :is(input,textarea,select),.seller-form>label input,.seller-adjust-panel input{min-width:0;font-size:14px;min-height:44px}
 .seller-form-actions{flex-wrap:wrap;gap:12px;margin-top:24px}
 .seller-content .seller-form-actions .outline-btn{border:1px solid #dce4f3}
@@ -196,6 +196,9 @@
 .seller-access-step small,.seller-apply-benefit small{display:block;font-size:11px;line-height:1.75;margin-top:6px}
 .seller-apply-benefit{padding:16px 0}
 .seller-apply-benefit span{min-width:0}
+.seller-verification{min-width:0;margin:28px 0 0;padding:24px 0 0;border:0;border-top:1px solid #e2e8f0}
+.seller-verification legend{float:left;width:100%;margin:0 0 8px;padding:0;color:#0f172a;font-size:17px;font-weight:750}
+.seller-verification>p{clear:both;margin-bottom:20px}
 
 /* Use the width available to the content, including when the sidebar is visible. */
 @container seller-content (max-width:1000px){
@@ -219,7 +222,7 @@
   .seller-heading-actions,.seller-hero-actions{width:100%}
   .seller-heading-actions>*,.seller-hero-actions>*{flex:1 1 160px}
   .seller-fields,.seller-adjust-panel form{grid-template-columns:minmax(0,1fr)}
-  .seller-fields label.wide{grid-column:auto}
+  .seller-fields>label.wide{grid-column:auto}
   .seller-stats.compact{grid-template-columns:minmax(0,1fr)}
   .seller-search{flex-basis:100%}
   .seller-toolbar select{flex:1 1 140px}

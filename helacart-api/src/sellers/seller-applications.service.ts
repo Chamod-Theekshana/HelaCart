@@ -1,3 +1,4 @@
+import { randomUUID } from 'node:crypto';
 import {
   ConflictException,
   ForbiddenException,
@@ -9,10 +10,15 @@ import {
   Prisma,
   SellerReviewDecision,
   SellerStatus,
+  SellerDocumentKind,
 } from '../generated/prisma/client.js';
 import { AuthService } from '../auth/auth.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateSellerApplicationDto } from './dto/create-seller-application.dto.js';
+import {
+  SellerDocumentsService,
+  type ApplicationFiles,
+} from './seller-documents.service.js';
 
 const sellerDetails = {
   id: true,
@@ -24,6 +30,11 @@ const sellerDetails = {
   status: true,
   createdAt: true,
   updatedAt: true,
+  identityDocumentType: true,
+  documents: {
+    select: { id: true, kind: true, contentType: true, byteSize: true },
+    orderBy: { kind: 'asc' as const },
+  },
   reviews: {
     select: {
       decision: true,
@@ -40,28 +51,47 @@ export class SellerApplicationsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
+    private readonly documents: SellerDocumentsService,
   ) {}
 
-  async apply(identity: DecodedIdToken, dto: CreateSellerApplicationDto) {
+  async apply(
+    identity: DecodedIdToken,
+    dto: CreateSellerApplicationDto,
+    files: ApplicationFiles = {},
+  ) {
     if (!identity.email_verified) {
       throw new ForbiddenException(
         'Verify your email before applying as a seller',
       );
     }
+    this.documents.validate(files);
     const profile = await this.auth.getOrCreateProfile(identity);
+    if (
+      await this.prisma.seller.findUnique({
+        where: { slug: dto.slug },
+        select: { id: true },
+      })
+    )
+      throw new ConflictException('Seller slug already exists');
+    const sellerId = randomUUID();
+    const uploaded = await this.documents.upload(sellerId, files);
     try {
       return await this.prisma.seller.create({
         data: {
+          id: sellerId,
           name: dto.name,
           slug: dto.slug,
           description: dto.description || null,
           contactPhone: dto.contactPhone,
           pickupAddress: dto.pickupAddress,
+          identityDocumentType: dto.identityDocumentType,
+          documents: { create: uploaded },
           members: { create: { userId: profile.id, role: 'OWNER' } },
         },
         select: sellerDetails,
       });
     } catch (error) {
+      await this.documents.remove(uploaded);
       if (
         error instanceof Prisma.PrismaClientKnownRequestError &&
         error.code === 'P2002'
@@ -108,7 +138,27 @@ export class SellerApplicationsService {
     const profile = await this.auth.getOrCreateProfile(reviewer);
     return this.prisma.$transaction(async (tx) => {
       const updated = await tx.seller.updateMany({
-        where: { id: sellerId, status: SellerStatus.PENDING },
+        where: {
+          id: sellerId,
+          status: SellerStatus.PENDING,
+          ...(decision === SellerReviewDecision.APPROVED
+            ? {
+                identityDocumentType: { not: null },
+                AND: [
+                  {
+                    documents: {
+                      some: { kind: SellerDocumentKind.IDENTITY_FRONT },
+                    },
+                  },
+                  {
+                    documents: {
+                      some: { kind: SellerDocumentKind.IDENTITY_BACK },
+                    },
+                  },
+                ],
+              }
+            : {}),
+        },
         data: {
           status:
             decision === SellerReviewDecision.APPROVED
@@ -124,7 +174,7 @@ export class SellerApplicationsService {
         if (!seller)
           throw new NotFoundException('Seller application not found');
         throw new ConflictException(
-          'Seller application has already been reviewed',
+          'Seller application has already been reviewed or required identity photos are missing',
         );
       }
 

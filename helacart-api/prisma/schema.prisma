@@ -20,6 +20,17 @@ enum SellerMemberRole {
   MANAGER
 }
 
+enum SellerIdentityDocumentType {
+  NATIONAL_ID
+  DRIVING_LICENCE
+}
+
+enum SellerDocumentKind {
+  IDENTITY_FRONT
+  IDENTITY_BACK
+  BUSINESS_REGISTRATION
+}
+
 model User {
   id            String         @id @default(uuid()) @db.Uuid
   firebaseUid   String         @unique
@@ -41,6 +52,10 @@ model User {
   returnReviews  ReturnRequest[] @relation("AdminReturns")
   returnResolutions ReturnRequest[] @relation("AdminReturnResolutions")
   codReviews     CodReconciliation[]
+  shopReviews    ShopReview[] @relation("ShopReviewBuyer")
+  shopReplies    ShopReview[] @relation("ShopReviewReplyAuthor")
+  shopReviewReports ShopReviewReport[] @relation("ShopReportAuthor")
+  shopReportDecisions ShopReviewReport[] @relation("ShopReportModerator")
 }
 
 model Seller {
@@ -59,8 +74,27 @@ model Seller {
   variants      ProductVariant[]
   sellerOrders  SellerOrder[]
   shippingFeeLkrMinor Int?
+  identityDocumentType SellerIdentityDocumentType?
+  documents     SellerApplicationDocument[]
+  publicLocation String?
+  logoUrl       String?
+  coverUrl      String?
+  customerReviews ShopReview[]
 
   @@index([status])
+}
+
+model SellerApplicationDocument {
+  id          String             @id @default(uuid()) @db.Uuid
+  sellerId    String             @db.Uuid
+  kind        SellerDocumentKind
+  storageKey  String             @unique
+  contentType String
+  byteSize    Int
+  createdAt   DateTime           @default(now()) @db.Timestamptz(3)
+  seller      Seller             @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+
+  @@unique([sellerId, kind])
 }
 
 enum SellerReviewDecision {
@@ -298,6 +332,7 @@ model SellerOrder {
   events             SellerOrderEvent[]
   returnRequest      ReturnRequest?
   codReconciliations CodReconciliation[]
+  shopReview         ShopReview?
 
   @@unique([orderId, sellerId])
   @@index([sellerId, createdAt])
@@ -402,4 +437,71 @@ model CodReconciliation {
   @@unique([sellerOrderId, reference])
   @@index([sellerOrderId, createdAt])
   @@index([decision, createdAt])
+}
+
+model ShopReview {
+  id            String @id @default(uuid()) @db.Uuid
+  sellerId      String @db.Uuid
+  buyerId       String @db.Uuid
+  sellerOrderId String @unique @db.Uuid
+  buyerName     String @db.VarChar(100)
+  rating        Int
+  comment       String @db.VarChar(1500)
+  isHidden      Boolean @default(false)
+  deletedAt     DateTime? @db.Timestamptz(3)
+  reply         String? @db.VarChar(1500)
+  replyUserId   String? @db.Uuid
+  repliedAt     DateTime? @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+  seller        Seller @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  buyer         User @relation("ShopReviewBuyer", fields: [buyerId], references: [id], onDelete: Restrict)
+  sellerOrder   SellerOrder @relation(fields: [sellerOrderId], references: [id], onDelete: Restrict)
+  replyAuthor   User? @relation("ShopReviewReplyAuthor", fields: [replyUserId], references: [id], onDelete: Restrict)
+  reports       ShopReviewReport[]
+  photos        ShopReviewPhoto[]
+  photoVersion  Int @default(0)
+
+  @@index([sellerId, isHidden, deletedAt, createdAt])
+  @@index([buyerId, sellerId])
+}
+
+enum ShopReviewReportStatus {
+  OPEN
+  ACTIONED
+  DISMISSED
+}
+
+model ShopReviewReport {
+  id              String @id @default(uuid()) @db.Uuid
+  reviewId        String @db.Uuid
+  reporterUserId  String @db.Uuid
+  reason          String @db.VarChar(500)
+  commentSnapshot String @db.VarChar(1500)
+  ratingSnapshot  Int
+  photoSnapshotIds String[] @default([]) @db.Uuid
+  status          ShopReviewReportStatus @default(OPEN)
+  moderatorUserId String? @db.Uuid
+  moderationNote  String? @db.VarChar(500)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  reviewedAt      DateTime? @db.Timestamptz(3)
+  review          ShopReview @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+  reporter        User @relation("ShopReportAuthor", fields: [reporterUserId], references: [id], onDelete: Restrict)
+  moderator       User? @relation("ShopReportModerator", fields: [moderatorUserId], references: [id], onDelete: Restrict)
+
+  @@unique([reviewId, reporterUserId])
+  @@index([status, createdAt])
+}
+
+model ShopReviewPhoto {
+  id          String @id @default(uuid()) @db.Uuid
+  reviewId    String @db.Uuid
+  storageKey  String @unique
+  contentType String
+  byteSize    Int
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
+  review      ShopReview @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+
+  @@index([reviewId, deletedAt, createdAt])
 }

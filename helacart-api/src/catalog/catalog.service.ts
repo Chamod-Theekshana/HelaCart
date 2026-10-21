@@ -21,7 +21,7 @@ import {
   UpdateProductDto,
 } from './dto/product.dto.js';
 
-const publicProduct = {
+export const publicProduct = {
   id: true,
   title: true,
   slug: true,
@@ -382,7 +382,7 @@ export class CatalogService {
     return profile;
   }
 
-  private withAvailability<
+  withAvailability<
     T extends {
       variants?: Array<{
         id: string;

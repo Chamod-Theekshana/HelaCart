@@ -14,6 +14,7 @@ import { CommerceModule } from './commerce/commerce.module.js';
 import { MediaModule } from './media/media.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { OperationsModule } from './operations/operations.module.js';
+import { ShopsModule } from './shops/shops.module.js';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { OperationsModule } from './operations/operations.module.js';
     MediaModule,
     NotificationsModule,
     OperationsModule,
+    ShopsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService, { provide: APP_GUARD, useClass: RequestLimitGuard }],

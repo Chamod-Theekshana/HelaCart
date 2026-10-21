@@ -3,16 +3,19 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BadgeCheck, Box, ClipboardList, ExternalLink, LayoutDashboard, LogOut, Menu, Plus, Settings, ShoppingBag, UserRound, Wallet, X } from "lucide-react";
+import { BadgeCheck, Box, ClipboardList, ExternalLink, LayoutDashboard, LogOut, Menu, MessageSquare, Plus, Settings, ShoppingBag, Store, UserRound, Wallet, X } from "lucide-react";
 import { Brand } from "./site-header";
 import { useShop } from "./shop-provider";
 import { useSeller } from "./seller-provider";
+import { shopPath } from "@/lib/shops";
 
 const nav = [
   { href: "/seller", label: "Overview", icon: LayoutDashboard },
   { href: "/seller/products", label: "Products", icon: Box },
   { href: "/seller/inventory", label: "Inventory & Stock", icon: ShoppingBag },
   { href: "/seller/orders", label: "Orders", icon: ClipboardList },
+  { href: "/seller/shop", label: "Shop profile", icon: Store },
+  { href: "/seller/reviews", label: "Customer reviews", icon: MessageSquare },
   { href: "/seller/settings", label: "Delivery Settings", icon: Settings },
 ];
 
@@ -74,8 +77,8 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
           aria-current={pathname === href || (href === "/seller/products" && pathname.startsWith(href + "/")) ? "page" : undefined}
           onClick={() => setMenuOpen(false)}><Icon size={18} /> {label}</Link>)}
       </nav>
-      <Link className="seller-storefront-link" href="/" onClick={() => setMenuOpen(false)}><ShoppingBag size={17} /> Visit storefront <ExternalLink size={14} /></Link>
-      <div className="seller-sidebar-bottom"><Link href="/seller/settings" onClick={() => setMenuOpen(false)}><Settings size={17} /> Store profile</Link>
+      <Link className="seller-storefront-link" href={seller ? shopPath(seller) : "/shops"} onClick={() => setMenuOpen(false)}><ShoppingBag size={17} /> View public shop <ExternalLink size={14} /></Link>
+      <div className="seller-sidebar-bottom"><Link href="/seller/shop" onClick={() => setMenuOpen(false)}><Store size={17} /> Store profile</Link>
         {user && <button onClick={() => void signOutBuyer()}><LogOut size={17} /> Sign out</button>}</div>
     </aside>
     {menuOpen && <button className="seller-scrim" aria-label="Close navigation" onClick={() => setMenuOpen(false)} />}
