@@ -8,6 +8,7 @@ import { ShieldCheck, Store } from "lucide-react";
 import { initials } from "@/lib/profile";
 import { AccountSecurity } from "@/components/account-security";
 import { ShopBusinessProfile } from "@/components/shop-business-profile";
+import { VerifiedShopBadge } from "@/components/verified-shop-badge";
 import p from "@/components/profile.module.css";
 import { useShop } from "@/components/shop-provider";
 import { useSeller } from "@/components/seller-provider";
@@ -60,7 +61,8 @@ export default function SellerShopPage() {
         }
       />
       {shop && <>
-        <div className={p.shopBanner}>{shop.logoUrl ? <img src={shop.logoUrl} alt="Shop logo" /> : <span className={p.avatar}>{initials(shop.name)}</span>}<div><h2>{shop.name}</h2><p>{shop.publicLocation || "Add your shop's town or district"}</p></div><span className={p.badge}><ShieldCheck size={14} />Approved shop</span></div>
+        <div className={p.shopBanner}>{shop.logoUrl ? <img src={shop.logoUrl} alt="Shop logo" /> : <span className={p.avatar}>{initials(shop.name)}</span>}<div><h2>{shop.name}</h2><p>{shop.publicLocation || "Add your shop's town or district"}</p></div>{shop.isVerified ? <VerifiedShopBadge /> : <span className={p.badge}><ShieldCheck size={14} />Approved shop</span>}</div>
+        {!shop.isVerified && <p className={s.notice}>Your shop is approved to sell. The Verified shop badge is awarded separately by HelaCart after an admin reviews your identity documents.</p>}
         <div className={p.tabs} role="tablist" aria-label="Shop profile sections">{([ ["public", "Public shop"], ["business", "Business details"], ["security", "Login & security"] ] as const).map(([value, label]) => <button key={value} role="tab" aria-selected={tab === value} className={tab === value ? p.activeTab : ""} onClick={() => setTab(value)}>{value === "public" && <Store size={16} />}{label}</button>)}</div>
       </>}
       {!shop ? (

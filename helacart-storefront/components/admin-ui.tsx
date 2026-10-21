@@ -19,9 +19,9 @@ export function AdminFeedback({ error, notice }: { error?: string; notice?: stri
 export function AdminEmpty({ message }: { message: string }) {
   return <div className="admin-empty">{message}</div>;
 }
-export function AdminDecision({ title, description, label, noteLabel, minLength = 0, maxLength = 1000, dangerous = false, onClose, onConfirm }: {
+export function AdminDecision({ title, description, label, noteLabel, minLength = 0, maxLength = 1000, dangerous = false, children, onClose, onConfirm }: {
   title: string; description: string; label: string; noteLabel?: string; minLength?: number; maxLength?: number;
-  dangerous?: boolean; onClose: () => void; onConfirm: (note: string) => Promise<void>;
+  dangerous?: boolean; children?: ReactNode; onClose: () => void; onConfirm: (note: string) => Promise<void>;
 }) {
   const [note, setNote] = useState(""); const [busy, setBusy] = useState(false); const [error, setError] = useState("");
   async function submit(event: FormEvent) {
@@ -36,6 +36,7 @@ export function AdminDecision({ title, description, label, noteLabel, minLength 
     <form className="admin-modal" role="dialog" aria-modal="true" aria-label={title} onSubmit={(event) => void submit(event)}>
       <div className="admin-modal-head"><h2>{title}</h2><button type="button" onClick={onClose} disabled={busy} aria-label="Close dialog"><X size={19} /></button></div>
       <p>{description}</p>
+      {children}
       {noteLabel && <label>{noteLabel}<textarea autoFocus required={minLength > 0} minLength={minLength || undefined} maxLength={maxLength} rows={4} value={note} onChange={(event) => setNote(event.target.value)} /></label>}
       <AdminFeedback error={error} />
       <div className="admin-modal-actions"><button type="button" className="outline-btn" onClick={onClose} disabled={busy}>Cancel</button><button type="submit" disabled={busy} className={dangerous ? "admin-danger" : "primary-btn"}>{busy ? "Please wait…" : label}</button></div>

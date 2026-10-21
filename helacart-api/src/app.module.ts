@@ -16,6 +16,7 @@ import { NotificationsModule } from './notifications/notifications.module.js';
 import { OperationsModule } from './operations/operations.module.js';
 import { ShopsModule } from './shops/shops.module.js';
 import { WorkspaceModule } from './workspace/workspace.module.js';
+import { StorefrontContentModule } from './storefront-content/storefront-content.module.js';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { WorkspaceModule } from './workspace/workspace.module.js';
     OperationsModule,
     ShopsModule,
     WorkspaceModule,
+    StorefrontContentModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService, { provide: APP_GUARD, useClass: RequestLimitGuard }],

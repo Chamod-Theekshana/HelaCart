@@ -33,6 +33,7 @@ export class CartQuantityDto {
 export class CheckoutDto {
   @IsUUID('4') addressId!: string;
   @IsUUID('4') checkoutKey!: string;
+  @IsString() @Matches(/^[a-f0-9]{64}$/) quote!: string;
 }
 
 export class DeliveryFeeDto {

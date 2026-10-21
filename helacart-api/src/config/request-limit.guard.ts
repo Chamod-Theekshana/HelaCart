@@ -35,6 +35,18 @@ export class RequestLimitGuard implements CanActivate {
         this.consume(`sensitive:${ip}`, 20, now);
       }
       if (
+        /^\/api\/v1\/admin\/(?:categories(?:\/[^/]+(?:\/image)?)?|storefront\/hero(?:\/publish|\/images\/[^/]+)?)$/.test(
+          request.path,
+        )
+      )
+        this.consume(`storefront-content:${ip}`, 30, now);
+      if (
+        /^\/api\/v1\/admin\/seller-applications\/[^/]+\/verification$/.test(
+          request.path,
+        )
+      )
+        this.consume(`verification:${ip}`, 20, now);
+      if (
         /^\/api\/v1\/shops\/[^/]+\/reviews\//.test(request.path) ||
         /^\/api\/v1\/sellers\/[^/]+\/reviews\//.test(request.path)
       )

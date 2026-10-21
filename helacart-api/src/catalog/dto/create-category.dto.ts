@@ -1,7 +1,17 @@
 import { Transform } from 'class-transformer';
-import { IsString, Length, Matches } from 'class-validator';
+import {
+  IsInt,
+  IsOptional,
+  IsString,
+  Length,
+  Matches,
+  Max,
+  Min,
+} from 'class-validator';
 
 export class CreateCategoryDto {
+  @IsString() @Length(0, 500) @IsOptional() description?: string;
+  @IsInt() @Min(0) @Max(10000) @IsOptional() sortOrder?: number;
   @Transform(({ value }: { value: unknown }) =>
     typeof value === 'string' ? value.trim() : value,
   )

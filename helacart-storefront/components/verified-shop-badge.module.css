@@ -1,0 +1,49 @@
+.details {
+  width: fit-content;
+  max-width: 100%;
+  margin: 8px 0;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 36px;
+  padding: 6px 10px;
+  border: 1px solid #0d948833;
+  border-radius: 999px;
+  background: var(--greenwash, #e8faf5);
+  color: var(--teal, #006b61);
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1.4;
+  cursor: pointer;
+  list-style: none;
+}
+.badge::-webkit-details-marker {
+  display: none;
+}
+.badge svg {
+  flex-shrink: 0;
+}
+.badge:focus-visible {
+  outline: 2px solid var(--teal, #006b61);
+  outline-offset: 3px;
+}
+.details .explanation {
+  display: block;
+  max-width: 350px;
+  margin: 8px 0 12px;
+  padding: 12px 14px;
+  border-left: 3px solid var(--brand, #0d9488);
+  background: var(--canvas, #f7f9ff);
+  color: var(--muted, #64748b);
+  font-size: 12px;
+  font-weight: 400;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+}
+@media (pointer: coarse) {
+  .badge {
+    min-height: 44px;
+  }
+}

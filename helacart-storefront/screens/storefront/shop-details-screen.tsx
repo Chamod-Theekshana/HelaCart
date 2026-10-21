@@ -2,7 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { BadgeCheck, ChevronRight, MapPin, Package, Truck } from "lucide-react";
+import { ChevronRight, MapPin, Package, Truck } from "lucide-react";
 import { api, ApiError, hasApi, money } from "@/lib/api";
 import {
   pageOf,
@@ -20,6 +20,7 @@ import type { Product } from "@/lib/types";
 import { ProductCard } from "@/components/product-card";
 import { Pagination, ShopLogo, Stars } from "@/components/shop-ui";
 import { ShopReviews } from "@/components/shop-reviews";
+import { VerifiedShopBadge } from "@/components/verified-shop-badge";
 import s from "@/components/shop.module.css";
 type Props = {
   params: Promise<{ slug: string }>;
@@ -115,10 +116,8 @@ export default async function ShopPage({ params, searchParams }: Props) {
         <div className={s.heroBody}>
           <ShopLogo shop={shop} />
           <div className={s.heroCopy}>
-            <span className={s.approved}>
-              <BadgeCheck size={15} /> Approved HelaCart seller
-            </span>
             <h1>{shop.name}</h1>
+            {shop.isVerified && <VerifiedShopBadge />}
             <div className={s.meta}>
               {shop.publicLocation && (
                 <span>

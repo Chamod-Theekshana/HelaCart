@@ -1,4 +1,5 @@
 .hero {
+  scroll-margin-top: 160px;
   --hero-ink: #123d35;
   --hero-teal: #006b61;
   --hero-cream: #f8f5ee;
@@ -37,26 +38,27 @@
   color: #365e48;
   font-size: 9px;
   font-weight: 800;
-  letter-spacing: .09em;
+  letter-spacing: 0.09em;
   line-height: 1.5;
 }
 
-.content h1 {
+.content :is(h1, h2) {
   margin: 22px 0 20px;
   color: var(--hero-ink);
   font-size: clamp(38px, 4.6vw, 64px);
   font-weight: 800;
-  letter-spacing: -.055em;
+  letter-spacing: -0.055em;
   line-height: 1.08;
+  overflow-wrap: anywhere;
 }
 
-.content h1 span {
+.content :is(h1, h2) span {
   display: block;
   color: var(--hero-teal);
   font-family: Georgia, "Times New Roman", serif;
   font-weight: 400;
   font-style: italic;
-  letter-spacing: -.055em;
+  letter-spacing: -0.055em;
 }
 
 .content > p {
@@ -76,7 +78,8 @@
   margin-top: 28px;
 }
 
-.primaryAction, .secondaryAction {
+.primaryAction,
+.secondaryAction {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -90,7 +93,10 @@
   font-weight: 750;
   line-height: 1.5;
   text-align: center;
-  transition: background .18s, border-color .18s, box-shadow .18s;
+  transition:
+    background 0.18s,
+    border-color 0.18s,
+    box-shadow 0.18s;
 }
 
 .primaryAction {
@@ -99,11 +105,26 @@
   box-shadow: 0 5px 12px #006b6117;
 }
 
-.primaryAction:hover { background: #005047; box-shadow: 0 6px 16px #006b6129; }
-.secondaryAction { color: var(--hero-ink); border-color: #cbd7ca; background: #ffffff65; }
-.secondaryAction:hover { background: #fff; border-color: #699985; }
-.hero a:focus-visible { outline: 3px solid #006b61; outline-offset: 4px; }
-.hero svg { flex-shrink: 0; }
+.primaryAction:hover {
+  background: #005047;
+  box-shadow: 0 6px 16px #006b6129;
+}
+.secondaryAction {
+  color: var(--hero-ink);
+  border-color: #cbd7ca;
+  background: #ffffff65;
+}
+.secondaryAction:hover {
+  background: #fff;
+  border-color: #699985;
+}
+.hero a:focus-visible {
+  outline: 3px solid #006b61;
+  outline-offset: 4px;
+}
+.hero svg {
+  flex-shrink: 0;
+}
 
 .footnote {
   display: flex;
@@ -115,7 +136,12 @@
   line-height: 1.6;
 }
 
-.footnote > span { width: 6px; height: 6px; border-radius: 50%; background: #88a37d; }
+.footnote > span {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #88a37d;
+}
 
 .visual {
   position: relative;
@@ -133,7 +159,15 @@
   content: "";
 }
 
-.image { object-fit: cover; object-position: 56% center; }
+.image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: 56% center;
+}
 
 .visualCaption {
   position: absolute;
@@ -155,8 +189,24 @@
   line-height: 1.5;
 }
 
-.captionIcon { display: grid; place-items: center; width: 40px; height: 40px; flex-shrink: 0; border-radius: 10px; color: #006b61; background: #e8eee0; }
-.visualCaption small { display: block; margin-top: 3px; color: #5e6d55; font-size: 10px; font-weight: 500; line-height: 1.6; }
+.captionIcon {
+  display: grid;
+  place-items: center;
+  width: 40px;
+  height: 40px;
+  flex-shrink: 0;
+  border-radius: 10px;
+  color: #006b61;
+  background: #e8eee0;
+}
+.visualCaption small {
+  display: block;
+  margin-top: 3px;
+  color: #5e6d55;
+  font-size: 10px;
+  font-weight: 500;
+  line-height: 1.6;
+}
 
 .benefits {
   display: grid;
@@ -167,56 +217,263 @@
   background: #fffdf8;
 }
 
-.benefits > div { display: flex; align-items: center; justify-content: center; min-width: 0; gap: 12px; color: #547755; }
-.benefits > div + div { border-left: 1px solid #e2e5da; }
-.benefits strong { display: block; color: #29483b; font-size: 11px; font-weight: 750; line-height: 1.6; }
-.benefits small { display: block; color: #626f5b; font-size: 10px; line-height: 1.7; }
+.benefits > div {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+  gap: 12px;
+  color: #547755;
+}
+.benefits > div + div {
+  border-left: 1px solid #e2e5da;
+}
+.benefits strong {
+  display: block;
+  color: #29483b;
+  font-size: 11px;
+  font-weight: 750;
+  line-height: 1.6;
+}
+.benefits small {
+  display: block;
+  color: #626f5b;
+  font-size: 10px;
+  line-height: 1.7;
+}
 
 @media (max-width: 1100px) {
-  .stage { min-height: 440px; grid-template-columns: minmax(0, 1.05fr) minmax(0, .95fr); }
-  .content { padding: 36px 28px; }
-  .content h1 { font-size: clamp(38px, 4.8vw, 52px); }
-  .primaryAction, .secondaryAction { padding: 12px 14px; font-size: 11px; gap: 8px; }
-  .actions { gap: 10px; }
-  .visualCaption { right: 16px; bottom: 16px; max-width: calc(100% - 32px); padding: 12px; }
-  .visualCaption small { max-width: 180px; }
-  .benefits { gap: 16px; padding: 18px 20px; }
+  .stage {
+    min-height: 440px;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 0.95fr);
+  }
+  .content {
+    padding: 36px 28px;
+  }
+  .content :is(h1, h2) {
+    font-size: clamp(38px, 4.8vw, 52px);
+  }
+  .primaryAction,
+  .secondaryAction {
+    padding: 12px 14px;
+    font-size: 11px;
+    gap: 8px;
+  }
+  .actions {
+    gap: 10px;
+  }
+  .visualCaption {
+    right: 16px;
+    bottom: 16px;
+    max-width: calc(100% - 32px);
+    padding: 12px;
+  }
+  .visualCaption small {
+    max-width: 180px;
+  }
+  .benefits {
+    gap: 16px;
+    padding: 18px 20px;
+  }
 }
 
 @media (max-width: 760px) {
-  .hero { border-radius: 20px; }
-  .stage { grid-template-columns: minmax(0, 1fr); }
-  .content { padding: 32px; }
-  .content h1 { font-size: clamp(40px, 7.5vw, 56px); }
-  .content > p { max-width: 470px; }
-  .primaryAction, .secondaryAction { padding: 13px 18px; font-size: 12px; }
-  .visual { min-height: 320px; }
-  .image { object-position: center 64%; }
-  .visual::after { inset: 0 0 auto; width: 100%; height: 40px; background: linear-gradient(var(--hero-cream), transparent); }
-  .visualCaption { right: 20px; bottom: 20px; }
-  .visualCaption small { max-width: none; }
-  .benefits { gap: 14px; padding: 20px; }
-  .benefits > div { align-items: flex-start; justify-content: flex-start; flex-direction: column; gap: 8px; }
-  .benefits > div + div { padding-left: 14px; }
+  .hero {
+    border-radius: 20px;
+  }
+  .stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .content {
+    padding: 32px;
+  }
+  .content :is(h1, h2) {
+    font-size: clamp(40px, 7.5vw, 56px);
+  }
+  .content > p {
+    max-width: 470px;
+  }
+  .primaryAction,
+  .secondaryAction {
+    padding: 13px 18px;
+    font-size: 12px;
+  }
+  .visual {
+    min-height: 260px;
+  }
+  .image {
+    object-position: center 64%;
+  }
+  .visual::after {
+    inset: 0 0 auto;
+    width: 100%;
+    height: 40px;
+    background: linear-gradient(var(--hero-cream), transparent);
+  }
+  .visualCaption {
+    right: 20px;
+    bottom: 20px;
+  }
+  .visualCaption small {
+    max-width: none;
+  }
+  .benefits {
+    gap: 14px;
+    padding: 20px;
+  }
+  .benefits > div {
+    align-items: flex-start;
+    justify-content: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .benefits > div + div {
+    padding-left: 14px;
+  }
 }
 
 @media (max-width: 430px) {
-  .content { padding: 28px 22px; }
-  .eyebrow { padding: 7px 9px; font-size: 8px; letter-spacing: .055em; }
-  .content h1 { margin: 20px 0 16px; font-size: clamp(34px, 9.8vw, 42px); }
-  .content > p { font-size: 13px; line-height: 1.8; }
-  .actions { margin-top: 24px; }
-  .actions > a { width: 100%; }
-  .footnote { margin-top: 16px; font-size: 10px; }
-  .visual { min-height: 280px; }
-  .visualCaption { right: 14px; bottom: 14px; max-width: calc(100% - 28px); gap: 10px; padding: 10px; font-size: 11px; }
-  .visualCaption small { font-size: 9px; }
-  .captionIcon { width: 34px; height: 34px; }
-  .benefits { grid-template-columns: minmax(0, 1fr); gap: 14px; padding: 20px 22px; }
-  .benefits > div { flex-direction: row; align-items: center; gap: 12px; }
-  .benefits > div + div { border-left: 0; border-top: 1px solid #e2e5da; padding: 14px 0 0; }
+  .content {
+    padding: 25px 22px 20px;
+  }
+  .eyebrow {
+    padding: 7px 9px;
+    font-size: 8px;
+    letter-spacing: 0.055em;
+  }
+  .content :is(h1, h2) {
+    margin: 20px 0 16px;
+    font-size: clamp(34px, 9.8vw, 42px);
+  }
+  .content > p {
+    font-size: 13px;
+    line-height: 1.8;
+  }
+  .actions {
+    margin-top: 20px;
+    gap: 7px;
+  }
+  .actions > a {
+    width: 100%;
+  }
+  .secondaryAction {
+    min-height: 44px;
+    padding: 6px 12px;
+    border-color: transparent;
+    background: transparent;
+  }
+  .footnote {
+    display: none;
+  }
+  .visual {
+    min-height: 210px;
+  }
+  .visualCaption {
+    right: 14px;
+    bottom: 14px;
+    max-width: calc(100% - 28px);
+    gap: 10px;
+    padding: 10px;
+    font-size: 11px;
+  }
+  .visualCaption small {
+    font-size: 9px;
+  }
+  .captionIcon {
+    width: 34px;
+    height: 34px;
+  }
+  .benefits {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 9px;
+    padding: 16px 14px;
+  }
+  .benefits > div {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 7px;
+  }
+  .benefits > div > svg {
+    width: 18px;
+    height: 18px;
+  }
+  .benefits strong {
+    font-size: 10px;
+  }
+  .benefits small {
+    display: none;
+  }
+  .benefits > div + div {
+    padding-left: 9px;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .primaryAction, .secondaryAction { transition: none; }
+  .primaryAction,
+  .secondaryAction {
+    transition: none;
+  }
+}
+.eyebrow {
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+.preview a {
+  pointer-events: none;
+}
+@container (max-width:760px) {
+  .preview .stage {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .preview .content {
+    padding: 28px;
+  }
+  .preview .content :is(h1, h2) {
+    font-size: 40px;
+  }
+  .preview .visual {
+    min-height: 260px;
+  }
+  .preview .visual::after {
+    inset: 0 0 auto;
+    width: 100%;
+    height: 40px;
+    background: linear-gradient(var(--hero-cream), transparent);
+  }
+  .preview .benefits {
+    gap: 14px;
+    padding: 20px;
+  }
+  .preview .benefits > div {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+}
+@container (max-width:430px) {
+  .preview .content {
+    padding: 24px 20px;
+  }
+  .preview .content :is(h1, h2) {
+    font-size: 34px;
+  }
+  .preview .actions > a {
+    width: 100%;
+  }
+  .preview .benefits {
+    padding: 14px;
+    gap: 8px;
+  }
+  .preview .benefits small {
+    display: none;
+  }
+  .preview .visual {
+    min-height: 220px;
+  }
+  .preview .visualCaption {
+    right: 14px;
+    bottom: 14px;
+    max-width: calc(100% - 28px);
+    padding: 10px;
+  }
 }

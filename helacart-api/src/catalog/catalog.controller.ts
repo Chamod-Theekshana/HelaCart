@@ -35,6 +35,7 @@ export class PublicCatalogController {
   constructor(private readonly catalog: CatalogService) {}
 
   @Get('categories')
+  @Header('Cache-Control', 'no-store')
   categories() {
     return this.catalog.categories();
   }

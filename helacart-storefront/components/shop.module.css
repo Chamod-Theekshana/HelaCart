@@ -139,7 +139,7 @@
   font-size: 12px;
   gap: 10px;
 }
-.cardFoot > span:last-child {
+.cardFoot > a:last-child {
   display: flex;
   align-items: center;
   gap: 6px;

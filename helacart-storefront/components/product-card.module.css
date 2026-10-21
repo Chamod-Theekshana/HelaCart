@@ -1,0 +1,270 @@
+.card {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid #e1e8ef;
+  border-radius: 16px;
+  box-shadow: 0 2px 3px #163a2c02;
+  background: #fff;
+  min-width: 0;
+  transition:
+    transform 0.2s,
+    box-shadow 0.2s,
+    border-color 0.2s;
+}
+.card:hover {
+  border-color: #b9d3cc;
+  box-shadow: 0 12px 28px #123d3510;
+  transform: translateY(-3px);
+}
+.imageLink {
+  padding: 12px 12px 0;
+}
+.card .imageLink .photo {
+  aspect-ratio: 1 / 1;
+  height: auto;
+  background: #f4f7fa;
+  border-radius: 10px;
+  position: relative;
+  overflow: hidden;
+}
+.card .photo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 10px;
+  transition: transform 0.3s;
+}
+.card:hover .photo img {
+  transform: none;
+}
+.category {
+  position: absolute;
+  left: 22px;
+  top: 22px;
+  max-width: calc(100% - 44px);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  background: #ffffffeb;
+  border: 1px solid #e7ecec;
+  padding: 4px 8px;
+  border-radius: 5px;
+  color: #52716c;
+  font-size: 10px;
+  line-height: 1.5;
+}
+.card .body {
+  padding: 17px 17px 0;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+.card .seller {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #697e7a;
+  margin-bottom: 8px;
+  min-width: 0;
+}
+.seller svg {
+  flex-shrink: 0;
+}
+.seller span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.seller:hover {
+  color: var(--teal);
+}
+.card .title {
+  color: var(--navy);
+  font-weight: 600;
+  font-size: 14px;
+  line-height: 1.5;
+  min-height: 42px;
+  height: 42px;
+  margin: 0;
+}
+.meta {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 5px 10px;
+  margin: 14px 0 17px;
+  min-height: 30px;
+}
+.price {
+  font-family: "Plus Jakarta Sans", Inter, Arial, sans-serif;
+  font-size: 21px;
+  letter-spacing: -0.04em;
+  line-height: 1.5;
+  color: var(--navy);
+  overflow-wrap: anywhere;
+}
+.stock {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 10px;
+  color: #5a7a6b;
+  white-space: nowrap;
+}
+.stock > span {
+  height: 5px;
+  width: 5px;
+  background: #429077;
+  border-radius: 50%;
+}
+.soldOut {
+  color: #8c756c;
+}
+.soldOut > span {
+  background: #aa9486;
+}
+.card .add {
+  width: 100%;
+  min-height: 44px;
+  border-radius: 9px;
+  margin-top: auto;
+  padding: 10px 8px;
+  font-size: 12px;
+  font-weight: 650;
+}
+.card .added {
+  background: #e5f3ed;
+  border-color: #bfdcca;
+  color: #246442;
+}
+.feedback {
+  min-height: 31px;
+  margin: 0;
+  padding: 8px 0;
+  color: var(--teal);
+  font-size: 10px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.error {
+  color: var(--danger);
+}
+.imageFallback {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 9px;
+  color: #8ba6a0;
+  padding: 18px;
+  text-align: center;
+}
+.imageFallback small {
+  font-size: 11px;
+}
+.spinner {
+  animation: spin 1s linear infinite;
+}
+.card :is(a, button):focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (max-width: 1100px) {
+  .price {
+    font-size: 19px;
+  }
+  .meta {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 4px;
+  }
+}
+@media (max-width: 600px) {
+  .card {
+    border-radius: 12px;
+  }
+  .imageLink {
+    padding: 8px 8px 0;
+  }
+  .card .photo {
+    border-radius: 7px;
+    aspect-ratio: 1 / 1;
+  }
+  .card .photo img {
+    padding: 6px;
+  }
+  .category {
+    left: 14px;
+    top: 14px;
+    max-width: calc(100% - 28px);
+    font-size: 8px;
+    padding: 3px 6px;
+  }
+  .card .body {
+    padding: 12px 11px 0;
+  }
+  .card .seller {
+    font-size: 9px;
+    gap: 4px;
+    margin-bottom: 7px;
+  }
+  .card .title {
+    font-size: 12px;
+    line-height: 1.5;
+    height: 36px;
+    min-height: 36px;
+  }
+  .price {
+    font-size: 17px;
+  }
+  .meta {
+    margin: 11px 0 13px;
+    min-height: 41px;
+  }
+  .stock {
+    font-size: 9px;
+  }
+  .card .add {
+    min-height: 42px;
+    font-size: 11px;
+    gap: 6px;
+    border-radius: 7px;
+  }
+  .feedback {
+    font-size: 9px;
+    min-height: 29px;
+  }
+}
+@media (max-width: 350px) {
+  .card .body {
+    padding-left: 9px;
+    padding-right: 9px;
+  }
+  .price {
+    font-size: 15px;
+  }
+  .card .add {
+    font-size: 10px;
+  }
+  .card .seller svg {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card,
+  .card .photo img {
+    transition: none;
+  }
+  .spinner {
+    animation: none;
+  }
+}

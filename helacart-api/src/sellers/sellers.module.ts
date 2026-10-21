@@ -8,6 +8,7 @@ import {
 } from './seller-applications.controller.js';
 import { SellerApplicationsService } from './seller-applications.service.js';
 import { SellerDocumentsService } from './seller-documents.service.js';
+import { ShopVerificationService } from './shop-verification.service.js';
 
 @Module({
   imports: [AuthModule, PrismaModule],
@@ -15,7 +16,12 @@ import { SellerDocumentsService } from './seller-documents.service.js';
     SellerApplicationsController,
     AdminSellerApplicationsController,
   ],
-  providers: [SellerApplicationsService, SellerDocumentsService, AdminGuard],
+  providers: [
+    SellerApplicationsService,
+    SellerDocumentsService,
+    ShopVerificationService,
+    AdminGuard,
+  ],
   exports: [AdminGuard],
 })
 export class SellersModule {}

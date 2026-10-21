@@ -1,4 +1,4 @@
-export type Category = { id: string; name: string; slug: string };
+export type Category = { id: string; name: string; slug: string; description?: string | null; imageUrl?: string | null };
 export type Variant = {
   id: string; sku: string; optionValues: Record<string, string>;
   priceLkrMinor: number; availableQuantity: number;
@@ -16,10 +16,12 @@ export type CartItem = {
   sku: string; optionValues: Record<string, string>; priceLkrMinor: number;
   quantity: number; availableQuantity: number; available: boolean;
   shippingConfigured: boolean;
+  sellerName?: string; sellerSlug?: string; imageUrl?: string | null; shippingFeeLkrMinor?: number | null;
 };
 export type Cart = {
   items: CartItem[]; subtotalLkrMinor: number; shippingLkrMinor: number;
   totalLkrMinor: number; canCheckout: boolean;
+  checkoutQuote?: string;
 };
 export type Address = {
   id: string; recipient: string; phone: string; line1: string;

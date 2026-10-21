@@ -2,6 +2,8 @@ import type { IdentityDocumentType, SellerDocument, SellerProduct } from "@/lib/
 
 export type AdminSellerStatus = "PENDING" | "APPROVED" | "REJECTED" | "SUSPENDED";
 export type AdminApplication = {
+  isVerified: boolean; verifiedAt: string | null; verificationVersion: number;
+  verificationHistory: { id: string; isVerified: boolean; version: number; reason: string; createdAt: string; reviewer: { id: string; email: string } }[];
   id: string; name: string; slug: string; status: AdminSellerStatus;
   description: string | null; contactPhone: string | null; pickupAddress: string | null;
   createdAt: string; updatedAt: string;
@@ -37,6 +39,7 @@ export const dateTime = (value: string | null | undefined) => value ? new Date(v
 export const shortId = (value: string) => value.length > 12 ? `#${value.slice(0, 8)}` : `#${value}`;
 
 const seller: AdminApplication = {
+  isVerified: false, verifiedAt: null, verificationVersion: 0, verificationHistory: [],
   id: "sample-seller-1", name: "Ceylon Handcrafts & Spices", slug: "ceylon-handcrafts",
   status: "PENDING", description: "Handmade household goods and Ceylon spices from local makers.",
   contactPhone: "+94771234567", pickupAddress: "No. 18, Temple Road, Kandy, Sri Lanka",

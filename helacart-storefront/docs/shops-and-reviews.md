@@ -21,6 +21,8 @@ Seller Center adds `/seller/shop` for the public profile and JPEG/PNG/WebP logo/
 
 ## API and data
 
+Shop identity verification is separate from selling approval and verified-purchase reviews. See [Verified shops](./shop-verification.md) for admin controls, badge behavior and audit details.
+
 `helacart-api/src/shops` contains the public directory/profile/product routes, buyer review access and mutations, seller profile/image/reply routes, and administrator reports. The additive `20261021120000_public_shops_reviews` migration adds public profile fields, `ShopReview` and `ShopReviewReport`; it has been applied to the configured development database.
 
 The additive `20261021150000_shop_review_photos` migration adds `ShopReviewPhoto`, the internal photo revision counter and reported photo snapshots. It has also been applied to the development database. Review PUT routes accept both existing JSON requests and multipart bodies (`rating`, `comment`, JSON `keepPhotoIds`, and up to three `photos` files). No new storage credentials are required.

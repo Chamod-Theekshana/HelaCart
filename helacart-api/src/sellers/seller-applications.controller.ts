@@ -23,6 +23,9 @@ import { CreateSellerApplicationDto } from './dto/create-seller-application.dto.
 import { ListSellerApplicationsDto } from './dto/list-seller-applications.dto.js';
 import { RejectSellerApplicationDto } from './dto/reject-seller-application.dto.js';
 import { SellerApplicationsService } from './seller-applications.service.js';
+import { ShopVerificationService } from './shop-verification.service.js';
+import { UpdateShopVerificationDto } from './dto/update-shop-verification.dto.js';
+import { ApproveSellerApplicationDto } from './dto/approve-seller-application.dto.js';
 import {
   SellerDocumentsService,
   sellerDocumentMaxBytes,
@@ -75,7 +78,18 @@ export class AdminSellerApplicationsController {
   constructor(
     private readonly applications: SellerApplicationsService,
     private readonly documents: SellerDocumentsService,
+    private readonly verification: ShopVerificationService,
   ) {}
+
+  @Patch(':id/verification')
+  @Header('Cache-Control', 'no-store')
+  verify(
+    @Param('id', new ParseUUIDPipe({ version: '4' })) sellerId: string,
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: UpdateShopVerificationDto,
+  ) {
+    return this.verification.update(sellerId, request.user, dto);
+  }
 
   @Get(':id/documents/:documentId')
   @Header('Cache-Control', 'private, no-store')
@@ -107,11 +121,14 @@ export class AdminSellerApplicationsController {
   approve(
     @Param('id', new ParseUUIDPipe({ version: '4' })) sellerId: string,
     @Req() request: AuthenticatedRequest,
+    @Body() dto: ApproveSellerApplicationDto,
   ) {
     return this.applications.review(
       sellerId,
       request.user,
       SellerReviewDecision.APPROVED,
+      undefined,
+      dto,
     );
   }
 

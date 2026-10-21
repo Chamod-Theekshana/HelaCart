@@ -18,16 +18,17 @@ export async function api<T>(
 ): Promise<T> {
   if (!hasApi) throw new Error("Connect your HelaCart API to use this feature.");
   const isMultipart = typeof FormData !== "undefined" && options.body instanceof FormData;
+  const isBinary = typeof Blob !== "undefined" && options.body instanceof Blob;
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), isMultipart ? 60_000 : 15_000);
+  const timer = setTimeout(() => controller.abort(), isMultipart || isBinary ? 60_000 : 15_000);
   try {
     const response = await fetch(`${apiBase}${path}`, {
       method: options.method ?? "GET",
       headers: {
-        ...(options.body !== undefined && !isMultipart ? { "Content-Type": "application/json" } : {}),
+        ...(options.body !== undefined && !isMultipart ? { "Content-Type": isBinary ? (options.body as Blob).type : "application/json" } : {}),
         ...(options.token ? { Authorization: `Bearer ${options.token}` } : {}),
       },
-      body: options.body === undefined ? undefined : isMultipart ? options.body as FormData : JSON.stringify(options.body),
+      body: options.body === undefined ? undefined : isMultipart ? options.body as FormData : isBinary ? options.body as Blob : JSON.stringify(options.body),
       cache: "no-store",
       signal: controller.signal,
     });

@@ -35,7 +35,9 @@ export default function SellerOrders() {
   const [status, setStatus] = useState("ALL");
   const [query, setQuery] = useState("");
   const [selectedId, setSelectedId] = useState("");
-  const [paymentCollected, setPaymentCollected] = useState(false);
+  const [paymentCollectedFor, setPaymentCollectedFor] = useState<string | null>(
+    null,
+  );
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
   useEffect(() => {
@@ -79,7 +81,7 @@ export default function SellerOrders() {
 
   async function update(row: SellerOrderRecord, newStatus: OrderStatus) {
     if (!seller || isPreview) return;
-    if (newStatus === "DELIVERED" && !paymentCollected) {
+    if (newStatus === "DELIVERED" && paymentCollectedFor !== row.id) {
       setNotice(
         "Confirm COD payment collection before marking this order delivered.",
       );
@@ -98,7 +100,7 @@ export default function SellerOrders() {
         ...(newStatus === "DELIVERED" ? { paymentCollected: true } : {}),
       });
       await refreshOrders();
-      setPaymentCollected(false);
+      setPaymentCollectedFor(null);
       setNotice(`Order status updated to ${newStatus.toLowerCase()}.`);
     } catch (cause) {
       setNotice(errorMessage(cause));
@@ -201,7 +203,7 @@ export default function SellerOrders() {
                 key={row.id}
                 onClick={() => {
                   setSelectedId(row.id);
-                  setPaymentCollected(false);
+                  setPaymentCollectedFor(null);
                   setNotice("");
                 }}
                 className={`seller-order-entry ${selected?.id === row.id ? "selected" : ""}`}
@@ -317,8 +319,12 @@ export default function SellerOrders() {
                 <label className="seller-checkbox seller-payment">
                   <input
                     type="checkbox"
-                    checked={paymentCollected}
-                    onChange={(e) => setPaymentCollected(e.target.checked)}
+                    checked={paymentCollectedFor === selected.id}
+                    onChange={(e) =>
+                      setPaymentCollectedFor(
+                        e.target.checked ? selected.id : null,
+                      )
+                    }
                   />{" "}
                   I have collected the COD payment
                 </label>
@@ -331,7 +337,7 @@ export default function SellerOrders() {
                       busy ||
                       isPreview ||
                       (nextStatus[selected.status] === "DELIVERED" &&
-                        !paymentCollected)
+                        paymentCollectedFor !== selected.id)
                     }
                     onClick={() =>
                       void update(selected, nextStatus[selected.status]!)

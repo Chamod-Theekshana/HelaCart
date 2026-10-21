@@ -2,7 +2,7 @@ import { demoProducts } from "./demo";
 import type { Category, Product } from "./types";
 import type { SellerDocument, SellerStatus, IdentityDocumentType } from "./seller";
 
-export type PrivateShop = Pick<PublicShop, "id" | "name" | "slug" | "description" | "publicLocation" | "logoUrl" | "coverUrl" | "createdAt" | "shippingFeeLkrMinor"> & {
+export type PrivateShop = Pick<PublicShop, "id" | "name" | "slug" | "description" | "publicLocation" | "logoUrl" | "coverUrl" | "createdAt" | "shippingFeeLkrMinor" | "isVerified"> & {
   status: SellerStatus;
   contactPhone: string | null;
   pickupAddress: string | null;
@@ -16,6 +16,7 @@ export type RatingSummary = {
   breakdown: { rating: number; count: number }[];
 };
 export type PublicShop = {
+  isVerified: boolean;
   id: string;
   name: string;
   slug: string;
@@ -144,6 +145,7 @@ export const previewShops: PublicShop[] = [
   );
   return {
     id: `sample-shop-${index}`,
+    isVerified: false,
     name: seller.name,
     slug: seller.slug!,
     description: `Welcome to ${seller.name}. Explore our collection, find something for your everyday life, and discover what our customers think.`,

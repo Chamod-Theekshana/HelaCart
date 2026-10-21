@@ -15,6 +15,8 @@ import {
 import { AuthService } from '../auth/auth.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateSellerApplicationDto } from './dto/create-seller-application.dto.js';
+import { adminVerificationSelect } from './shop-verification.service.js';
+import { ApproveSellerApplicationDto } from './dto/approve-seller-application.dto.js';
 import {
   SellerDocumentsService,
   type ApplicationFiles,
@@ -28,6 +30,8 @@ const sellerDetails = {
   contactPhone: true,
   pickupAddress: true,
   status: true,
+  isVerified: true,
+  verifiedAt: true,
   createdAt: true,
   updatedAt: true,
   identityDocumentType: true,
@@ -119,6 +123,7 @@ export class SellerApplicationsService {
       take: 50,
       select: {
         ...sellerDetails,
+        ...adminVerificationSelect,
         members: {
           where: { role: 'OWNER' as const },
           select: {
@@ -134,63 +139,89 @@ export class SellerApplicationsService {
     reviewer: DecodedIdToken,
     decision: SellerReviewDecision,
     reason?: string,
+    options: ApproveSellerApplicationDto = {},
   ) {
     const profile = await this.auth.getOrCreateProfile(reviewer);
-    return this.prisma.$transaction(async (tx) => {
-      const updated = await tx.seller.updateMany({
-        where: {
-          id: sellerId,
-          status: SellerStatus.PENDING,
-          ...(decision === SellerReviewDecision.APPROVED
-            ? {
-                identityDocumentType: { not: null },
-                AND: [
-                  {
-                    documents: {
-                      some: { kind: SellerDocumentKind.IDENTITY_FRONT },
+    const verifyShop =
+      decision === SellerReviewDecision.APPROVED && options.verifyShop === true;
+    const verifiedAt = verifyShop ? new Date() : null;
+    return this.prisma.$transaction(
+      async (tx) => {
+        const updated = await tx.seller.updateMany({
+          where: {
+            id: sellerId,
+            status: SellerStatus.PENDING,
+            ...(verifyShop
+              ? { isVerified: false, verificationVersion: 0 }
+              : {}),
+            ...(decision === SellerReviewDecision.APPROVED
+              ? {
+                  identityDocumentType: { not: null },
+                  AND: [
+                    {
+                      documents: {
+                        some: { kind: SellerDocumentKind.IDENTITY_FRONT },
+                      },
                     },
-                  },
-                  {
-                    documents: {
-                      some: { kind: SellerDocumentKind.IDENTITY_BACK },
+                    {
+                      documents: {
+                        some: { kind: SellerDocumentKind.IDENTITY_BACK },
+                      },
                     },
-                  },
-                ],
-              }
-            : {}),
-        },
-        data: {
-          status:
-            decision === SellerReviewDecision.APPROVED
-              ? SellerStatus.APPROVED
-              : SellerStatus.REJECTED,
-        },
-      });
-      if (updated.count !== 1) {
-        const seller = await tx.seller.findUnique({
-          where: { id: sellerId },
-          select: { id: true },
+                  ],
+                }
+              : {}),
+          },
+          data: {
+            ...(verifyShop
+              ? { isVerified: true, verifiedAt, verificationVersion: 1 }
+              : {}),
+            status:
+              decision === SellerReviewDecision.APPROVED
+                ? SellerStatus.APPROVED
+                : SellerStatus.REJECTED,
+          },
         });
-        if (!seller)
-          throw new NotFoundException('Seller application not found');
-        throw new ConflictException(
-          'Seller application has already been reviewed or required identity photos are missing',
-        );
-      }
+        if (updated.count !== 1) {
+          const seller = await tx.seller.findUnique({
+            where: { id: sellerId },
+            select: { id: true },
+          });
+          if (!seller)
+            throw new NotFoundException('Seller application not found');
+          throw new ConflictException(
+            'Seller application has already been reviewed or required identity photos are missing',
+          );
+        }
 
-      await tx.sellerReview.create({
-        data: {
-          sellerId,
-          reviewerUserId: profile.id,
-          decision,
-          reason: reason ?? null,
-        },
-      });
+        await tx.sellerReview.create({
+          data: {
+            sellerId,
+            reviewerUserId: profile.id,
+            decision,
+            reason: reason ?? null,
+          },
+        });
 
-      return tx.seller.findUniqueOrThrow({
-        where: { id: sellerId },
-        select: sellerDetails,
-      });
-    });
+        if (verifyShop) {
+          await tx.sellerVerification.create({
+            data: {
+              sellerId,
+              reviewerUserId: profile.id,
+              isVerified: true,
+              version: 1,
+              reason: options.verificationReason!,
+              createdAt: verifiedAt!,
+            },
+          });
+        }
+
+        return tx.seller.findUniqueOrThrow({
+          where: { id: sellerId },
+          select: sellerDetails,
+        });
+      },
+      { timeout: 15_000, maxWait: 10_000 },
+    );
   }
 }

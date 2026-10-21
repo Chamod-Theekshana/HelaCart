@@ -8,9 +8,8 @@ import {
   useMemo,
   useState,
 } from "react";
-import { onAuthStateChanged } from "firebase/auth";
 import { api, errorMessage } from "@/lib/api";
-import { clientAuth } from "@/lib/firebase";
+import { clientAuth, subscribeToAuth } from "@/lib/firebase";
 import { useShop } from "./shop-provider";
 import { ListPagination, useDebounced } from "./list-controls";
 import { pageOf, type Page } from "@/lib/shops";
@@ -112,7 +111,7 @@ export function SellerProvider({ children }: { children: React.ReactNode }) {
     if (!user) return;
     const auth = clientAuth();
     if (!auth) return;
-    return onAuthStateChanged(auth, (current) => {
+    return subscribeToAuth((current) => {
       if (current?.uid === user.uid) void refreshProfile();
     });
   }, [authReady, user, isPreview, refreshProfile]);

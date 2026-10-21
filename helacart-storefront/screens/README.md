@@ -49,6 +49,7 @@ Screen implementations retain their server/client boundaries, metadata and origi
 | --- | --- |
 | `/admin` | [admin-overview-screen.tsx](./admin/admin-overview-screen.tsx) |
 | `/admin/categories` | [admin-categories-screen.tsx](./admin/admin-categories-screen.tsx) |
+| `/admin/appearance` | [admin-storefront-appearance-screen.tsx](./admin/admin-storefront-appearance-screen.tsx) |
 | `/admin/cod` | [admin-cod-reconciliation-screen.tsx](./admin/admin-cod-reconciliation-screen.tsx) |
 | `/admin/orders` | [admin-orders-screen.tsx](./admin/admin-orders-screen.tsx) |
 | `/admin/products` | [admin-product-approvals-screen.tsx](./admin/admin-product-approvals-screen.tsx) |

@@ -46,6 +46,8 @@ model User {
   updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
   memberships   SellerMember[]
   sellerReviews SellerReview[]
+  sellerVerifications SellerVerification[]
+  publishedStorefronts StorefrontAppearance[]
   productReviews ProductReview[]
   inventoryMovements InventoryMovement[]
   addresses      BuyerAddress[]
@@ -71,6 +73,10 @@ model Seller {
   contactPhone  String?
   pickupAddress String?
   status        SellerStatus   @default(PENDING)
+  isVerified    Boolean        @default(false)
+  verifiedAt    DateTime?      @db.Timestamptz(3)
+  verificationVersion Int      @default(0)
+  verificationHistory SellerVerification[]
   createdAt     DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
   members       SellerMember[]
@@ -87,6 +93,21 @@ model Seller {
   customerReviews ShopReview[]
 
   @@index([status])
+}
+
+model SellerVerification {
+  id             String   @id @default(uuid()) @db.Uuid
+  sellerId       String   @db.Uuid
+  reviewerUserId String   @db.Uuid
+  isVerified     Boolean
+  version        Int
+  reason         String   @db.VarChar(500)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  seller         Seller   @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  reviewer       User     @relation(fields: [reviewerUserId], references: [id], onDelete: Restrict)
+
+  @@unique([sellerId, version])
+  @@index([reviewerUserId])
 }
 
 model SellerApplicationDocument {
@@ -139,8 +160,24 @@ model Category {
   name      String
   slug      String    @unique
   isActive  Boolean   @default(true)
+  description String? @db.VarChar(500)
+  sortOrder Int @default(0)
+  imageUrl String?
+  imageStorageKey String? @unique
+  revision Int @default(0)
   createdAt DateTime  @default(now()) @db.Timestamptz(3)
   products  Product[]
+}
+
+model StorefrontAppearance {
+  id String @id @default("home")
+  draft Json
+  published Json
+  revision Int @default(0)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  publishedAt DateTime? @db.Timestamptz(3)
+  publishedByUserId String? @db.Uuid
+  publisher User? @relation(fields: [publishedByUserId], references: [id], onDelete: Restrict, map: "StorefrontAppearance_publisher_fkey")
 }
 
 enum ProductStatus {

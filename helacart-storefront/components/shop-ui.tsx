@@ -1,8 +1,9 @@
-/* eslint-disable @next/next/no-img-element */
 import Link from "next/link";
 import { ArrowRight, MapPin, Star, Store } from "lucide-react";
 import { shopPath, type PublicShop } from "@/lib/shops";
 import s from "./shop.module.css";
+import { StorefrontImage } from "./storefront-image";
+import { VerifiedShopBadge } from "./verified-shop-badge";
 
 export function Stars({ rating }: { rating: number }) {
   return (
@@ -25,27 +26,34 @@ export function ShopLogo({
 }) {
   return (
     <span className={s.logo}>
-      {shop.logoUrl ? (
-        <img src={shop.logoUrl} alt={`${shop.name} logo`} />
-      ) : (
-        shop.name.slice(0, 1).toUpperCase()
-      )}
+      <StorefrontImage
+        src={shop.logoUrl}
+        alt={`${shop.name} logo`}
+        fallback={shop.name.slice(0, 1).toUpperCase()}
+      />
     </span>
   );
 }
 export function ShopCard({ shop }: { shop: PublicShop }) {
   return (
-    <Link href={shopPath(shop)} className={s.shopCard}>
-      <div className={s.cardCover}>
-        {shop.coverUrl ? (
-          <img src={shop.coverUrl} alt="" loading="lazy" />
-        ) : (
-          <Store size={55} strokeWidth={1} />
-        )}
-      </div>
+    <article className={s.shopCard}>
+      <Link
+        href={shopPath(shop)}
+        className={s.cardCover}
+        aria-label={`Visit ${shop.name}`}
+      >
+        <StorefrontImage
+          src={shop.coverUrl}
+          alt=""
+          fallback={<Store size={55} strokeWidth={1} />}
+        />
+      </Link>
       <div className={s.cardBody}>
         <ShopLogo shop={shop} />
-        <h2>{shop.name}</h2>
+        <h2>
+          <Link href={shopPath(shop)}>{shop.name}</Link>
+        </h2>
+        {shop.isVerified && <VerifiedShopBadge />}
         <p>
           <MapPin size={14} />
           {shop.publicLocation || "Sri Lankan seller"}
@@ -66,12 +74,12 @@ export function ShopCard({ shop }: { shop: PublicShop }) {
             {shop.productCount}{" "}
             {shop.productCount === 1 ? "product" : "products"}
           </span>
-          <span>
+          <Link href={shopPath(shop)}>
             Visit shop <ArrowRight size={15} />
-          </span>
+          </Link>
         </div>
       </div>
-    </Link>
+    </article>
   );
 }
 export function Pagination({

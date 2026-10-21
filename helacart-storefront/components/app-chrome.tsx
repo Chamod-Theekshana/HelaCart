@@ -22,6 +22,6 @@ export function AppChrome({ children, categories }: { children: React.ReactNode;
     <SiteHeader categories={categories} />
     <PreviewBanner />
     <main className="main-content">{children}</main>
-    <SiteFooter />
+    <SiteFooter showTrust={pathname !== "/"} />
   </>;
 }

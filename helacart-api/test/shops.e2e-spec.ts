@@ -18,6 +18,7 @@ describe('Public shops and verified reviews HTTP boundaries', () => {
     id: sellerId,
     name: 'Island Crafts',
     slug: 'island-crafts',
+    isVerified: true,
     description: 'Made with care',
     publicLocation: 'Kandy',
     logoUrl: null,
@@ -134,6 +135,7 @@ describe('Public shops and verified reviews HTTP boundaries', () => {
     const response = await request(app.getHttpServer()).get(root).expect(200);
     expect(response.body).toMatchObject({
       name: shop.name,
+      isVerified: true,
       rating: { average: 5, total: 1 },
       productCount: 1,
     });
@@ -148,6 +150,9 @@ describe('Public shops and verified reviews HTTP boundaries', () => {
       'documents',
       'identityDocumentType',
       'members',
+      'verificationHistory',
+      'verificationVersion',
+      'verifiedAt',
     ])
       expect(query.select).not.toHaveProperty(key);
   });
@@ -162,6 +167,7 @@ describe('Public shops and verified reviews HTTP boundaries', () => {
       .expect(200);
     expect(result.body.items[0]).toMatchObject({
       slug: shop.slug,
+      isVerified: true,
       productCount: 1,
     });
     await request(app.getHttpServer())

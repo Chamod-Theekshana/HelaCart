@@ -11,6 +11,7 @@ import {
 } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthService } from '../auth/auth.service.js';
+import { adminVerificationSelect } from '../sellers/shop-verification.service.js';
 import {
   CatalogService,
   privateProduct,
@@ -413,6 +414,7 @@ export class WorkspaceService {
             status: true,
             createdAt: true,
             identityDocumentType: true,
+            ...adminVerificationSelect,
             updatedAt: true,
             documents: {
               select: {

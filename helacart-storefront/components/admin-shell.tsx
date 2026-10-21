@@ -15,6 +15,7 @@ const items = [
   { href: "/admin/products", title: "Product approvals", icon: BadgeCheck },
   { href: "/admin/review-reports", title: "Review reports", icon: Flag },
   { href: "/admin/categories", title: "Categories", icon: FolderTree },
+  { href: "/admin/appearance", title: "Storefront appearance", icon: LayoutDashboard },
   { href: "/admin/orders", title: "Orders", icon: ShoppingBag, section: "FULFILMENT & SETTLEMENTS" },
   { href: "/admin/returns", title: "Returns", icon: RotateCcw },
   { href: "/admin/cod", title: "COD reconciliation", icon: Wallet },

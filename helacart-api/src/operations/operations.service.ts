@@ -23,6 +23,7 @@ import {
   ReconcileCodDto,
   RequestReturnDto,
 } from './operations.dto.js';
+const orderWriteOptions = { timeout: 15_000, maxWait: 10_000 } as const;
 
 @Injectable()
 export class OperationsService {
@@ -78,7 +79,7 @@ export class OperationsService {
           'A buyer requested a return',
         );
         return created;
-      });
+      }, orderWriteOptions);
     } catch (error) {
       this.unique(
         error,
@@ -163,7 +164,7 @@ export class OperationsService {
         `Return request was ${decision.toLowerCase()}`,
       );
       return result;
-    });
+    }, orderWriteOptions);
   }
 
   async resolveReturn(
@@ -188,6 +189,7 @@ export class OperationsService {
         throw new ConflictException('Approved return request required');
       const result = await tx.returnRequest.findUniqueOrThrow({
         where: { id: returnId },
+        include: { sellerOrder: { select: { sellerId: true } } },
       });
       await this.notifications.forUser(
         tx,
@@ -196,8 +198,15 @@ export class OperationsService {
         result.id,
         'Your return case was resolved',
       );
+      await this.notifications.forSeller(
+        tx,
+        result.sellerOrder.sellerId,
+        NotificationType.RETURN_REVIEWED,
+        result.id,
+        'A return case was resolved',
+      );
       return result;
-    });
+    }, orderWriteOptions);
   }
 
   async codQueue() {
@@ -264,7 +273,10 @@ export class OperationsService {
         const order = await tx.sellerOrder.findUniqueOrThrow({
           where: { id: sellerOrderId },
           include: {
-            codReconciliations: { orderBy: { createdAt: 'desc' }, take: 1 },
+            codReconciliations: {
+              where: { decision: CodReconciliationDecision.RECONCILED },
+              take: 1,
+            },
           },
         });
         if (
@@ -305,7 +317,7 @@ export class OperationsService {
             : 'COD collection needs review',
         );
         return result;
-      });
+      }, orderWriteOptions);
     } catch (error) {
       this.unique(
         error,

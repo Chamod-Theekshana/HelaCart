@@ -1,6 +1,8 @@
 # Storefront hero
 
-The homepage uses `components/storefront-hero.tsx` and its CSS module. The hero remains available when the catalogue is empty or unavailable. Its primary action opens `/products`; its secondary action scrolls to and focuses the categories section.
+Admin editing, desktop/mobile images, draft preview and publishing are documented in [Storefront content management](./storefront-content-management.md).
+
+The homepage uses `components/storefront-hero.tsx` and its CSS module. The hero remains available when the catalogue is empty or unavailable. Its primary action opens `/products`; its secondary action opens the categories section when available, or `/shops` when there are no categories. See [the storefront polish notes](./storefront-polish.md) for the current mobile layout and validation.
 
 The illustration is saved in the project at `public/marketplace-hero.webp` (1374 × 1145, approximately 177 KB). It was generated with the built-in image generation tool, then encoded as WebP for the website. The original generation remains at `C:/Users/Chamod/.codex/generated_images/01a1584b-cd51-7a93-8eb2-e71e27628c71/exec-c6c4c3b8-109c-4a6a-bea6-ca22eb6cd92c.png`.
 

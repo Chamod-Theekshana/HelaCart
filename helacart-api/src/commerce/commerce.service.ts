@@ -34,6 +34,7 @@ const orderDetail = {
     },
   },
 } as const;
+const orderWriteOptions = { timeout: 15_000, maxWait: 10_000 } as const;
 
 type CartRow = Prisma.CartItemGetPayload<{
   include: {
@@ -143,6 +144,10 @@ export class CommerceService {
       productId: item.variant.productId,
       title: item.variant.product.title,
       sellerId: item.variant.sellerId,
+      sellerName: item.variant.product.seller.name,
+      sellerSlug: item.variant.product.seller.slug,
+      imageUrl: item.variant.product.imageUrls[0] ?? null,
+      shippingFeeLkrMinor: item.variant.product.seller.shippingFeeLkrMinor,
       sku: item.variant.sku,
       optionValues: item.variant.optionValues,
       priceLkrMinor: item.variant.priceLkrMinor,
@@ -170,8 +175,12 @@ export class CommerceService {
       subtotalLkrMinor: subtotal,
       shippingLkrMinor: shipping,
       totalLkrMinor: subtotal + shipping,
+      checkoutQuote: this.quote(rows),
       canCheckout:
         items.length > 0 &&
+        items.length <= 50 &&
+        Number.isSafeInteger(subtotal + shipping) &&
+        subtotal + shipping <= 1_000_000_000 &&
         items.every(
           (item) =>
             item.available &&
@@ -202,7 +211,7 @@ export class CommerceService {
       },
       include: orderDetail,
     });
-    if (previous) return this.sameCheckout(previous, dto.addressId);
+    if (previous) return this.sameCheckout(previous, dto.addressId, dto.quote);
     for (let attempt = 0; attempt < 3; attempt++) {
       try {
         return await this.prisma.$transaction(
@@ -216,7 +225,8 @@ export class CommerceService {
               },
               include: orderDetail,
             });
-            if (repeated) return this.sameCheckout(repeated, dto.addressId);
+            if (repeated)
+              return this.sameCheckout(repeated, dto.addressId, dto.quote);
             const address = await tx.buyerAddress.findFirst({
               where: { id: dto.addressId, userId: user.id, isActive: true },
             });
@@ -225,6 +235,10 @@ export class CommerceService {
             if (!rows.length) throw new BadRequestException('Cart is empty');
             if (rows.length > 50)
               throw new BadRequestException('Cart exceeds 50 items');
+            if (this.quote(rows) !== dto.quote)
+              throw new ConflictException(
+                'Your cart or delivery charges changed. Review the updated cart before placing your order.',
+              );
             for (const row of rows) {
               if (
                 !this.isAvailable(row) ||
@@ -273,19 +287,7 @@ export class CommerceService {
                   'Stock changed; review cart and retry',
                 );
             }
-            const hash = createHash('sha256')
-              .update(
-                JSON.stringify({
-                  addressId: dto.addressId,
-                  rows: rows.map((row) => [
-                    row.variantId,
-                    row.quantity,
-                    row.variant.priceLkrMinor,
-                  ]),
-                  shipping,
-                }),
-              )
-              .digest('hex');
+            const hash = this.checkoutHash(dto.addressId, dto.quote);
             const order = await tx.order.create({
               data: {
                 buyerId: user.id,
@@ -339,6 +341,7 @@ export class CommerceService {
               await tx.inventoryMovement.create({
                 data: {
                   variantId: row.variantId,
+                  actorUserId: user.id,
                   delta: -row.quantity,
                   reason: `COD order ${order.id} placed`,
                 },
@@ -363,16 +366,29 @@ export class CommerceService {
           },
           {
             isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
-            timeout: 15_000,
+            ...orderWriteOptions,
           },
         );
       } catch (error) {
         if (
           error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === 'P2034' &&
-          attempt < 2
-        )
-          continue;
+          (error.code === 'P2034' ||
+            (error.code === 'P2010' &&
+              ['40001', '40P01'].includes(
+                String(
+                  error.meta?.code ??
+                    (
+                      error.meta?.driverAdapterError as
+                        { cause?: { originalCode?: unknown } } | undefined
+                    )?.cause?.originalCode,
+                ),
+              )))
+        ) {
+          if (attempt < 2) continue;
+          throw new ConflictException(
+            'Checkout is busy. Review your cart and retry.',
+          );
+        }
         if (
           error instanceof Prisma.PrismaClientKnownRequestError &&
           error.code === 'P2002'
@@ -386,7 +402,7 @@ export class CommerceService {
             },
             include: orderDetail,
           });
-          if (saved) return this.sameCheckout(saved, dto.addressId);
+          if (saved) return this.sameCheckout(saved, dto.addressId, dto.quote);
         }
         throw error;
       }
@@ -537,7 +553,7 @@ export class CommerceService {
         where: { id: sellerOrderId },
         include: { items: true, events: true },
       });
-    });
+    }, orderWriteOptions);
   }
 
   private async cancel(
@@ -613,16 +629,49 @@ export class CommerceService {
         where: { id: sellerOrderId },
         include: { items: true, events: true },
       });
-    });
+    }, orderWriteOptions);
   }
 
-  private sameCheckout<T extends { addressId: string }>(
+  private checkoutHash(addressId: string, quote: string) {
+    return createHash('sha256')
+      .update(JSON.stringify({ addressId, quote }))
+      .digest('hex');
+  }
+
+  private quote(rows: CartRow[]) {
+    return createHash('sha256')
+      .update(
+        JSON.stringify(
+          rows
+            .map((row) => ({
+              variantId: row.variantId,
+              sellerId: row.variant.sellerId,
+              quantity: row.quantity,
+              price: row.variant.priceLkrMinor,
+              delivery: row.variant.product.seller.shippingFeeLkrMinor,
+              title: row.variant.product.title,
+              sku: row.variant.sku,
+              options: Object.entries(
+                row.variant.optionValues as Record<string, string>,
+              ).sort(([a], [b]) => a.localeCompare(b)),
+            }))
+            .sort((a, b) => a.variantId.localeCompare(b.variantId)),
+        ),
+      )
+      .digest('hex');
+  }
+
+  private sameCheckout<T extends { addressId: string; snapshotHash: string }>(
     order: T,
     addressId: string,
+    quote: string,
   ) {
-    if (order.addressId !== addressId)
+    if (
+      order.addressId !== addressId ||
+      order.snapshotHash !== this.checkoutHash(addressId, quote)
+    )
       throw new ConflictException(
-        'Checkout key already used with another address',
+        'Checkout key already used for a different checkout. Check your orders before starting again.',
       );
     return order;
   }

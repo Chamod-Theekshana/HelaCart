@@ -1291,6 +1291,20 @@ describe('API HTTP behavior (database mocked)', () => {
       .set('Authorization', 'Bearer token')
       .send({ addressId: categoryId, checkoutKey: 'same-key' })
       .expect(400);
+    await request(app.getHttpServer())
+      .post('/api/v1/me/orders/checkout')
+      .set('Authorization', 'Bearer token')
+      .send({ addressId: categoryId, checkoutKey: productId })
+      .expect(400);
+    await request(app.getHttpServer())
+      .post('/api/v1/me/orders/checkout')
+      .set('Authorization', 'Bearer token')
+      .send({
+        addressId: categoryId,
+        checkoutKey: productId,
+        quote: 'forged quote',
+      })
+      .expect(400);
   });
 
   it('forbids cross-seller delivery setting changes and accepts only valid fees', async () => {

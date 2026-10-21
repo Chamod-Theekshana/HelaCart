@@ -13,6 +13,7 @@ export const shopSelect = {
   id: true,
   name: true,
   slug: true,
+  isVerified: true,
   description: true,
   publicLocation: true,
   logoUrl: true,
