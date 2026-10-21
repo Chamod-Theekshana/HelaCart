@@ -1,5 +1,14 @@
 import { demoProducts } from "./demo";
 import type { Category, Product } from "./types";
+import type { SellerDocument, SellerStatus, IdentityDocumentType } from "./seller";
+
+export type PrivateShop = Pick<PublicShop, "id" | "name" | "slug" | "description" | "publicLocation" | "logoUrl" | "coverUrl" | "createdAt" | "shippingFeeLkrMinor"> & {
+  status: SellerStatus;
+  contactPhone: string | null;
+  pickupAddress: string | null;
+  identityDocumentType: IdentityDocumentType | null;
+  documents: SellerDocument[];
+};
 
 export type RatingSummary = {
   total: number;

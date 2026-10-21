@@ -5,6 +5,8 @@ import Image from "next/image";
 import Link from "next/link";
 import { Menu, Search, ShoppingBag, Truck, UserRound, X } from "lucide-react";
 import { useShop } from "./shop-provider";
+import { ProfileAvatar } from "./profile-avatar";
+import profileStyles from "./profile.module.css";
 import type { Category } from "@/lib/types";
 
 export function Brand() {
@@ -17,7 +19,7 @@ export function Brand() {
 
 export function SiteHeader({ categories }: { categories: Category[] }) {
   const [menuOpen, setMenuOpen] = useState(false);
-  const { cart, user } = useShop();
+  const { cart, user, accountProfile } = useShop();
   const count = cart?.items.reduce((sum, row) => sum + row.quantity, 0) ?? 0;
   return <>
     <div className="topbar"><div className="container topbar-inner">
@@ -36,7 +38,7 @@ export function SiteHeader({ categories }: { categories: Category[] }) {
           <button type="submit">Search</button>
         </form>
         <div className="header-actions">
-          <Link href="/account" className="account-link" aria-label="Your account"><span className="round-icon"><UserRound size={18} /></span><span><small>{user?.email ? "HELLO" : "HELLO, SIGN IN"}</small><strong>Account</strong></span></Link>
+          <Link href="/account/profile" className="account-link" aria-label="Your profile">{user ? <ProfileAvatar name={accountProfile?.name || user.email || "HC"} small /> : <span className="round-icon"><UserRound size={18} /></span>}<span><small>{user?.email ? "HELLO" : "HELLO, SIGN IN"}</small><strong className={profileStyles.headerName} title={accountProfile?.name ?? undefined}>{accountProfile?.name?.split(" ")[0] || "Account"}</strong></span></Link>
           <Link href="/cart" className="cart-button" aria-label={`Cart with ${count} items`}><ShoppingBag size={19} /><span>CART<small>{count} {count === 1 ? "item" : "items"}</small></span></Link>
         </div>
       </div>

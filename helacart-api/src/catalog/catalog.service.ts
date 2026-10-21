@@ -45,7 +45,7 @@ export const publicProduct = {
   },
 } as const;
 
-const privateProduct = {
+export const privateProduct = {
   ...publicProduct,
   sku: true,
   categoryId: true,

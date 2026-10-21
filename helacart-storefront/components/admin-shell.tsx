@@ -3,7 +3,8 @@
 import { useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BadgeCheck, ClipboardCheck, ClipboardList, ExternalLink, Flag, FolderTree, LayoutDashboard, LogOut, Menu, RotateCcw, ShieldCheck, ShoppingBag, Store, Wallet, X } from "lucide-react";
+import { BadgeCheck, ClipboardCheck, ClipboardList, ExternalLink, Flag, FolderTree, LayoutDashboard, LogOut, Menu, RotateCcw, UserRound, ShoppingBag, Store, Wallet, X } from "lucide-react";
+import { ProfileAvatar } from "./profile-avatar";
 import { useShop } from "./shop-provider";
 import { useAdmin } from "./admin-provider";
 import { Brand } from "./site-header";
@@ -17,12 +18,13 @@ const items = [
   { href: "/admin/orders", title: "Orders", icon: ShoppingBag, section: "FULFILMENT & SETTLEMENTS" },
   { href: "/admin/returns", title: "Returns", icon: RotateCcw },
   { href: "/admin/cod", title: "COD reconciliation", icon: Wallet },
+  { href: "/admin/profile", title: "My profile", icon: UserRound, section: "ACCOUNT" },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [open, setOpen] = useState(false);
-  const { user, authReady, signOutBuyer } = useShop();
+  const { user, authReady, signOutBuyer, accountProfile } = useShop();
   const { access, accessError, retry, isPreview } = useAdmin();
   const activeName = items.find((item) => item.href === pathname)?.title ?? "Operations";
   let state: React.ReactNode = null;
@@ -50,7 +52,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <span className="admin-top-spacer" />
       {isPreview && <span className="admin-preview-chip">Sample data</span>}
       <Link href="/" className="admin-top-store">View buyer storefront <ExternalLink size={15} /></Link>
-      <span className="admin-top-user"><ShieldCheck size={18} /><span>{user?.email ?? "Admin preview"}<small>{isPreview ? "Design preview" : "Authorized admin"}</small></span></span>
+      <Link href="/admin/profile" className="admin-top-user" aria-label="My admin profile"><ProfileAvatar name={accountProfile?.name || user?.email || "Admin"} small /><span>{accountProfile?.name || user?.email || "Admin preview"}<small>{isPreview ? "Design preview" : "Authorized admin"}</small></span></Link>
     </header>
       <main className="admin-content">{isPreview && <div className="admin-preview" role="status">Design preview with sample records. Connect the API and sign in with an authorized administrator to make real decisions.</div>}{state ?? children}</main>
     </div>

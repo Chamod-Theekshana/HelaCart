@@ -12,6 +12,7 @@ import {
   Length,
   Max,
   Min,
+  Matches,
 } from 'class-validator';
 import { ShopReviewReportStatus } from '../generated/prisma/client.js';
 const trim = ({ value }: { value: unknown }) =>
@@ -86,4 +87,11 @@ export class UpdateShopDto {
   @Transform(trim) @IsString() @Length(2, 100) name!: string;
   @Transform(trim) @IsString() @Length(0, 1000) description!: string;
   @Transform(trim) @IsString() @Length(0, 80) publicLocation!: string;
+}
+
+export class UpdateShopBusinessDto {
+  @Transform(trim) @IsString() @Length(7, 25)
+  @Matches(/^\+?[\d ()-]{7,25}$/)
+  contactPhone!: string;
+  @Transform(trim) @IsString() @Length(10, 500) pickupAddress!: string;
 }

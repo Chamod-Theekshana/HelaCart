@@ -7,7 +7,7 @@ import type { DecodedIdToken } from 'firebase-admin/auth';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CatalogService, publicProduct } from '../catalog/catalog.service.js';
-import { ShopPageDto, ShopProductsDto, UpdateShopDto } from './shops.dto.js';
+import { ShopPageDto, ShopProductsDto, UpdateShopDto, UpdateShopBusinessDto } from './shops.dto.js';
 
 export const shopSelect = {
   id: true,
@@ -21,6 +21,17 @@ export const shopSelect = {
   shippingFeeLkrMinor: true,
 } as const;
 export const publishedReview = { isHidden: false, deletedAt: null } as const;
+export const privateShopSelect = {
+  ...shopSelect,
+  status: true,
+  contactPhone: true,
+  pickupAddress: true,
+  identityDocumentType: true,
+  documents: {
+    select: { id: true, kind: true, contentType: true, byteSize: true },
+    orderBy: { kind: 'asc' as const },
+  },
+} as const;
 export function ratingSummary(
   rows: { rating: number; _count: { _all: number } }[],
 ) {
@@ -206,7 +217,16 @@ export class ShopsService {
     await this.catalog.requireSellerMember(sellerId, identity, false);
     return this.prisma.seller.findUniqueOrThrow({
       where: { id: sellerId },
-      select: shopSelect,
+      select: privateShopSelect,
+    });
+  }
+
+  async updateBusiness(sellerId: string, identity: DecodedIdToken, dto: UpdateShopBusinessDto) {
+    await this.catalog.requireSellerMember(sellerId, identity, true);
+    return this.prisma.seller.update({
+      where: { id: sellerId, status: 'APPROVED' },
+      data: { contactPhone: dto.contactPhone, pickupAddress: dto.pickupAddress },
+      select: privateShopSelect,
     });
   }
 

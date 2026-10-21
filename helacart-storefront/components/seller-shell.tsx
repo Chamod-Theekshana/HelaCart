@@ -1,9 +1,10 @@
 "use client";
+/* eslint-disable @next/next/no-img-element */
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BadgeCheck, Box, ClipboardList, ExternalLink, LayoutDashboard, LogOut, Menu, MessageSquare, Plus, Settings, ShoppingBag, Store, UserRound, Wallet, X } from "lucide-react";
+import { BadgeCheck, Box, ClipboardList, ExternalLink, LayoutDashboard, LogOut, Menu, MessageSquare, Plus, Settings, ShoppingBag, Store, Wallet, X } from "lucide-react";
 import { Brand } from "./site-header";
 import { useShop } from "./shop-provider";
 import { useSeller } from "./seller-provider";
@@ -87,7 +88,7 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
         <div className="seller-top-pills"><span className="seller-top-pill"><span className="seller-live-dot" /> {seller ? "Approved store" : "Merchant workspace"}</span>
           <span className="seller-top-pill muted"><Wallet size={16} /> Cash on delivery</span></div>
         {seller && <Link className="primary-btn seller-top-add" href="/seller/products/new"><Plus size={17} /> Add product</Link>}
-        <span className="seller-top-account"><span title={user?.email ?? "Your workspace"}>{user?.email ?? "Your workspace"}</span><UserRound size={18} /></span></header>
+        <Link href="/seller/shop" className="seller-top-account" aria-label="Your shop profile"><span title={seller?.name ?? "Your shop"}>{seller?.name ?? "Your shop"}</span>{seller?.logoUrl ? <img src={seller.logoUrl} width={32} height={32} alt="" style={{ borderRadius: 8, objectFit: "cover", flexShrink: 0 }} /> : <Store size={18} />}</Link></header>
       <main className="seller-content">
         {isPreview && <div className="seller-preview" role="status">Design preview · Sample products and orders. Connect the API and sign in to manage real store data.</div>}
         {!isPreview && (!authReady || (user && loading)) ? <div className="seller-state">Loading your seller workspace…</div>

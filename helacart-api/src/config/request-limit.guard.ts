@@ -26,6 +26,8 @@ export class RequestLimitGuard implements CanActivate {
       request.method !== 'OPTIONS'
     ) {
       if (
+        request.path === '/api/v1/auth/me' ||
+        request.path === '/api/v1/auth/me/photo' ||
         /^\/api\/v1\/(?:me\/orders\/checkout|me\/returns|seller-applications|sellers\/[^/]+\/products\/[^/]+\/images|sellers\/[^/]+\/shop\/images\/(?:logo|cover))$/.test(
           request.path,
         )

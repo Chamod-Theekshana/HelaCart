@@ -6,6 +6,7 @@ export type Variant = {
 export type Product = {
   id: string; title: string; slug?: string; description: string | null;
   imageUrls: string[]; priceLkrMinor: number;
+  listingPriceLkrMinor?: number;
   category: Category; seller: { id?: string; name: string; slug?: string };
   variants: Variant[];
 };
@@ -31,6 +32,8 @@ export type OrderItem = {
 export type SellerOrder = {
   id: string; status: string; seller: { id?: string; name: string; slug?: string };
   totalLkrMinor: number; items: OrderItem[];
+  returnRequest?: {id:string;status:string}|null;
+  events?: {id:string;fromStatus:string;toStatus:string;createdAt:string}[];
 };
 export type Order = {
   id: string; createdAt: string; recipient: string; line1: string;

@@ -37,6 +37,11 @@ model User {
   email         String         @unique
   emailVerified Boolean        @default(false)
   name          String?
+  phone         String?        @db.VarChar(25)
+  avatarStorageKey String?      @unique
+  avatarContentType String?
+  avatarByteSize Int?
+  photoVersion  Int            @default(0)
   createdAt     DateTime       @default(now()) @db.Timestamptz(3)
   updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
   memberships   SellerMember[]

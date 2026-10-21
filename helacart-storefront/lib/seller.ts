@@ -9,6 +9,7 @@ export type OrderStatus = "PLACED" | "ACCEPTED" | "PACKED" | "SHIPPED" | "DELIVE
 export type SellerAccount = {
   id: string; name: string; slug: string; status: SellerStatus;
   shippingFeeLkrMinor: number | null;
+  logoUrl?: string | null;
 };
 export type SellerMembership = { role: "OWNER" | "MANAGER"; seller: SellerAccount };
 export type SellerProfile = {

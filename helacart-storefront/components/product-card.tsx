@@ -39,7 +39,7 @@ export function ProductCard({ product }: { product: Product }) {
       <Link className="product-seller" href={shopPath(product.seller)}>{product.seller.name}</Link>
       <Link className="product-card-title" href={`/products/${product.id}`}>{product.title}</Link>
       <div className="availability">{variant ? "In stock" : "Unavailable"} <span>·</span> {product.category.name}</div>
-      <div className="product-card-bottom"><strong>{money(variant?.priceLkrMinor ?? product.priceLkrMinor)}</strong>
+      <div className="product-card-bottom"><strong>{money(product.listingPriceLkrMinor ?? variant?.priceLkrMinor ?? product.priceLkrMinor)}</strong>
         <Link href={`/products/${product.id}`} aria-label={`See ${product.title}`}><ArrowRight size={17} /></Link>
       </div>
       <button className="primary-btn add-card-btn" onClick={add} disabled={!variant || busy}>

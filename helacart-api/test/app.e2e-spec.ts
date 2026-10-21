@@ -355,7 +355,7 @@ describe('API HTTP behavior (database mocked)', () => {
       .get('/api/v1/auth/me')
       .set('Authorization', 'bearer valid-token')
       .expect(200)
-      .expect(profile)
+      .expect({ ...profile, hasPhoto: false })
       .expect('Cache-Control', 'no-store');
 
     expect(firebase.verifyIdToken).toHaveBeenCalledWith('valid-token');

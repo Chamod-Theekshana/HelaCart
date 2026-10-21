@@ -41,6 +41,7 @@ import {
   ShopReportsDto,
   ShopReviewsDto,
   UpdateShopDto,
+  UpdateShopBusinessDto,
   WriteShopReviewDto,
 } from './shops.dto.js';
 const uuid = new ParseUUIDPipe({ version: '4' });
@@ -146,6 +147,15 @@ export class SellerShopsController {
     private readonly reviews: ShopReviewsService,
     private readonly images: ShopImagesService,
   ) {}
+  @Patch('shop/business')
+  @Header('Cache-Control', 'no-store')
+  updateBusiness(
+    @Param('sellerId', uuid) sellerId: string,
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: UpdateShopBusinessDto,
+  ) {
+    return this.shops.updateBusiness(sellerId, request.user, dto);
+  }
   @Post('shop/images/:kind') uploadImage(
     @Param('sellerId', uuid) sellerId: string,
     @Param('kind') kind: string,

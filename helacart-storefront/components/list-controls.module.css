@@ -1,0 +1,173 @@
+.pagination {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 14px;
+  flex-wrap: wrap;
+  padding: 18px 20px;
+  color: #68788b;
+  font-size: 12px;
+  border-top: 1px solid #e5eaf0;
+  min-width: 0;
+}
+.pagination > div {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.pagination button {
+  background: #fff;
+  border: 1px solid #dce4eb;
+  border-radius: 7px;
+  padding: 9px 13px;
+  font-size: 12px;
+  color: #235d54;
+  min-height: 38px;
+}
+.pagination button:focus-visible {
+  outline: 2px solid #008579;
+  outline-offset: 2px;
+}
+.filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin: 18px 0;
+  align-items: center;
+}
+.filters input,
+.filters select {
+  min-width: 0;
+  max-width: 100%;
+  border: 1px solid #dce4ed;
+  border-radius: 8px;
+  background: #fff;
+  padding: 11px 13px;
+}
+.filters input {
+  flex: 1 1 200px;
+}
+.filters select {
+  flex: 0 1 180px;
+}
+.actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+  margin-top: 14px;
+}
+.confirm {
+  background: #fff6ef;
+  padding: 18px;
+  border: 1px solid #efdbc7;
+  border-radius: 10px;
+  margin-top: 14px;
+  line-height: 1.8;
+}
+.returnCard {
+  padding: 24px;
+  margin-bottom: 18px;
+  overflow-wrap: anywhere;
+}
+.returnCard header {
+  display: flex;
+  justify-content: space-between;
+  gap: 15px;
+  flex-wrap: wrap;
+}
+.returnCard h3 {
+  margin-bottom: 8px;
+}
+.returnCard p {
+  line-height: 1.8;
+  white-space: pre-wrap;
+}
+.timeline {
+  display: grid;
+  gap: 14px;
+  margin-top: 18px;
+  padding-left: 18px;
+  border-left: 2px solid #b6d6c8;
+}
+.timeline strong {
+  display: block;
+  font-size: 13px;
+}
+.timeline small {
+  color: #718078;
+}
+.timeline p {
+  margin: 5px 0 0;
+  color: #4c5e52;
+  font-size: 13px;
+}
+.totals {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: right;
+}
+.totals small {
+  font-size: 10px;
+}
+.due {
+  font-size: 13px;
+  color: #007e73;
+}
+.notice {
+  padding: 14px 18px;
+  line-height: 1.8;
+  background: #eff6f1;
+  border: 1px solid #d6e7d9;
+  border-radius: 10px;
+  margin: 16px 0;
+}
+.returnButton {
+  border: 0;
+  background: none;
+  color: #00766a;
+  text-decoration: underline;
+  cursor: pointer;
+  font: inherit;
+}
+.retry {
+  margin-left: 10px;
+  border: 1px solid #d0dfd5;
+  background: #fff;
+  border-radius: 6px;
+  padding: 6px 10px;
+}
+.toolbarLabel {
+  font-size: 12px;
+  color: #6c7d8b;
+}
+.returnCard ul {
+  padding-left: 20px;
+  color: #526253;
+  line-height: 1.8;
+}
+@media (max-width: 520px) {
+  .pagination {
+    padding: 16px;
+    gap: 12px;
+  }
+  .pagination > div {
+    gap: 8px;
+    width: 100%;
+    justify-content: space-between;
+  }
+  .pagination button {
+    padding: 8px 11px;
+  }
+  .returnCard {
+    padding: 18px;
+  }
+  .totals {
+    text-align: left;
+  }
+  .filters select {
+    flex: 1 1 140px;
+  }
+}

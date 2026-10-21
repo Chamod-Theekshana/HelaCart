@@ -4,6 +4,12 @@ This is the Next.js 16 storefront inside `HelaCart-pre-dev`, rebuilt from the su
 
 The same Next.js app has a Seller Center at `/seller` using the buyer site's teal and navy theme. Its Merchant Hub design follows the supplied Stitch seller dashboard ZIP: fixed merchant sidebar, utility bar, overview cards, catalog tabs and table, stock matrix, COD order queue, delivery receipt preview, product editor and application states. Approved sellers can use products, variants and stock, COD orders, and delivery settings screens. New sellers can apply at `/seller/apply`. Pending or rejected sellers see the corresponding application state. Every seller operation sends the Firebase ID token to the existing guarded API; the browser UI alone does not grant access.
 
+## Finding screen files
+
+Screen implementations have descriptive names in `screens/storefront`, `screens/user`, `screens/seller` and `screens/admin`. For example, edit `screens/seller/seller-orders-screen.tsx` for seller orders or `screens/admin/admin-profile-screen.tsx` for the admin profile. Use the [complete URL-to-screen index](./screens/README.md) to find any screen.
+
+The `app/**/page.tsx` files are short Next.js route entries that point to those screens. Next.js requires the `page.tsx` convention for routing.
+
 ## Run it on Windows
 
 In PowerShell:

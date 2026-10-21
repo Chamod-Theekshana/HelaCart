@@ -15,6 +15,7 @@ import { MediaModule } from './media/media.module.js';
 import { NotificationsModule } from './notifications/notifications.module.js';
 import { OperationsModule } from './operations/operations.module.js';
 import { ShopsModule } from './shops/shops.module.js';
+import { WorkspaceModule } from './workspace/workspace.module.js';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { ShopsModule } from './shops/shops.module.js';
     NotificationsModule,
     OperationsModule,
     ShopsModule,
+    WorkspaceModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService, { provide: APP_GUARD, useClass: RequestLimitGuard }],
