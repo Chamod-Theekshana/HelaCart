@@ -17,6 +17,7 @@ export default function NewSellerProduct() {
   const [categories, setCategories] = useState<Category[]>(isPreview ? demoCategories : []);
   const [title, setTitle] = useState("");
   const [slug, setSlug] = useState("");
+  const [slugEdited, setSlugEdited] = useState(false);
   const [description, setDescription] = useState("");
   const [sku, setSku] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -45,8 +46,8 @@ export default function NewSellerProduct() {
     <SellerPageHeading kicker="NEW LISTING" title="Add a product" description="Create a draft, then add a photo and stock before submitting it for review." />
     <div className="seller-detail-grid"><form className="seller-card seller-form" onSubmit={(event) => void submit(event)}>
       <div className="seller-form-section"><div><h2>Core item details</h2><p>Give buyers clear details about what you are selling.</p></div>
-        <div className="seller-fields"><label>Product title<input required minLength={3} maxLength={120} value={title} onChange={(e) => { setTitle(e.target.value); if (!slug) setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")); }} placeholder="e.g. Handmade woven basket" /></label>
-          <label>Product URL slug<input required pattern="[a-z0-9]+(-[a-z0-9]+)*" minLength={3} maxLength={80} value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="handmade-woven-basket" /></label>
+        <div className="seller-fields"><label>Product title<input required minLength={3} maxLength={120} value={title} onChange={(e) => { setTitle(e.target.value); if (!slugEdited) setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")); }} placeholder="e.g. Handmade woven basket" /></label>
+          <label>Product URL slug<input required pattern="[a-z0-9]+(-[a-z0-9]+)*" minLength={3} maxLength={80} value={slug} onChange={(e) => { setSlug(e.target.value); setSlugEdited(true); }} placeholder="handmade-woven-basket" /></label>
           <label className="wide">Description<textarea required minLength={10} maxLength={3000} rows={5} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="Describe materials, size, care and other useful details." /></label>
           <label>Category<select required value={categoryId} onChange={(e) => setCategoryId(e.target.value)}><option value="">Choose a category</option>{categories.map((category) => <option key={category.id} value={category.id}>{category.name}</option>)}</select></label>
           <label>SKU<input required minLength={2} maxLength={64} pattern="[A-Za-z0-9]+([-_][A-Za-z0-9]+)*" value={sku} onChange={(e) => setSku(e.target.value.toUpperCase())} placeholder="BASKET-001" /></label>

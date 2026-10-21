@@ -56,7 +56,7 @@ export default function SellerProductsPage() {
     <div className="seller-toolbar"><label className="seller-search"><Search size={17} /><input value={query} onChange={(event) => { setQuery(event.target.value); setPage(1); }} placeholder="Search title, category or SKU" aria-label="Search seller products" /></label>
       <select value={category} onChange={(event) => { setCategory(event.target.value); setPage(1); }} aria-label="Filter category"><option value="ALL">All categories</option>{categories.map(([id, row]) => <option key={id} value={id}>{row.name}</option>)}</select>
       <select value={stock} onChange={(event) => { setStock(event.target.value); setPage(1); }} aria-label="Filter stock"><option value="ALL">All stock levels</option><option value="LOW">Low / zero stock</option><option value="READY">Stock available</option></select></div>
-    <div className="seller-table-wrap">
+    <div className="seller-table-wrap" role="region" aria-label="Product listings" tabIndex={0}>
       {shown.length ? <table className="seller-table"><thead><tr><th>Product</th><th>SKU</th><th>Price</th><th>Available</th><th>Status</th><th>Action</th></tr></thead><tbody>
         {shown.slice((currentPage - 1) * 10, currentPage * 10).map((row) => <tr key={row.id}><td><Link className="seller-product-cell" href={`/seller/products/${row.id}`}><span className="seller-thumb">{row.imageUrls[0] ? <img src={row.imageUrls[0]} alt="" /> : <Box size={21} />}</span><span><strong>{row.title}</strong><small>{row.category.name}</small></span></Link></td>
           <td className="seller-muted">{row.sku}</td><td>{money(row.priceLkrMinor)}</td>

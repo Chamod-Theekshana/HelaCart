@@ -47,6 +47,17 @@ export function rupeesToMinor(value: string): number | null {
   return Number.isSafeInteger(minor) ? minor : null;
 }
 
+export function formatSellerDate(value: string, includeTime = false): string {
+  return new Intl.DateTimeFormat("en-LK", {
+    timeZone: "Asia/Colombo", year: "numeric", month: "short", day: "numeric",
+    ...(includeTime ? { hour: "2-digit", minute: "2-digit" } as const : {}),
+  }).format(new Date(value));
+}
+
+// Fixed sample timestamps keep server and browser previews identical.
+const previewUpdatedAt = "2026-10-20T06:30:00.000Z";
+const previewCreatedAt = (index: number) => new Date(Date.parse(previewUpdatedAt) - (index + 1) * 86400000).toISOString();
+
 export const previewSeller: SellerAccount = {
   id: "preview-seller", name: "HelaCraft Studio", slug: "helacraft-studio",
   status: "APPROVED", shippingFeeLkrMinor: 35000,
@@ -59,17 +70,17 @@ export const previewProducts: SellerProduct[] = demoProducts.slice(0, 6).map((it
   category: demoCategories[index % demoCategories.length],
   variants: [{ id: `preview-stock-${index}`, position: 0, sku: `HC-${100 + index}`,
     optionValues: {}, priceLkrMinor: item.priceLkrMinor, onHand: [21, 4, 12, 0, 8, 2][index], reserved: 0 }],
-  createdAt: new Date(Date.now() - (index + 1) * 86400000).toISOString(), updatedAt: new Date().toISOString(), reviews: [],
+  createdAt: previewCreatedAt(index), updatedAt: previewUpdatedAt, reviews: [],
 }));
 export const previewOrders: SellerOrderRecord[] = ["PLACED", "ACCEPTED", "PACKED", "DELIVERED"].map((status, index) => ({
   id: `preview-order-${index}`, orderId: `preview-order-${index}`, status: status as OrderStatus,
-  createdAt: new Date(Date.now() - (index + 1) * 86400000).toISOString(),
+  createdAt: previewCreatedAt(index),
   subtotalLkrMinor: previewProducts[index].priceLkrMinor, shippingLkrMinor: 35000,
   totalLkrMinor: previewProducts[index].priceLkrMinor + 35000,
-  paymentCollectedAt: status === "DELIVERED" ? new Date().toISOString() : null,
+  paymentCollectedAt: status === "DELIVERED" ? previewUpdatedAt : null,
   order: { id: `preview-order-${index}`, recipient: ["Nimal Perera", "Kavindi Silva", "Ashan Fernando", "Dinithi Jayasinghe"][index],
     phone: "077 000 0000", line1: "Sample delivery address", city: "Colombo", district: "Colombo", postalCode: "00100",
-    createdAt: new Date(Date.now() - (index + 1) * 86400000).toISOString() },
+    createdAt: previewCreatedAt(index) },
   items: [{ id: `preview-item-${index}`, productTitle: previewProducts[index].title,
     sku: previewProducts[index].sku, optionValues: {}, quantity: 1,
     unitLkrMinor: previewProducts[index].priceLkrMinor, lineLkrMinor: previewProducts[index].priceLkrMinor }],

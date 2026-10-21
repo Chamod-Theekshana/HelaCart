@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { BadgeCheck, Box, ClipboardList, ExternalLink, LayoutDashboard, LogOut, Menu, Plus, Settings, ShoppingBag, UserRound, Wallet, X } from "lucide-react";
@@ -19,14 +19,49 @@ const nav = [
 export function SellerShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   const [menuOpen, setMenuOpen] = useState(false);
+  const sidebarRef = useRef<HTMLElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const { user, authReady, signOutBuyer } = useShop();
   const { seller, sellers, applications, profile, loading, dataLoading, error, isPreview, selectSeller } = useSeller();
   const showApplication = pathname === "/seller/apply";
   const pending = applications.find((row) => row.status === "PENDING");
   const rejected = applications.find((row) => row.status === "REJECTED");
+
+  useEffect(() => {
+    const media = window.matchMedia("(max-width: 1000px)");
+    const closeOnDesktop = () => { if (!media.matches) setMenuOpen(false); };
+    media.addEventListener("change", closeOnDesktop);
+    return () => media.removeEventListener("change", closeOnDesktop);
+  }, []);
+
+  useEffect(() => {
+    if (!menuOpen) return;
+    const menuButton = menuButtonRef.current;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const frame = requestAnimationFrame(() => sidebarRef.current?.querySelector<HTMLButtonElement>(".seller-sidebar-close")?.focus());
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape") { setMenuOpen(false); return; }
+      if (event.key !== "Tab") return;
+      const controls = sidebarRef.current?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled), select:not(:disabled)');
+      if (!controls?.length) return;
+      const first = controls[0]; const last = controls[controls.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    };
+    document.addEventListener("keydown", handleKeyDown);
+    return () => {
+      cancelAnimationFrame(frame);
+      document.body.style.overflow = previousOverflow;
+      document.removeEventListener("keydown", handleKeyDown);
+      menuButton?.focus();
+    };
+  }, [menuOpen]);
+
   return <div className="seller-app">
-    <aside className={`seller-sidebar ${menuOpen ? "open" : ""}`}>
+    <aside id="seller-sidebar" ref={sidebarRef} className={`seller-sidebar ${menuOpen ? "open" : ""}`} aria-label="Seller workspace">
       <div className="seller-brand"><Brand /><span>MERCHANT HUB</span></div>
+      <button type="button" className="seller-sidebar-close" aria-label="Close navigation" onClick={() => setMenuOpen(false)}><X size={18} /></button>
       <div className="seller-switch">
         {sellers.length > 1 ? <select value={seller?.id} onChange={(event) => selectSeller(event.target.value)} aria-label="Choose seller store">
           {sellers.map((row) => <option key={row.id} value={row.id}>{row.name}</option>)}
@@ -36,6 +71,7 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
       <nav className="seller-nav" aria-label="Seller navigation">
         {nav.map(({ href, label, icon: Icon }) => <Link key={href} href={href}
           className={pathname === href || (href === "/seller/products" && pathname.startsWith(href + "/")) ? "active" : ""}
+          aria-current={pathname === href || (href === "/seller/products" && pathname.startsWith(href + "/")) ? "page" : undefined}
           onClick={() => setMenuOpen(false)}><Icon size={18} /> {label}</Link>)}
       </nav>
       <Link className="seller-storefront-link" href="/" onClick={() => setMenuOpen(false)}><ShoppingBag size={17} /> Visit storefront <ExternalLink size={14} /></Link>
@@ -44,11 +80,11 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
     </aside>
     {menuOpen && <button className="seller-scrim" aria-label="Close navigation" onClick={() => setMenuOpen(false)} />}
     <div className="seller-main">
-      <header className="seller-top"><button type="button" className="seller-menu-button" onClick={() => setMenuOpen(!menuOpen)} aria-label={menuOpen ? "Close navigation" : "Open navigation"}>{menuOpen ? <X size={21} /> : <Menu size={21} />}</button>
+      <header className="seller-top"><button ref={menuButtonRef} type="button" className="seller-menu-button" onClick={() => setMenuOpen(!menuOpen)} aria-expanded={menuOpen} aria-controls="seller-sidebar" aria-label={menuOpen ? "Close navigation" : "Open navigation"}>{menuOpen ? <X size={21} /> : <Menu size={21} />}</button>
         <div className="seller-top-pills"><span className="seller-top-pill"><span className="seller-live-dot" /> {seller ? "Approved store" : "Merchant workspace"}</span>
           <span className="seller-top-pill muted"><Wallet size={16} /> Cash on delivery</span></div>
         {seller && <Link className="primary-btn seller-top-add" href="/seller/products/new"><Plus size={17} /> Add product</Link>}
-        <span className="seller-top-account">{user?.email ?? "Your workspace"} <UserRound size={18} /></span></header>
+        <span className="seller-top-account"><span title={user?.email ?? "Your workspace"}>{user?.email ?? "Your workspace"}</span><UserRound size={18} /></span></header>
       <main className="seller-content">
         {isPreview && <div className="seller-preview" role="status">Design preview · Sample products and orders. Connect the API and sign in to manage real store data.</div>}
         {!isPreview && (!authReady || (user && loading)) ? <div className="seller-state">Loading your seller workspace…</div>

@@ -6,7 +6,7 @@ import { useParams } from "next/navigation";
 import { ArrowLeft, BadgeCheck, ImagePlus, Layers3, PackagePlus, Send, Upload } from "lucide-react";
 import { apiBase, errorMessage, money } from "@/lib/api";
 import { clientAuth } from "@/lib/firebase";
-import { rupeesToMinor, type SellerProduct, type SellerVariant, type StockMovement } from "@/lib/seller";
+import { formatSellerDate, rupeesToMinor, type SellerProduct, type SellerVariant, type StockMovement } from "@/lib/seller";
 import { useSeller } from "@/components/seller-provider";
 import { SellerPageHeading, SellerStatusBadge } from "@/components/seller-ui";
 
@@ -138,7 +138,7 @@ export default function SellerProductDetail() {
           <label>Default price (LKR)<input required inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} /></label>
           <label className="wide">Image URLs (one HTTPS URL per line, maximum five)<textarea rows={3} value={imageUrls} onChange={(e) => setImageUrls(e.target.value)} /></label></div>
         <button className="primary-btn" disabled={isPreview || Boolean(busy) || product.status === "PENDING"} type="submit">{busy === "details" ? "Saving…" : "Save changes"}</button>
-        {product.status === "PENDING" && <small className="seller-muted">Products under review cannot be edited.</small>}
+        {product.status === "PENDING" && <p className="seller-muted">Products under review cannot be edited.</p>}
       </form>
       <aside className="seller-side-stack"><div className="seller-card seller-media"><div className="seller-media-heading"><div><h2>Product images</h2><p>JPEG, PNG or WebP · up to 5 MB</p></div><small>{product.imageUrls.length}/5 uploaded</small></div><div className="seller-image-grid">{product.imageUrls.map((url) => <img key={url} src={url} alt={product.title} />)}
         {!product.imageUrls.length && <div className="seller-no-image"><ImagePlus size={31} /><span>No images yet</span></div>}</div>
@@ -185,6 +185,6 @@ function VariantStock({ variant, busy, disabled, onAdjust, onHistory, movements 
       <input required minLength={5} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason for adjustment" aria-label={`Adjustment reason for ${variant.sku}`} />
       <button className="outline-btn" disabled={disabled || busy} type="submit">{busy ? "Saving…" : "Adjust"}</button></form>
     {!disabled && <button className="seller-text-button" onClick={() => void onHistory()}>View stock history</button>}
-    {movements && <div className="seller-movements">{movements.length ? movements.slice(0, 5).map((row) => <p key={row.id}><b>{row.delta > 0 ? `+${row.delta}` : row.delta}</b> · {row.reason} · {new Date(row.createdAt).toLocaleDateString("en-LK")}</p>) : <p>No adjustments recorded yet.</p>}</div>}
+    {movements && <div className="seller-movements">{movements.length ? movements.slice(0, 5).map((row) => <p key={row.id}><b>{row.delta > 0 ? `+${row.delta}` : row.delta}</b> · {row.reason} · {formatSellerDate(row.createdAt)}</p>) : <p>No adjustments recorded yet.</p>}</div>}
   </div>;
 }

@@ -51,7 +51,7 @@ export default async function HomePage() {
 
       {sellers.length > 0 && <section className="home-section seller-section">
         <div className="section-heading"><div><span className="section-kicker">MEET THE MAKERS</span><h2>Explore local sellers</h2><p>Discover the shops behind the goods.</p></div></div>
-        <div className="seller-grid">{sellers.map((product) => <Link className="seller-card" key={product.seller.name} href={`/products/${product.id}`}>
+        <div className="seller-grid">{sellers.map((product) => <Link className="storefront-seller-card" key={product.seller.name} href={`/products/${product.id}`}>
           <span className="seller-avatar">{product.seller.name.slice(0, 1)}</span><div><strong>{product.seller.name}</strong><p>Explore a product from this seller</p></div><ArrowRight size={18} />
         </Link>)}</div>
       </section>}

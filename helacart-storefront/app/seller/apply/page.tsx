@@ -12,6 +12,7 @@ export default function ApplySeller() {
   const router = useRouter();
   const { isPreview, request, refreshProfile } = useSeller();
   const [name, setName] = useState(""); const [slug, setSlug] = useState("");
+  const [slugEdited, setSlugEdited] = useState(false);
   const [description, setDescription] = useState(""); const [contactPhone, setContactPhone] = useState("");
   const [pickupAddress, setPickupAddress] = useState("");
   const [saving, setSaving] = useState(false); const [error, setError] = useState("");
@@ -29,9 +30,9 @@ export default function ApplySeller() {
     <Link className="seller-back" href="/seller"><ArrowLeft size={16} /> Back to Seller Center</Link>
     <SellerPageHeading kicker="SELL ON HELACART" title="Become a HelaCart merchant" description="Tell us about your store. Product management becomes available after admin approval." />
     <div className="seller-application-grid"><form className="seller-card seller-form seller-apply-form" onSubmit={(event) => void submit(event)}><div className="seller-form-intro"><span className="seller-status status-approved"><BadgeCheck size={13} /> Merchant application</span><h2>Store information</h2><p>Use your business contact and pickup address so we can review your application.</p></div>
-      <div className="seller-fields"><label>Registered store name<input required minLength={2} maxLength={100} value={name} onChange={(e) => { setName(e.target.value); if (!slug) setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")); }} placeholder="Your store name" /></label>
-        <label>Public store URL slug<input required minLength={3} maxLength={60} pattern="[a-z0-9]+(-[a-z0-9]+)*" value={slug} onChange={(e) => setSlug(e.target.value)} placeholder="your-store-name" /></label>
-        <label>Contact number<input required pattern="(0[0-9]{9}|\+94[0-9]{9})" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="0771234567" /></label>
+      <div className="seller-fields"><label>Registered store name<input required minLength={2} maxLength={100} value={name} onChange={(e) => { setName(e.target.value); if (!slugEdited) setSlug(e.target.value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "")); }} placeholder="Your store name" /></label>
+        <label>Public store URL slug<input required minLength={3} maxLength={60} pattern="[a-z0-9]+(-[a-z0-9]+)*" value={slug} onChange={(e) => { setSlug(e.target.value); setSlugEdited(true); }} placeholder="your-store-name" /></label>
+        <label>Contact number<input required type="tel" inputMode="tel" pattern="(0[0-9]{9}|\+94[0-9]{9})" value={contactPhone} onChange={(e) => setContactPhone(e.target.value)} placeholder="0771234567" /></label>
         <label className="wide">Pickup & dispatch address<textarea required minLength={10} maxLength={300} rows={3} value={pickupAddress} onChange={(e) => setPickupAddress(e.target.value)} placeholder="Street, city, district" /></label>
         <label className="wide">Store description (optional)<textarea maxLength={1000} rows={4} value={description} onChange={(e) => setDescription(e.target.value)} placeholder="What will you sell?" /></label></div>
       {error && <div className="message error" role="alert">{error}</div>}

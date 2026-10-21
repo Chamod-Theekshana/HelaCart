@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import { ClipboardList, MapPin, Phone, Search, Truck } from "lucide-react";
 import { errorMessage, money } from "@/lib/api";
-import type { OrderStatus, SellerOrderRecord } from "@/lib/seller";
+import { formatSellerDate, type OrderStatus, type SellerOrderRecord } from "@/lib/seller";
 import { useSeller } from "@/components/seller-provider";
 import { SellerPageHeading, SellerStatusBadge } from "@/components/seller-ui";
 
@@ -51,12 +51,12 @@ export default function SellerOrders() {
     <div className="seller-card seller-toolbar seller-order-toolbar"><label className="seller-search"><Search size={17} /><input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search order ID or buyer" aria-label="Search seller orders" /></label>
       <div className="seller-order-filters" role="group" aria-label="Order status">{["ALL", "PLACED", "ACCEPTED", "PACKED", "SHIPPED", "DELIVERED", "CANCELLED"].map((value) => <button key={value} type="button" className={status === value ? "active" : ""} onClick={() => setStatus(value)}>{value === "ALL" ? "All" : value.toLowerCase()}</button>)}</div><span>{shown.length} shown{orders.length === 50 ? " · most recent 50 loaded" : ""}</span></div>
     <div className="seller-orders-layout"><section className="seller-card seller-order-list">{shown.length ? shown.map((row) => <button key={row.id} onClick={() => { setSelectedId(row.id); setPaymentCollected(false); setNotice(""); }} className={`seller-order-entry ${selected?.id === row.id ? "selected" : ""}`}>
-      <span className="list-icon"><ClipboardList size={19} /></span><span className="list-body"><strong>Order #{row.order.id.slice(0, 8)}</strong><small>{row.order.recipient} · {row.order.district}</small><small>{new Date(row.createdAt).toLocaleDateString("en-LK")} · {row.items.length} item{row.items.length === 1 ? "" : "s"}</small></span>
+      <span className="list-icon"><ClipboardList size={19} /></span><span className="list-body"><strong>Order #{row.order.id.slice(0, 8)}</strong><small>{row.order.recipient} · {row.order.district}</small><small>{formatSellerDate(row.createdAt)} · {row.items.length} item{row.items.length === 1 ? "" : "s"}</small></span>
       <span className="list-right"><strong>{money(row.totalLkrMinor)}</strong><SellerStatusBadge status={row.status} /></span>
     </button>) : <div className="seller-empty">{dataLoading ? "Loading orders…" : "No orders match this filter."}</div>}</section>
       <aside className="seller-card seller-order-detail">{selected ? <>
         <div className="seller-card-heading"><div><span className="section-kicker">ORDER DETAIL</span><h2>#{selected.order.id.slice(0, 8)}</h2></div><SellerStatusBadge status={selected.status} /></div>
-        <p className="seller-muted">Placed {new Date(selected.createdAt).toLocaleString("en-LK")} · Cash on delivery</p>
+        <p className="seller-muted">Placed {formatSellerDate(selected.createdAt, true)} · Cash on delivery</p>
         {selected.status !== "CANCELLED" && <div className="seller-order-timeline" aria-label="Fulfilment progress">{orderSteps.map((step, index) => <span key={step} className={index <= orderSteps.indexOf(selected.status) ? "done" : ""}><i />{step.toLowerCase()}</span>)}</div>}
         <div className="seller-detail-section"><h3>Items</h3>{selected.items.map((item) => <div key={item.id} className="seller-detail-line"><span><strong>{item.productTitle}</strong><small>{item.sku} · Qty {item.quantity} {Object.values(item.optionValues).join(" / ")}</small></span><b>{money(item.lineLkrMinor)}</b></div>)}</div>
         <div className="seller-detail-section"><h3>Delivery fulfilment</h3><p><MapPin size={15} /> {selected.order.recipient}, {selected.order.line1}{selected.order.line2 ? `, ${selected.order.line2}` : ""}, {selected.order.city}, {selected.order.district} {selected.order.postalCode}</p><p><Phone size={15} /> <a href={`tel:${selected.order.phone.replace(/[^+\d]/g, "")}`}>{selected.order.phone}</a></p></div>
@@ -64,7 +64,7 @@ export default function SellerOrders() {
         {nextStatus[selected.status] === "DELIVERED" && <label className="seller-checkbox seller-payment"><input type="checkbox" checked={paymentCollected} onChange={(e) => setPaymentCollected(e.target.checked)} /> I have collected the COD payment</label>}
         <div className="seller-order-actions">{nextStatus[selected.status] && <button className="primary-btn" disabled={busy || isPreview || (nextStatus[selected.status] === "DELIVERED" && !paymentCollected)} onClick={() => void update(selected, nextStatus[selected.status]!)}><Truck size={16} /> {actionName[nextStatus[selected.status]!]}</button>}
           {["PLACED", "ACCEPTED", "PACKED"].includes(selected.status) && <button className="outline-btn seller-danger-button" disabled={busy || isPreview} onClick={() => void update(selected, "CANCELLED")}>Cancel order</button>}</div>
-        {selected.events.length > 0 && <div className="seller-detail-section"><h3>History</h3>{selected.events.map((row) => <p key={row.id} className="seller-muted">{row.fromStatus} → {row.toStatus} · {new Date(row.createdAt).toLocaleString("en-LK")}</p>)}</div>}
+        {selected.events.length > 0 && <div className="seller-detail-section"><h3>History</h3>{selected.events.map((row) => <p key={row.id} className="seller-muted">{row.fromStatus} → {row.toStatus} · {formatSellerDate(row.createdAt, true)}</p>)}</div>}
       </> : <div className="seller-empty"><ClipboardList size={31} /><p>Select an order to see delivery details and update its status.</p></div>}</aside></div>
   </>;
 }

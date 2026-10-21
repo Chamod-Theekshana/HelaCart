@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { ArrowRight, BadgeCheck, Box, ClipboardList, PackageCheck, Plus, ShoppingBag, Truck, TriangleAlert } from "lucide-react";
 import { money } from "@/lib/api";
+import { formatSellerDate } from "@/lib/seller";
 import { useSeller } from "@/components/seller-provider";
 import { SellerStatusBadge } from "@/components/seller-ui";
 
@@ -33,10 +34,10 @@ export default function SellerOverview() {
     </div>
     <div className="seller-dashboard-grid seller-overview-grid">
       <section className="seller-card seller-recent-orders"><div className="seller-card-heading"><div><h2>Recent customer orders</h2><p>Follow cash on delivery and fulfilment</p></div><Link href="/seller/orders">View all <ArrowRight size={15} /></Link></div>
-        {orders.length ? <div className="seller-table-wrap"><table className="seller-table"><thead><tr><th>Order ref</th><th>Buyer & district</th><th>Date</th><th>COD amount</th><th>Fulfilment</th></tr></thead><tbody>{orders.slice(0, 5).map((row) => <tr key={row.id}>
+        {orders.length ? <div className="seller-table-wrap" role="region" aria-label="Recent customer orders" tabIndex={0}><table className="seller-table"><thead><tr><th>Order ref</th><th>Buyer & district</th><th>Date</th><th>COD amount</th><th>Fulfilment</th></tr></thead><tbody>{orders.slice(0, 5).map((row) => <tr key={row.id}>
           <td><Link className="seller-link" href={`/seller/orders?order=${encodeURIComponent(row.id)}`}>#{row.order.id.slice(0, 8)}</Link><small className="seller-cell-note">{row.items.length} item{row.items.length === 1 ? "" : "s"}</small></td>
           <td><strong>{row.order.recipient}</strong><small className="seller-cell-note">{row.order.district}</small></td>
-          <td>{new Date(row.createdAt).toLocaleDateString("en-LK")}</td><td className="seller-money">{money(row.totalLkrMinor)}</td><td><SellerStatusBadge status={row.status} /></td>
+          <td>{formatSellerDate(row.createdAt)}</td><td className="seller-money">{money(row.totalLkrMinor)}</td><td><SellerStatusBadge status={row.status} /></td>
         </tr>)}</tbody></table></div> : <div className="seller-empty">{dataLoading ? "Loading orders…" : "No orders yet. New orders will appear here."}</div>}
       </section>
       <aside className="seller-side-stack"><section className="seller-card"><div className="seller-card-heading"><div><h2>Inventory health</h2><p>Variants needing a restock</p></div><Box size={19} /></div>

@@ -1,14 +1,17 @@
 /* HelaCart Operations, scoped to the admin route */
 .admin-app{--admin-teal:#0d9488;--admin-deep:#00685f;--admin-ink:#0f172a;--admin-muted:#64748b;display:grid;grid-template-columns:258px minmax(0,1fr);min-height:100vh;background:#f8f9ff;color:var(--admin-ink)}
-.admin-sidebar{position:sticky;top:0;height:100vh;background:#0f172a;color:#b7c6d5;display:flex;flex-direction:column;padding:23px 15px 19px;z-index:31;overflow-y:auto}
-.admin-brand{padding:0 11px 25px;border-bottom:1px solid #243448}
-.admin-brand .brand{width:176px;height:44px}.admin-brand .brand-crop{background:transparent}.admin-brand strong{display:block;margin:8px 0 0 2px;font-size:9px;letter-spacing:.18em;color:#57c5b9}
-.admin-side-label{margin:22px 12px 8px;font-size:9px;font-weight:800;color:#71859b;letter-spacing:.13em}
-.admin-sidebar nav{flex:1}.admin-nav-section{display:block;margin:25px 12px 10px;color:#71859b;font-size:9px;font-weight:800;letter-spacing:.13em}
-.admin-sidebar nav a,.admin-side-foot a,.admin-side-foot button{display:flex;align-items:center;gap:12px;width:100%;padding:11px 12px;border:0;border-radius:8px;background:transparent;text-align:left;color:#bac8d8;font-weight:600;font-size:12px}
-.admin-sidebar nav a:hover,.admin-side-foot a:hover,.admin-side-foot button:hover{background:#1e2d41;color:#fff}
-.admin-sidebar nav a.active{background:#0d9488;color:white;box-shadow:0 5px 15px #0d94882b}
-.admin-side-foot{padding-top:15px;border-top:1px solid #243448}.admin-side-foot button{cursor:pointer}
+.admin-sidebar{position:sticky;top:0;height:100vh;background:#fff;color:#19313a;border-right:1px solid #e2e8f0;display:flex;flex-direction:column;padding:23px 15px 19px;z-index:31;overflow-y:auto}
+.admin-brand{height:80px;flex-shrink:0;margin:-23px -15px 0;padding:12px 20px 7px;display:grid;grid-template-columns:38px 1fr;align-items:center;column-gap:7px}
+.admin-brand .brand{grid-column:1/-1;margin:0;width:170px;height:38px;overflow:hidden}.admin-brand .brand-crop{width:170px;height:38px;background:transparent}.admin-brand .brand-crop img{width:181px;height:181px;top:-68px;left:-9px}
+.admin-brand strong{display:block;grid-column:1/-1;padding-left:49px;margin-top:-9px;font-size:10px;letter-spacing:.07em;color:#344b69;font-weight:700}
+.admin-side-label{margin:22px 12px 8px;font-size:9px;font-weight:800;color:#64748b;letter-spacing:.13em}
+.admin-sidebar nav{flex:1}.admin-nav-section{display:block;margin:25px 12px 10px;color:#64748b;font-size:9px;font-weight:800;letter-spacing:.13em}
+.admin-sidebar nav a,.admin-side-foot a,.admin-side-foot button{display:flex;align-items:center;gap:12px;width:100%;padding:11px 12px;border:0;border-radius:8px;background:transparent;text-align:left;color:#19313a;font-weight:600;font-size:12px}
+.admin-side-foot a{color:#536679}.admin-side-foot button{color:#b42330}
+.admin-sidebar nav a:hover{background:#e7f6f4;color:#0b7469}
+.admin-side-foot a:hover,.admin-side-foot button:hover{background:#f1f6fa;color:#0b7469}
+.admin-sidebar nav a.active{background:#008579;color:white}
+.admin-side-foot{padding-top:15px;border-top:1px solid #e2e8f0}.admin-side-foot button{cursor:pointer}
 .admin-main{min-width:0}.admin-top{display:flex;align-items:center;gap:16px;height:72px;padding:0 28px;border-bottom:1px solid #e5eaf2;background:white;position:sticky;top:0;z-index:20}
 .admin-top-context{display:flex;align-items:center;gap:10px;color:#576b7d;font-weight:700;font-size:12px}.admin-top-context svg{color:#0d9488}.admin-top-spacer{flex:1}
 .admin-top-store{display:flex;align-items:center;gap:7px;color:#00685f;font-weight:700;font-size:11px}
