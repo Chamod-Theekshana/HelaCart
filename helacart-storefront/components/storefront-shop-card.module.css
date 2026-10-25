@@ -1,0 +1,105 @@
+.card {
+  min-width: 0;
+  background: white;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 13px;
+}
+.identity {
+  display: flex;
+  gap: 11px;
+  align-items: center;
+  min-width: 0;
+}
+.identity > span {
+  width: 46px;
+  height: 46px;
+  border: 0;
+  border-radius: 13px;
+  background: var(--teal);
+  color: white;
+  box-shadow: none;
+  font-size: 20px;
+}
+.identity > div {
+  min-width: 0;
+}
+.identity h3 {
+  margin: 0;
+  color: var(--navy);
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+.identity h3 a:hover {
+  color: var(--teal);
+}
+.identity p {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 11px;
+  line-height: 1.5;
+  color: var(--muted);
+  margin: 3px 0 0;
+}
+.identity p svg {
+  flex-shrink: 0;
+}
+.reputation {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-height: 23px;
+  font-size: 12px;
+}
+.reputation > span:not(:first-child),
+.reputation > span:only-child {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+.rating > svg {
+  color: #a66c13;
+}
+.reputation small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.description {
+  margin: 0 0 2px;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.7;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.visit {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: auto;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-height: 40px;
+  padding: 8px 12px;
+  color: var(--navy);
+  font-size: 12px;
+  font-weight: 650;
+}
+.visit:hover {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+.card a:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 4px;
+}

@@ -38,6 +38,8 @@ export function ProductCard({ product }: { product: Product }) {
   const [feedback, setFeedback] = useState("");
   const [result, setResult] = useState<"idle" | "success" | "error">("idle");
   const variant = product.variants.find((entry) => entry.availableQuantity > 0);
+  const hasOptions = product.variants.length > 1;
+  const lowStock = variant && variant.availableQuantity < 5;
   useEffect(() => {
     if (result !== "success") return;
     const timer = setTimeout(() => setResult("idle"), 2200);
@@ -67,7 +69,7 @@ export function ProductCard({ product }: { product: Product }) {
         aria-label={`View ${product.title}`}
       >
         <ProductImage product={product} className={s.photo} />
-        <span className={s.category}>{product.category.name}</span>
+        {!variant && <span className={s.category}>Sold out</span>}
       </Link>
       <div className={`product-card-body ${s.body}`}>
         <Link
@@ -92,38 +94,57 @@ export function ProductCard({ product }: { product: Product }) {
                 product.priceLkrMinor,
             )}
           </strong>
-          <span className={`${s.stock} ${variant ? "" : s.soldOut}`}>
+          <span
+            className={`${s.stock} ${variant ? "" : s.soldOut} ${lowStock ? s.lowStock : ""}`}
+          >
             <span />
-            {variant ? "In stock" : "Sold out"}
+            {variant
+              ? lowStock
+                ? `Only ${variant.availableQuantity} left`
+                : "In stock"
+              : "Out of stock"}
           </span>
         </div>
-        <button
-          className={`primary-btn add-card-btn ${s.add} ${result === "success" ? s.added : ""}`}
-          type="button"
-          onClick={() => void add()}
-          disabled={!variant || busy || !authReady}
-          aria-busy={busy}
-          aria-label={
-            variant
-              ? `Add ${product.title} to cart`
-              : `${product.title} is out of stock`
-          }
-        >
-          {busy ? (
-            <LoaderCircle size={16} className={s.spinner} aria-hidden="true" />
-          ) : result === "success" ? (
-            <Check size={16} aria-hidden="true" />
-          ) : (
-            <ShoppingBag size={16} aria-hidden="true" />
-          )}
-          {busy
-            ? "Adding..."
-            : result === "success"
-              ? "Added"
-              : variant
-                ? "Add to cart"
-                : "Out of stock"}
-        </button>
+        {hasOptions && variant ? (
+          <Link
+            href={`/products/${product.id}`}
+            className={`primary-btn ${s.add} ${s.options}`}
+          >
+            Choose options <ShoppingBag size={15} />
+          </Link>
+        ) : (
+          <button
+            className={`primary-btn add-card-btn ${s.add} ${result === "success" ? s.added : ""}`}
+            type="button"
+            onClick={() => void add()}
+            disabled={!variant || busy || !authReady}
+            aria-busy={busy}
+            aria-label={
+              variant
+                ? `Add ${product.title} to cart`
+                : `${product.title} is out of stock`
+            }
+          >
+            {busy ? (
+              <LoaderCircle
+                size={16}
+                className={s.spinner}
+                aria-hidden="true"
+              />
+            ) : result === "success" ? (
+              <Check size={16} aria-hidden="true" />
+            ) : (
+              <ShoppingBag size={16} aria-hidden="true" />
+            )}
+            {busy
+              ? "Adding..."
+              : result === "success"
+                ? "Added"
+                : variant
+                  ? "Add to cart"
+                  : "Out of stock"}
+          </button>
+        )}
         <p
           className={`${s.feedback} ${result === "error" ? s.error : ""}`}
           role={result === "error" ? "alert" : "status"}

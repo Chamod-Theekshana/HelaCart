@@ -1,21 +1,9 @@
 "use client";
-
-import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import {
-  MapPin,
-  Menu,
-  Search,
-  ShoppingBag,
-  Sparkles,
-  Truck,
-  UserRound,
-  X,
-} from "lucide-react";
+import { Search, ShoppingBag, Store, UserRound } from "lucide-react";
 import { useShop } from "./shop-provider";
 import { ProfileAvatar } from "./profile-avatar";
-import profileStyles from "./profile.module.css";
 import type { Category } from "@/lib/types";
 
 export function Brand() {
@@ -33,165 +21,78 @@ export function Brand() {
     </Link>
   );
 }
-
 export function SiteHeader({ categories }: { categories: Category[] }) {
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuButton = useRef<HTMLButtonElement>(null);
-  useEffect(() => {
-    if (!menuOpen) return;
-    const close = (event: KeyboardEvent) => {
-      if (event.key === "Escape") {
-        setMenuOpen(false);
-        menuButton.current?.focus();
-      }
-    };
-    document.addEventListener("keydown", close);
-    return () => document.removeEventListener("keydown", close);
-  }, [menuOpen]);
-  const { cart, user, accountProfile } = useShop();
+  const { cart, user, accountProfile, cartLoading } = useShop();
   const count = cart?.items.reduce((sum, row) => sum + row.quantity, 0) ?? 0;
+  const search = (mobile = false) => (
+    <form
+      action="/products"
+      className={mobile ? "mobile-search container" : "site-search"}
+    >
+      <Search size={19} aria-hidden="true" />
+      <input
+        name="q"
+        maxLength={80}
+        aria-label="Search products"
+        placeholder="Search for your next good find"
+      />
+      <button type="submit">Search</button>
+    </form>
+  );
   return (
-    <>
-      <div className="topbar">
-        <div className="container topbar-inner">
-          <span>
-            <Truck size={15} /> Sri Lankan marketplace
-          </span>
-          <span className="topbar-right">
-            Cash on delivery at checkout <span className="divider">|</span> Shop
-            local goods
-          </span>
+    <header className="site-header storefront-header">
+      <div className="container header-main">
+        <Brand />
+        {search()}
+        <div className="header-actions">
+          <Link
+            href={user ? "/account/profile" : "/auth"}
+            className="account-link"
+            aria-label={user ? "Your account" : "Sign in to your account"}
+          >
+            {user ? (
+              <ProfileAvatar
+                name={accountProfile?.name || user.email || "HC"}
+                small
+              />
+            ) : (
+              <UserRound size={20} />
+            )}
+            <span
+              className="account-label"
+              title={accountProfile?.name || undefined}
+            >
+              {accountProfile?.name?.split(" ")[0] || "Account"}
+            </span>
+          </Link>
+          <Link
+            href="/cart"
+            className="cart-button"
+            aria-label={
+              cartLoading ? "Cart is loading" : `Cart with ${count} items`
+            }
+          >
+            <ShoppingBag size={19} />
+            <span className="cart-label">Cart</span>
+            <span className="cart-count">{cartLoading ? "…" : count}</span>
+          </Link>
         </div>
       </div>
-      <header className="site-header">
-        <div className="container header-main">
-          <button
-            ref={menuButton}
-            className="mobile-menu icon-btn"
-            type="button"
-            aria-label={menuOpen ? "Close menu" : "Open menu"}
-            aria-controls="storefront-navigation"
-            aria-expanded={menuOpen}
-            onClick={() => setMenuOpen(!menuOpen)}
-          >
-            {menuOpen ? <X size={22} /> : <Menu size={22} />}
-          </button>
-          <Brand />
-          <div className="destination">
-            <MapPin size={22} aria-hidden="true" />
-            <span>
-              <small>SHOPPING IN</small>
-              <strong>Sri Lanka</strong>
-            </span>
-          </div>
-          <form
-            action="/products"
-            className="site-search"
-            onSubmit={() => setMenuOpen(false)}
-          >
-            <Search size={20} aria-hidden="true" />
-            <input
-              name="q"
-              maxLength={80}
-              aria-label="Search products"
-              placeholder="What are you looking for?"
-            />
-            <button type="submit">Search</button>
-          </form>
-          <div className="header-actions">
-            <Link
-              href="/account/profile"
-              className="account-link"
-              aria-label="Your profile"
-            >
-              {user ? (
-                <ProfileAvatar
-                  name={accountProfile?.name || user.email || "HC"}
-                  small
-                />
-              ) : (
-                <span className="round-icon">
-                  <UserRound size={18} />
-                </span>
-              )}
-              <span>
-                <small>{user?.email ? "HELLO" : "HELLO, SIGN IN"}</small>
-                <strong
-                  className={profileStyles.headerName}
-                  title={accountProfile?.name ?? undefined}
-                >
-                  {accountProfile?.name?.split(" ")[0] || "Account"}
-                </strong>
-              </span>
-            </Link>
-            <Link
-              href="/cart"
-              className="cart-button"
-              aria-label={`Cart with ${count} items`}
-            >
-              <ShoppingBag size={19} />
-              <span>
-                CART
-                <small>
-                  {count} {count === 1 ? "item" : "items"}
-                </small>
-              </span>
-            </Link>
-          </div>
+      {search(true)}
+      <nav className="category-nav" aria-label="Storefront navigation">
+        <div className="container nav-inner">
+          <Link href="/products">All products</Link>
+          <Link href={categories.length ? "/#categories" : "/products"}>
+            Categories
+          </Link>
+          <Link href="/shops">Shops</Link>
+          <Link href="/orders">Track order</Link>
+          <Link href="/seller" className="nav-seller">
+            <Store size={16} />
+            Seller Center
+          </Link>
         </div>
-        <nav
-          id="storefront-navigation"
-          className={`category-nav ${menuOpen ? "is-open" : ""}`}
-          aria-label="Shopping categories"
-        >
-          <div className="container nav-inner">
-            <Link
-              className="nav-all"
-              href="/products"
-              onClick={() => setMenuOpen(false)}
-            >
-              <Menu size={16} /> All Categories
-            </Link>
-            <Link href="/" onClick={() => setMenuOpen(false)}>
-              Home
-            </Link>
-            <Link href="/shops" onClick={() => setMenuOpen(false)}>
-              Explore Shops
-            </Link>
-            <Link href="/seller" onClick={() => setMenuOpen(false)}>
-              Seller Center
-            </Link>
-            {categories.slice(0, 4).map((item) => (
-              <Link
-                key={item.id}
-                href={`/products?category=${encodeURIComponent(item.slug)}`}
-                onClick={() => setMenuOpen(false)}
-              >
-                {item.name}
-              </Link>
-            ))}
-            <span className="nav-reassurance">
-              <Sparkles size={13} aria-hidden="true" /> Local shops. Good finds.
-            </span>
-          </div>
-        </nav>
-        <form
-          action="/products"
-          className="mobile-search container"
-          onSubmit={() => setMenuOpen(false)}
-        >
-          <Search size={18} aria-hidden="true" />
-          <input
-            name="q"
-            maxLength={80}
-            aria-label="Search products"
-            placeholder="Find your next good thing..."
-          />
-          <button type="submit" aria-label="Submit product search">
-            <Search size={17} aria-hidden="true" />
-          </button>
-        </form>
-      </header>
-    </>
+      </nav>
+    </header>
   );
 }

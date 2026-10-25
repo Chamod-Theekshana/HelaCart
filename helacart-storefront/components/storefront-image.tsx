@@ -15,6 +15,10 @@ export function StorefrontImage({
   const [failedSource, setFailedSource] = useState<string | null>(null);
   return src && src !== failedSource ? (
     <img
+      ref={(image) => {
+        // Cached failures may complete before React attaches its error handler.
+        if (image?.complete && image.naturalWidth === 0) setFailedSource(src);
+      }}
       src={src}
       alt={alt}
       className={className}

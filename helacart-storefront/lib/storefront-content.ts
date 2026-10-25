@@ -26,15 +26,15 @@ export type HeroAdminState = {
   updatedAt: string | null;
 };
 export const defaultHero: HeroContent = {
-  eyebrow: "A WORLD OF FINDS. A LOCAL FEEL.",
+  eyebrow: "SRI LANKA'S LOCAL MARKETPLACE",
   title: "Good finds.",
-  accent: "Closer to home.",
+  accent: "Local roots.",
   description:
-    "Little upgrades. Everyday favourites. Discover something you'll love from sellers across Sri Lanka, all in one place.",
-  buttonLabel: "Shop the marketplace",
+    "Discover everyday favourites from independent shops across Sri Lanka.",
+  buttonLabel: "Shop now",
   buttonHref: "/products",
   imageAlt:
-    "A woven bag, soft linen, headphones and ceramics arranged in warm sunlight",
+    "A rattan basket, Ceylon tea and batik cloth on a sunlit linen table",
   desktopImageUrl: null,
   mobileImageUrl: null,
 };

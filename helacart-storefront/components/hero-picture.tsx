@@ -15,23 +15,22 @@ export function HeroPicture({
   const [failed, setFailed] = useState<string | null>(null);
   const key = `${desktop}:${mobile}`;
   const fallback = failed === key;
+  const placeholder = "/marketplace/hero.jpg";
   return (
     <picture>
       <source
         media="(max-width: 760px)"
-        srcSet={
-          fallback
-            ? "/marketplace-hero.webp"
-            : mobile || desktop || "/marketplace-hero.webp"
-        }
+        srcSet={fallback ? placeholder : mobile || desktop || placeholder}
       />
       <img
+        ref={(image) => {
+          if (image?.complete && image.naturalWidth === 0) setFailed(key);
+        }}
         className={s.image}
         src={
           fallback
-            ? "/marketplace-hero.webp"
-            : (mobileOnly ? mobile || desktop : desktop) ||
-              "/marketplace-hero.webp"
+            ? placeholder
+            : (mobileOnly ? mobile || desktop : desktop) || placeholder
         }
         alt={alt}
         fetchPriority="high"

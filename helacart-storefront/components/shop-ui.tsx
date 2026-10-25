@@ -4,6 +4,7 @@ import { shopPath, type PublicShop } from "@/lib/shops";
 import s from "./shop.module.css";
 import { StorefrontImage } from "./storefront-image";
 import { VerifiedShopBadge } from "./verified-shop-badge";
+import compactStyles from "./storefront-shop-card.module.css";
 
 export function Stars({ rating }: { rating: number }) {
   return (
@@ -34,7 +35,53 @@ export function ShopLogo({
     </span>
   );
 }
-export function ShopCard({ shop }: { shop: PublicShop }) {
+export function ShopCard({
+  shop,
+  compact = false,
+}: {
+  shop: PublicShop;
+  compact?: boolean;
+}) {
+  if (compact)
+    return (
+      <article className={compactStyles.card}>
+        <div className={compactStyles.identity}>
+          <ShopLogo shop={shop} />
+          <div>
+            <h3>
+              <Link href={shopPath(shop)}>{shop.name}</Link>
+            </h3>
+            <p>
+              <MapPin size={12} />
+              {shop.publicLocation || "Sri Lankan seller"}
+            </p>
+          </div>
+        </div>
+        <div className={compactStyles.reputation}>
+          {shop.isVerified && <VerifiedShopBadge />}
+          {shop.rating.total ? (
+            <span className={compactStyles.rating}>
+              <Star size={14} fill="currentColor" />
+              <b>{shop.rating.average.toFixed(1)}</b>
+              <small>
+                ({shop.rating.total}{" "}
+                {shop.rating.total === 1 ? "review" : "reviews"})
+              </small>
+            </span>
+          ) : (
+            <small>No reviews yet</small>
+          )}
+        </div>
+        <p className={compactStyles.description}>
+          {shop.description ||
+            `Discover ${shop.productCount} ${shop.productCount === 1 ? "product" : "products"} from this independent shop.`}
+        </p>
+        <Link className={compactStyles.visit} href={shopPath(shop)}>
+          Visit shop
+          <ArrowRight size={14} />
+        </Link>
+      </article>
+    );
   return (
     <article className={s.shopCard}>
       <Link

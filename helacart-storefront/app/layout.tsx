@@ -9,6 +9,7 @@ import "./seller.css";
 import "./seller-stitch.css";
 import "./admin.css";
 import "./storefront-polish.css";
+import "./storefront-refresh.css";
 
 export const metadata: Metadata = {
   title: { default: "HelaCart | Shop Sri Lankan Goods", template: "%s | HelaCart" },

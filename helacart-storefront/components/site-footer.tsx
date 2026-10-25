@@ -1,11 +1,5 @@
 import Link from "next/link";
-import {
-  ArrowRight,
-  Banknote,
-  PackageCheck,
-  ShieldCheck,
-  Truck,
-} from "lucide-react";
+import { Banknote, PackageCheck, ShieldCheck, Truck } from "lucide-react";
 import { Brand } from "./site-header";
 
 export function TrustStrip() {
@@ -58,47 +52,32 @@ export function SiteFooter({ showTrust = true }: { showTrust?: boolean }) {
     <>
       {showTrust && <TrustStrip />}
       <footer className="site-footer">
-        <div className="container footer-welcome">
-          <div>
-            <span>THE HELACART WAY</span>
-            <h2>Good finds. Local roots.</h2>
-          </div>
-          <Link href="/seller/apply">
-            Have a shop of your own?{" "}
-            <span>
-              Join HelaCart <ArrowRight size={16} />
-            </span>
-          </Link>
-        </div>
         <div className="container footer-columns">
           <div className="footer-about">
             <Brand />
             <p>
-              Everyday favourites and unexpected finds from independent shops
-              across Sri Lanka.
+              A marketplace for independent shops across Sri Lanka. Good finds,
+              local roots, and cash on delivery.
             </p>
-            <span className="footer-local-note">
-              A little closer to the shops behind the things you love.
-            </span>
           </div>
           <div>
-            <strong>Take a look around</strong>
+            <strong>Shopping</strong>
             <Link href="/products">Shop all products</Link>
-            <Link href="/shops">Meet the shops</Link>
+            <Link href="/#categories">Categories</Link>
             <Link href="/products?sort=newest">New arrivals</Link>
           </div>
           <div>
-            <strong>Make yourself at home</strong>
-            <Link href="/account/profile">My profile</Link>
-            <Link href="/orders">My orders</Link>
-            <Link href="/cart">My cart</Link>
+            <strong>Shops</strong>
+            <Link href="/shops">Discover shops</Link>
+            <Link href="/seller">Seller Center</Link>
+            <Link href="/seller/apply">Open your shop</Link>
           </div>
           <div>
-            <strong>A little help</strong>
-            <Link href="/#how-it-works">How shopping works</Link>
-            <Link href="/account/returns">Track a return</Link>
-            <Link href="/account/security">Account & security</Link>
-            <Link href="/seller">Seller Center</Link>
+            <strong>Your account</strong>
+            <Link href="/account/profile">My profile</Link>
+            <Link href="/orders">Track an order</Link>
+            <Link href="/account/returns">Returns</Link>
+            <Link href="/#how-it-works">Shopping help</Link>
           </div>
         </div>
         <div className="container footer-bottom">

@@ -1,0 +1,260 @@
+/* Storefront composition inspired by the supplied Lovable reference. Brand tokens are unchanged. */
+.storefront-header.site-header {
+  background: #fff;
+  box-shadow: none;
+  border-bottom: 1px solid var(--border);
+  position: sticky;
+  top: 0;
+  z-index: 25;
+}
+.storefront-header .container,
+.site-footer .container {
+  width: min(100% - 64px, 1216px);
+}
+.storefront-header .header-main {
+  min-height: 74px;
+  gap: 40px;
+}
+.storefront-header .brand {
+  width: 148px;
+  height: 40px;
+  margin-right: 0;
+}
+.storefront-header .brand-crop {
+  width: 148px;
+  height: 40px;
+}
+.storefront-header .brand-crop img {
+  width: 164px;
+  height: 164px;
+  top: -60px;
+  left: -8px;
+}
+.storefront-header .site-search {
+  height: 45px;
+  padding: 4px 5px 4px 13px;
+  background: var(--canvas);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  max-width: none;
+  margin-left: 8px;
+}
+.storefront-header .site-search input {
+  font-size: 13px;
+}
+.storefront-header .site-search button,
+.storefront-header .mobile-search button {
+  border-radius: 8px;
+  padding: 8px 19px;
+  min-height: 34px;
+  font-size: 12px;
+}
+.storefront-header .header-actions {
+  gap: 22px;
+}
+.storefront-header .account-link {
+  font-size: 13px;
+  min-height: 44px;
+  gap: 8px;
+  color: var(--navy);
+}
+.storefront-header .account-link .account-label {
+  display: inline;
+  max-width: 96px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.storefront-header .cart-button {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  padding: 10px 15px;
+  font-size: 13px;
+  border-radius: 10px;
+}
+.storefront-header .cart-count {
+  display: grid;
+  place-items: center;
+  min-width: 20px;
+  height: 20px;
+  padding: 0 5px;
+  border-radius: 50%;
+  background: white;
+  color: var(--teal);
+  font-size: 10px;
+  line-height: 1;
+}
+.storefront-header .category-nav {
+  background: white;
+  border-top: 1px solid #eef1f6;
+}
+.storefront-header .nav-inner {
+  height: 43px;
+  gap: 30px;
+  font-size: 13px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.storefront-header .nav-inner > a {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 40px;
+}
+.storefront-header .nav-seller {
+  margin-left: auto;
+  color: var(--teal);
+  font-weight: 650;
+}
+.storefront-header .mobile-search {
+  display: none;
+}
+.site-footer .footer-columns {
+  padding-top: 42px;
+  padding-bottom: 36px;
+  gap: 46px;
+  grid-template-columns: 2fr 1fr 1fr 1fr;
+}
+.site-footer .footer-about p {
+  font-size: 13px;
+  max-width: 310px;
+  line-height: 1.8;
+}
+.site-footer .footer-columns > div > strong {
+  font-size: 13px;
+}
+.site-footer .footer-columns > div > a:not(.brand) {
+  font-size: 12px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+}
+.site-footer .footer-bottom {
+  font-size: 11px;
+  padding-top: 20px;
+  padding-bottom: 20px;
+}
+.site-footer .footer-about .brand {
+  margin-bottom: 12px;
+}
+.site-footer .footer-local-note {
+  display: none;
+}
+@media (max-width: 1000px) {
+  .storefront-header .header-main {
+    gap: 24px;
+  }
+  .storefront-header .header-actions {
+    gap: 15px;
+  }
+  .storefront-header .account-link .account-label {
+    display: none;
+  }
+  .storefront-header .nav-inner {
+    gap: 24px;
+  }
+  .site-footer .footer-columns {
+    gap: 25px;
+  }
+}
+@media (max-width: 780px) {
+  .storefront-header .container,
+  .site-footer .container {
+    width: calc(100% - 40px);
+  }
+  .storefront-header .header-main {
+    min-height: 66px;
+    gap: 12px;
+  }
+  .storefront-header .brand {
+    margin-right: auto;
+  }
+  .storefront-header .site-search {
+    display: none;
+  }
+  .storefront-header .mobile-search {
+    display: flex;
+    width: calc(100% - 40px);
+    height: 44px;
+    margin: 0 auto 12px;
+    background: var(--canvas);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 4px 5px 4px 12px;
+    gap: 8px;
+  }
+  .storefront-header .mobile-search input {
+    font-size: 12px;
+  }
+  .storefront-header .mobile-search button {
+    font-size: 12px;
+    padding: 7px 15px;
+  }
+  .storefront-header .category-nav {
+    display: block;
+    position: static;
+    box-shadow: none;
+  }
+  .storefront-header .nav-inner {
+    display: flex;
+    flex-wrap: nowrap;
+    height: 43px;
+    padding: 0;
+    gap: 24px;
+    white-space: nowrap;
+  }
+  .storefront-header .nav-seller {
+    margin-left: 0;
+  }
+  .storefront-header .header-actions {
+    gap: 14px;
+  }
+  .storefront-header .cart-label {
+    display: none;
+  }
+  .storefront-header .cart-button {
+    padding: 9px 12px;
+    gap: 7px;
+  }
+  .site-footer .footer-columns {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 24px;
+    padding-top: 32px;
+    padding-bottom: 28px;
+  }
+  .site-footer .footer-about {
+    grid-column: 1/-1;
+  }
+  .site-footer .footer-bottom {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+  }
+  .site-footer .footer-columns > div > strong {
+    font-size: 12px;
+  }
+  .site-footer .footer-columns > div > a:not(.brand) {
+    font-size: 11px;
+  }
+}
+@media (max-width: 350px) {
+  .storefront-header .container,
+  .site-footer .container {
+    width: calc(100% - 32px);
+  }
+  .storefront-header .mobile-search {
+    width: calc(100% - 32px);
+  }
+  .storefront-header .header-actions {
+    gap: 9px;
+  }
+  .storefront-header .nav-inner {
+    gap: 20px;
+    font-size: 12px;
+  }
+  .site-footer .footer-columns {
+    gap: 16px;
+  }
+}

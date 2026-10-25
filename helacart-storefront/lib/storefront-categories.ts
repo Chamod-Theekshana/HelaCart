@@ -67,3 +67,32 @@ export function categoryPresentation(
 }
 export const categoryHref = (category: Pick<Category, "slug">) =>
   `/products?${new URLSearchParams({ category: category.slug })}`;
+
+// Illustrative category photos; real product photos and admin artwork remain authoritative.
+export function categoryFallbackImage(
+  category: Pick<Category, "name" | "slug">,
+) {
+  const name = `${category.name} ${category.slug}`.toLowerCase();
+  if (/shoe|footwear|sandal/.test(name))
+    return "/marketplace/category-footwear.jpg";
+  if (/kitchen|cook|pottery/.test(name))
+    return "/marketplace/category-kitchen.jpg";
+  const family = categoryPresentation(category).family;
+  const photos = {
+    home: "home",
+    pantry: "pantry",
+    fashion: "fashion",
+    beauty: "wellness",
+  } as const;
+  return family in photos
+    ? `/marketplace/category-${photos[family as keyof typeof photos]}.jpg`
+    : null;
+}
+export function collectionFallbackImage(
+  category: Pick<Category, "name" | "slug">,
+) {
+  const family = categoryPresentation(category).family;
+  return family === "home" || family === "pantry"
+    ? `/marketplace/collection-${family}.jpg`
+    : categoryFallbackImage(category);
+}
