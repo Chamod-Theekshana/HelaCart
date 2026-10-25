@@ -1,0 +1,567 @@
+generator client {
+  provider     = "prisma-client"
+  output       = "../src/generated/prisma"
+  moduleFormat = "esm"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SellerStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum SellerMemberRole {
+  OWNER
+  MANAGER
+}
+
+enum SellerIdentityDocumentType {
+  NATIONAL_ID
+  DRIVING_LICENCE
+}
+
+enum SellerDocumentKind {
+  IDENTITY_FRONT
+  IDENTITY_BACK
+  BUSINESS_REGISTRATION
+}
+
+model User {
+  id            String         @id @default(uuid()) @db.Uuid
+  firebaseUid   String         @unique
+  email         String         @unique
+  emailVerified Boolean        @default(false)
+  name          String?
+  phone         String?        @db.VarChar(25)
+  avatarStorageKey String?      @unique
+  avatarContentType String?
+  avatarByteSize Int?
+  photoVersion  Int            @default(0)
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
+  memberships   SellerMember[]
+  sellerReviews SellerReview[]
+  sellerVerifications SellerVerification[]
+  publishedStorefronts StorefrontAppearance[]
+  productReviews ProductReview[]
+  inventoryMovements InventoryMovement[]
+  addresses      BuyerAddress[]
+  cartItems      CartItem[]
+  favorites      ProductFavorite[]
+  orders         Order[]
+  orderEvents    SellerOrderEvent[]
+  notifications  Notification[]
+  returnRequests ReturnRequest[] @relation("BuyerReturns")
+  returnReviews  ReturnRequest[] @relation("AdminReturns")
+  returnResolutions ReturnRequest[] @relation("AdminReturnResolutions")
+  codReviews     CodReconciliation[]
+  shopReviews    ShopReview[] @relation("ShopReviewBuyer")
+  shopReplies    ShopReview[] @relation("ShopReviewReplyAuthor")
+  shopReviewReports ShopReviewReport[] @relation("ShopReportAuthor")
+  shopReportDecisions ShopReviewReport[] @relation("ShopReportModerator")
+}
+
+model Seller {
+  id            String         @id @default(uuid()) @db.Uuid
+  name          String
+  slug          String         @unique
+  description   String?
+  contactPhone  String?
+  pickupAddress String?
+  status        SellerStatus   @default(PENDING)
+  isVerified    Boolean        @default(false)
+  verifiedAt    DateTime?      @db.Timestamptz(3)
+  verificationVersion Int      @default(0)
+  verificationHistory SellerVerification[]
+  createdAt     DateTime       @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime       @updatedAt @db.Timestamptz(3)
+  members       SellerMember[]
+  reviews       SellerReview[]
+  products      Product[]
+  variants      ProductVariant[]
+  sellerOrders  SellerOrder[]
+  shippingFeeLkrMinor Int?
+  identityDocumentType SellerIdentityDocumentType?
+  documents     SellerApplicationDocument[]
+  publicLocation String?
+  logoUrl       String?
+  coverUrl      String?
+  customerReviews ShopReview[]
+
+  @@index([status])
+}
+
+model SellerVerification {
+  id             String   @id @default(uuid()) @db.Uuid
+  sellerId       String   @db.Uuid
+  reviewerUserId String   @db.Uuid
+  isVerified     Boolean
+  version        Int
+  reason         String   @db.VarChar(500)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  seller         Seller   @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  reviewer       User     @relation(fields: [reviewerUserId], references: [id], onDelete: Restrict)
+
+  @@unique([sellerId, version])
+  @@index([reviewerUserId])
+}
+
+model SellerApplicationDocument {
+  id          String             @id @default(uuid()) @db.Uuid
+  sellerId    String             @db.Uuid
+  kind        SellerDocumentKind
+  storageKey  String             @unique
+  contentType String
+  byteSize    Int
+  createdAt   DateTime           @default(now()) @db.Timestamptz(3)
+  seller      Seller             @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+
+  @@unique([sellerId, kind])
+}
+
+enum SellerReviewDecision {
+  APPROVED
+  REJECTED
+}
+
+model SellerReview {
+  id             String               @id @default(uuid()) @db.Uuid
+  sellerId       String               @db.Uuid
+  reviewerUserId String               @db.Uuid
+  decision       SellerReviewDecision
+  reason         String?
+  createdAt      DateTime             @default(now()) @db.Timestamptz(3)
+  seller         Seller               @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  reviewer       User                 @relation(fields: [reviewerUserId], references: [id], onDelete: Restrict)
+
+  @@index([sellerId, createdAt])
+  @@index([reviewerUserId])
+}
+
+model SellerMember {
+  id        String           @id @default(uuid()) @db.Uuid
+  userId    String           @db.Uuid
+  sellerId  String           @db.Uuid
+  role      SellerMemberRole @default(MANAGER)
+  createdAt DateTime         @default(now()) @db.Timestamptz(3)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Restrict)
+  seller    Seller           @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+
+  @@unique([sellerId, userId])
+  @@index([userId])
+}
+
+model Category {
+  id        String    @id @default(uuid()) @db.Uuid
+  name      String
+  slug      String    @unique
+  isActive  Boolean   @default(true)
+  description String? @db.VarChar(500)
+  sortOrder Int @default(0)
+  imageUrl String?
+  imageStorageKey String? @unique
+  revision Int @default(0)
+  createdAt DateTime  @default(now()) @db.Timestamptz(3)
+  products  Product[]
+}
+
+model StorefrontAppearance {
+  id String @id @default("home")
+  draft Json
+  published Json
+  revision Int @default(0)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  publishedAt DateTime? @db.Timestamptz(3)
+  publishedByUserId String? @db.Uuid
+  publisher User? @relation(fields: [publishedByUserId], references: [id], onDelete: Restrict, map: "StorefrontAppearance_publisher_fkey")
+}
+
+enum ProductStatus {
+  DRAFT
+  PENDING
+  APPROVED
+  REJECTED
+  HIDDEN
+}
+
+model Product {
+  id            String        @id @default(uuid()) @db.Uuid
+  sellerId      String        @db.Uuid
+  categoryId    String        @db.Uuid
+  title         String
+  slug          String
+  description   String
+  sku           String
+  priceLkrMinor Int
+  imageUrls     String[]      @default([])
+  status        ProductStatus @default(DRAFT)
+  createdAt     DateTime      @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime      @updatedAt @db.Timestamptz(3)
+  seller        Seller        @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  category      Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  reviews       ProductReview[]
+  variants      ProductVariant[]
+  favorites     ProductFavorite[]
+
+  @@unique([sellerId, slug])
+  @@unique([sellerId, sku])
+  @@index([status, createdAt])
+  @@index([categoryId, status])
+}
+
+model ProductFavorite {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  productId String? @db.Uuid
+  titleSnapshot String
+  sellerNameSnapshot String
+  imageUrlSnapshot String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, productId])
+  @@index([userId, createdAt, id])
+  @@index([productId])
+}
+
+model ProductVariant {
+  id            String   @id @default(uuid()) @db.Uuid
+  productId     String   @db.Uuid
+  sellerId      String   @db.Uuid
+  position      Int
+  sku           String
+  optionValues  Json     @default("{}")
+  priceLkrMinor Int
+  onHand        Int      @default(0)
+  reserved      Int      @default(0)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+  product       Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  seller        Seller   @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  movements     InventoryMovement[]
+  reservations  InventoryReservation[]
+  cartItems     CartItem[]
+  orderItems    OrderItem[]
+
+  @@unique([sellerId, sku])
+  @@unique([productId, position])
+  @@index([sellerId, productId])
+}
+
+model InventoryMovement {
+  id          String   @id @default(uuid()) @db.Uuid
+  variantId   String   @db.Uuid
+  actorUserId String?  @db.Uuid
+  delta       Int
+  reason      String
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  variant     ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+  actor       User?    @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([variantId, createdAt])
+}
+
+enum InventoryReservationStatus {
+  ACTIVE
+  RELEASED
+  COMMITTED
+  EXPIRED
+}
+
+model InventoryReservation {
+  id        String   @id @default(uuid()) @db.Uuid
+  requestKey String  @unique
+  variantId String   @db.Uuid
+  quantity  Int
+  status    InventoryReservationStatus @default(ACTIVE)
+  expiresAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@index([status, expiresAt])
+  @@index([variantId, status])
+}
+
+enum ProductReviewDecision {
+  APPROVED
+  REJECTED
+}
+
+model ProductReview {
+  id             String                @id @default(uuid()) @db.Uuid
+  productId      String                @db.Uuid
+  reviewerUserId String                @db.Uuid
+  decision       ProductReviewDecision
+  reason         String?
+  createdAt      DateTime              @default(now()) @db.Timestamptz(3)
+  product        Product               @relation(fields: [productId], references: [id], onDelete: Restrict)
+  reviewer       User                  @relation(fields: [reviewerUserId], references: [id], onDelete: Restrict)
+
+  @@index([productId, createdAt])
+  @@index([reviewerUserId])
+}
+
+model BuyerAddress {
+  id          String @id @default(uuid()) @db.Uuid
+  userId      String @db.Uuid
+  recipient   String
+  phone       String
+  line1       String
+  line2       String?
+  city        String
+  district    String
+  postalCode  String
+  isActive    Boolean @default(true)
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  user        User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  orders      Order[]
+
+  @@index([userId, createdAt])
+}
+
+model CartItem {
+  id        String @id @default(uuid()) @db.Uuid
+  userId    String @db.Uuid
+  variantId String @db.Uuid
+  quantity  Int
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  user      User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  variant   ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, variantId])
+  @@index([variantId])
+}
+
+enum SellerOrderStatus {
+  PLACED
+  ACCEPTED
+  PACKED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model Order {
+  id                  String @id @default(uuid()) @db.Uuid
+  buyerId             String @db.Uuid
+  addressId           String @db.Uuid
+  checkoutKey         String
+  snapshotHash        String
+  recipient           String
+  phone               String
+  line1               String
+  line2               String?
+  city                String
+  district            String
+  postalCode          String
+  subtotalLkrMinor    Int
+  shippingLkrMinor    Int
+  totalLkrMinor       Int
+  paymentMethod       String @default("COD")
+  createdAt           DateTime @default(now()) @db.Timestamptz(3)
+  buyer               User @relation(fields: [buyerId], references: [id], onDelete: Restrict)
+  address             BuyerAddress @relation(fields: [addressId], references: [id], onDelete: Restrict)
+  sellerOrders        SellerOrder[]
+
+  @@unique([buyerId, checkoutKey])
+  @@index([buyerId, createdAt])
+}
+
+model SellerOrder {
+  id                 String @id @default(uuid()) @db.Uuid
+  orderId            String @db.Uuid
+  sellerId           String @db.Uuid
+  status             SellerOrderStatus @default(PLACED)
+  subtotalLkrMinor   Int
+  shippingLkrMinor   Int
+  totalLkrMinor      Int
+  paymentCollectedAt DateTime? @db.Timestamptz(3)
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt          DateTime @updatedAt @db.Timestamptz(3)
+  order              Order @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  seller             Seller @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  items              OrderItem[]
+  events             SellerOrderEvent[]
+  returnRequest      ReturnRequest?
+  codReconciliations CodReconciliation[]
+  shopReview         ShopReview?
+
+  @@unique([orderId, sellerId])
+  @@index([sellerId, createdAt])
+}
+
+model OrderItem {
+  id             String @id @default(uuid()) @db.Uuid
+  sellerOrderId  String @db.Uuid
+  variantId      String @db.Uuid
+  productTitle   String
+  sku            String
+  optionValues   Json
+  unitLkrMinor   Int
+  quantity       Int
+  lineLkrMinor   Int
+  sellerOrder    SellerOrder @relation(fields: [sellerOrderId], references: [id], onDelete: Restrict)
+  variant        ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
+
+  @@index([sellerOrderId])
+}
+
+model SellerOrderEvent {
+  id            String @id @default(uuid()) @db.Uuid
+  sellerOrderId String @db.Uuid
+  actorUserId   String @db.Uuid
+  fromStatus    SellerOrderStatus
+  toStatus      SellerOrderStatus
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  sellerOrder   SellerOrder @relation(fields: [sellerOrderId], references: [id], onDelete: Restrict)
+  actor         User @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+
+  @@index([sellerOrderId, createdAt])
+}
+
+enum NotificationType {
+  ORDER_PLACED
+  ORDER_UPDATED
+  RETURN_REQUESTED
+  RETURN_REVIEWED
+  COD_RECONCILED
+}
+
+model Notification {
+  id        String @id @default(uuid()) @db.Uuid
+  userId    String @db.Uuid
+  type      NotificationType
+  subjectId String @db.Uuid
+  message   String
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  readAt    DateTime? @db.Timestamptz(3)
+  user      User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+}
+
+enum ReturnStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  RESOLVED
+}
+
+model ReturnRequest {
+  id             String @id @default(uuid()) @db.Uuid
+  sellerOrderId  String @unique @db.Uuid
+  buyerId        String @db.Uuid
+  status         ReturnStatus @default(PENDING)
+  reason         String
+  reviewReason   String?
+  resolutionNote String?
+  reviewerUserId String? @db.Uuid
+  resolverUserId String? @db.Uuid
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  reviewedAt     DateTime? @db.Timestamptz(3)
+  resolvedAt     DateTime? @db.Timestamptz(3)
+  sellerOrder    SellerOrder @relation(fields: [sellerOrderId], references: [id], onDelete: Restrict)
+  buyer          User @relation("BuyerReturns", fields: [buyerId], references: [id], onDelete: Restrict)
+  reviewer       User? @relation("AdminReturns", fields: [reviewerUserId], references: [id], onDelete: Restrict)
+  resolver       User? @relation("AdminReturnResolutions", fields: [resolverUserId], references: [id], onDelete: Restrict)
+
+  @@index([buyerId, createdAt])
+  @@index([status, createdAt])
+}
+
+enum CodReconciliationDecision {
+  RECONCILED
+  DISPUTED
+}
+
+model CodReconciliation {
+  id                 String @id @default(uuid()) @db.Uuid
+  sellerOrderId      String @db.Uuid
+  reviewerUserId     String @db.Uuid
+  decision           CodReconciliationDecision
+  amountReceivedMinor Int
+  reference          String
+  note               String?
+  createdAt          DateTime @default(now()) @db.Timestamptz(3)
+  sellerOrder        SellerOrder @relation(fields: [sellerOrderId], references: [id], onDelete: Restrict)
+  reviewer           User @relation(fields: [reviewerUserId], references: [id], onDelete: Restrict)
+
+  @@unique([sellerOrderId, reference])
+  @@index([sellerOrderId, createdAt])
+  @@index([decision, createdAt])
+}
+
+model ShopReview {
+  id            String @id @default(uuid()) @db.Uuid
+  sellerId      String @db.Uuid
+  buyerId       String @db.Uuid
+  sellerOrderId String @unique @db.Uuid
+  buyerName     String @db.VarChar(100)
+  rating        Int
+  comment       String @db.VarChar(1500)
+  isHidden      Boolean @default(false)
+  deletedAt     DateTime? @db.Timestamptz(3)
+  reply         String? @db.VarChar(1500)
+  replyUserId   String? @db.Uuid
+  repliedAt     DateTime? @db.Timestamptz(3)
+  createdAt     DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt     DateTime @updatedAt @db.Timestamptz(3)
+  seller        Seller @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  buyer         User @relation("ShopReviewBuyer", fields: [buyerId], references: [id], onDelete: Restrict)
+  sellerOrder   SellerOrder @relation(fields: [sellerOrderId], references: [id], onDelete: Restrict)
+  replyAuthor   User? @relation("ShopReviewReplyAuthor", fields: [replyUserId], references: [id], onDelete: Restrict)
+  reports       ShopReviewReport[]
+  photos        ShopReviewPhoto[]
+  photoVersion  Int @default(0)
+
+  @@index([sellerId, isHidden, deletedAt, createdAt])
+  @@index([buyerId, sellerId])
+}
+
+enum ShopReviewReportStatus {
+  OPEN
+  ACTIONED
+  DISMISSED
+}
+
+model ShopReviewReport {
+  id              String @id @default(uuid()) @db.Uuid
+  reviewId        String @db.Uuid
+  reporterUserId  String @db.Uuid
+  reason          String @db.VarChar(500)
+  commentSnapshot String @db.VarChar(1500)
+  ratingSnapshot  Int
+  photoSnapshotIds String[] @default([]) @db.Uuid
+  status          ShopReviewReportStatus @default(OPEN)
+  moderatorUserId String? @db.Uuid
+  moderationNote  String? @db.VarChar(500)
+  createdAt       DateTime @default(now()) @db.Timestamptz(3)
+  reviewedAt      DateTime? @db.Timestamptz(3)
+  review          ShopReview @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+  reporter        User @relation("ShopReportAuthor", fields: [reporterUserId], references: [id], onDelete: Restrict)
+  moderator       User? @relation("ShopReportModerator", fields: [moderatorUserId], references: [id], onDelete: Restrict)
+
+  @@unique([reviewId, reporterUserId])
+  @@index([status, createdAt])
+}
+
+model ShopReviewPhoto {
+  id          String @id @default(uuid()) @db.Uuid
+  reviewId    String @db.Uuid
+  storageKey  String @unique
+  contentType String
+  byteSize    Int
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  deletedAt   DateTime? @db.Timestamptz(3)
+  review      ShopReview @relation(fields: [reviewId], references: [id], onDelete: Restrict)
+
+  @@index([reviewId, deletedAt, createdAt])
+}

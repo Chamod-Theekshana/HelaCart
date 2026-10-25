@@ -1,0 +1,50 @@
+.layout { display:grid; grid-template-columns:minmax(0,1.5fr) minmax(240px,1fr); gap:24px; align-items:start; }
+.fullWidth { grid-column:1 / -1; }
+.fieldset { border:0; margin:0; padding:0; min-width:0; }
+.card { min-width:0; background:#fff; border:1px solid #e2e8e5; border-radius:16px; padding:26px; }
+.card h2 { margin:0 0 7px; font-size:20px; color:#18382e; }
+.card h3 { margin:0 0 6px; font-size:16px; }
+.card p { color:#66776f; font-size:14px; line-height:1.65; margin:0 0 20px; overflow-wrap:anywhere; }
+.fields { display:grid; gap:18px; margin-top:24px; }
+.fields label { display:grid; gap:8px; font-size:13px; font-weight:600; color:#334d42; min-width:0; }
+.fields input,.fields textarea { width:100%; min-width:0; border:1px solid #d8e1db; border-radius:9px; background:#fff; color:#17382b; padding:12px 13px; font:inherit; font-weight:400; }
+.fields input:focus,.fields textarea:focus { outline:2px solid #2a8757; outline-offset:2px; }
+.fields input:disabled { background:#f3f6f4; color:#64736c; }
+.fields small,.muted { font-size:12px; line-height:1.6; color:#738078; font-weight:400; }
+.avatar { width:84px; height:84px; border-radius:50%; background:#e2f0e7; color:#246c44; display:inline-flex; align-items:center; justify-content:center; flex-shrink:0; font-size:28px; font-weight:700; overflow:hidden; vertical-align:middle; }
+.avatar img { width:100%; height:100%; object-fit:cover; }
+.identityCopy { min-width:0; flex:1; overflow-wrap:anywhere; }
+.headerName { display:block; max-width:110px; overflow:hidden; text-overflow:ellipsis; }
+.smallAvatar { width:36px; height:36px; font-size:12px; }
+.photoRow { display:flex; gap:20px; align-items:center; margin:24px 0; flex-wrap:wrap; }
+.photoControls { display:grid; gap:10px; min-width:0; }
+.photoControls input { max-width:100%; font-size:12px; }
+.photoControls label { display:grid; gap:8px; font-size:13px; font-weight:600; }
+.textButton { background:none; border:0; color:#287447; text-decoration:underline; cursor:pointer; padding:0; text-align:left; font-size:13px; width:fit-content; }
+.actions { display:flex; gap:12px; align-items:center; flex-wrap:wrap; margin-top:24px; }
+.actions button { min-height:42px; }
+.message { padding:12px 15px; border-radius:9px; margin:16px 0; background:#eaf5ee; color:#215b39; line-height:1.6; font-size:14px; overflow-wrap:anywhere; }
+.error { background:#fff0ed; color:#a43e2d; }
+.facts { display:grid; gap:0; margin:20px 0 0; }
+.facts div { padding:14px 0; border-bottom:1px solid #edf0ee; }
+.facts dt { font-size:12px; color:#738078; margin-bottom:5px; }
+.facts dd { margin:0; color:#244335; font-size:14px; overflow-wrap:anywhere; }
+.stack { display:grid; gap:24px; min-width:0; }
+.security { display:grid; gap:24px; }
+.security section + section { border-top:1px solid #e6ece8; padding-top:24px; }
+.badge { display:inline-flex; align-items:center; gap:6px; color:#287447; font-size:12px; background:#edf6ef; padding:6px 10px; border-radius:20px; }
+.links { display:grid; gap:14px; margin-top:20px; }
+.links a { color:#267a4b; font-size:14px; font-weight:600; }
+.shopBanner { display:flex; align-items:center; gap:18px; padding:22px; background:#fff; border:1px solid #e2e8e5; border-radius:14px; margin-bottom:24px; flex-wrap:wrap; }
+.shopBanner img { width:70px; height:70px; object-fit:cover; border-radius:14px; }
+.shopBanner h2 { margin:0 0 5px; font-size:21px; overflow-wrap:anywhere; }
+.shopBanner p { margin:0; color:#718078; font-size:13px; overflow-wrap:anywhere; }
+.shopBanner > div { min-width:0; flex:1; }
+.shopBanner .badge { flex:0 0 auto; }
+.privateHeading { display:flex; align-items:center; gap:8px; margin:0 0 20px; }
+.privateHeading svg { color:#44835a; }
+.tabs { display:flex; gap:8px; margin:0 0 24px; border-bottom:1px solid #dce5de; overflow-x:auto; }
+.tabs button { display:flex; align-items:center; gap:8px; flex:none; border:0; background:none; padding:14px 16px; color:#6b7f72; font-size:13px; font-weight:600; cursor:pointer; border-bottom:3px solid transparent; }
+.tabs button.activeTab { color:#246c44; border-bottom-color:#2b8050; }
+@media(max-width:1000px) { .layout { grid-template-columns:1fr; } }
+@media(max-width:600px) { .card { padding:20px 16px; border-radius:12px; } .layout,.stack,.security { gap:16px; } .photoRow { gap:15px; } .avatar { width:68px; height:68px; font-size:23px; } .smallAvatar { width:32px; height:32px; font-size:12px; } .shopBanner { padding:18px 16px; } }

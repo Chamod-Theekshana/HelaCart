@@ -1,0 +1,11 @@
+.section { margin: 24px 0; padding: 20px 0; border-top: 1px solid #e2e8f0; border-bottom: 1px solid #e2e8f0; }
+.type { margin: 0 0 8px; color: #314a5e; font-size: 12px; font-weight: 700; }
+.private { display: flex; align-items: center; gap: 7px; margin-bottom: 18px; color: #64748b; font-size: 11px; }
+.grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; margin: 16px 0; }
+.card { min-width: 0; padding: 12px; border: 1px solid #e2e8f0; border-radius: 10px; }
+.card > strong { display: block; margin-bottom: 12px; color: #314a5e; font-size: 11px; }
+.card img { width: 100%; height: 160px; object-fit: contain; background: #f0f4fa; border-radius: 7px; }
+.card a { display: flex; justify-content: center; align-items: center; gap: 6px; min-height: 38px; margin-top: 8px; color: #00685f; font-size: 11px; font-weight: 700; }
+.placeholder { display: grid; place-items: center; gap: 10px; min-height: 160px; padding: 12px; text-align: center; background: #f5f7fb; color: #64748b; font-size: 11px; line-height: 1.7; }
+.placeholder button { border: 1px solid #cbd5e1; border-radius: 6px; background: white; padding: 8px 12px; color: #00685f; }
+@media(max-width:430px) { .grid { grid-template-columns: minmax(0,1fr); } }
