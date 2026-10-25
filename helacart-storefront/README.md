@@ -1,6 +1,6 @@
 # HelaCart buyer storefront
 
-This is the Next.js 16 storefront inside `HelaCart-pre-dev`, rebuilt from the supplied Stitch screens. It includes home, catalog/search, product detail, Firebase email/password sign-in, cart, address/COD checkout, order confirmation, and buyer account/orders.
+This is HelaCart's Next.js 16 web application. For the current project overview, screenshots, features, and full local setup, start with the [repository README](../README.md). The notes below describe the original storefront and dashboard implementation; newer feature documentation is linked from the repository README.
 
 The same Next.js app has a Seller Center at `/seller` using the buyer site's teal and navy theme. Its Merchant Hub design follows the supplied Stitch seller dashboard ZIP: fixed merchant sidebar, utility bar, overview cards, catalog tabs and table, stock matrix, COD order queue, delivery receipt preview, product editor and application states. Approved sellers can use products, variants and stock, COD orders, and delivery settings screens. New sellers can apply at `/seller/apply`. Pending or rejected sellers see the corresponding application state. Every seller operation sends the Firebase ID token to the existing guarded API; the browser UI alone does not grant access.
 
@@ -15,7 +15,7 @@ The `app/**/page.tsx` files are short Next.js route entries that point to those 
 In PowerShell:
 
 ```powershell
-Set-Location C:\HelaCart\HelaCart-pre-dev\helacart-storefront
+Set-Location C:\HelaCart\helacart-storefront
 Copy-Item .env.example .env.local
 npm ci
 npm run dev
