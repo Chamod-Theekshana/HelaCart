@@ -75,6 +75,7 @@ export function SiteFooter({ showTrust = true }: { showTrust?: boolean }) {
           <div>
             <strong>Your account</strong>
             <Link href="/account/profile">My profile</Link>
+            <Link href="/favorites">My Favorites</Link>
             <Link href="/orders">Track an order</Link>
             <Link href="/account/returns">Returns</Link>
             <Link href="/#how-it-works">Shopping help</Link>

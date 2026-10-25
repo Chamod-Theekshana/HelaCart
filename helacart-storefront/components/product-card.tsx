@@ -7,6 +7,8 @@ import type { Product } from "@/lib/types";
 import { shopPath } from "@/lib/shops";
 import { useShop } from "./shop-provider";
 import { StorefrontImage } from "./storefront-image";
+import { FavoriteButton } from "./favorite-button";
+import favoriteStyles from "./favorites.module.css";
 import s from "./product-card.module.css";
 
 export function ProductImage({
@@ -63,6 +65,9 @@ export function ProductCard({ product }: { product: Product }) {
   }
   return (
     <article className={`product-card ${s.card}`}>
+      <div className={favoriteStyles.overlay}>
+        <FavoriteButton productId={product.id} title={product.title} />
+      </div>
       <Link
         href={`/products/${product.id}`}
         className={`product-image-link ${s.imageLink}`}

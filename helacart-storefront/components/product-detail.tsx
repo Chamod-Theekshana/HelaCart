@@ -18,6 +18,7 @@ import type { Product } from "@/lib/types";
 import { shopPath } from "@/lib/shops";
 import { useShop } from "./shop-provider";
 import { StorefrontImage } from "./storefront-image";
+import { FavoriteButton } from "./favorite-button";
 
 export function ProductDetail({ product }: { product: Product }) {
   const [image, setImage] = useState(0);
@@ -166,6 +167,13 @@ export function ProductDetail({ product }: { product: Product }) {
               </Link>
             </div>
           )}
+          <div className="detail-favorite">
+            <FavoriteButton
+              productId={product.id}
+              title={product.title}
+              withLabel
+            />
+          </div>
           <div className="detail-benefits">
             <div>
               <Banknote size={19} />

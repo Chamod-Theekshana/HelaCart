@@ -52,6 +52,7 @@ model User {
   inventoryMovements InventoryMovement[]
   addresses      BuyerAddress[]
   cartItems      CartItem[]
+  favorites      ProductFavorite[]
   orders         Order[]
   orderEvents    SellerOrderEvent[]
   notifications  Notification[]
@@ -205,11 +206,28 @@ model Product {
   category      Category      @relation(fields: [categoryId], references: [id], onDelete: Restrict)
   reviews       ProductReview[]
   variants      ProductVariant[]
+  favorites     ProductFavorite[]
 
   @@unique([sellerId, slug])
   @@unique([sellerId, sku])
   @@index([status, createdAt])
   @@index([categoryId, status])
+}
+
+model ProductFavorite {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  productId String? @db.Uuid
+  titleSnapshot String
+  sellerNameSnapshot String
+  imageUrlSnapshot String?
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@unique([userId, productId])
+  @@index([userId, createdAt, id])
+  @@index([productId])
 }
 
 model ProductVariant {

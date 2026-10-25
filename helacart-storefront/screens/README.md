@@ -27,6 +27,7 @@ Screen implementations retain their server/client boundaries, metadata and origi
 | `/account/returns` | [user-returns-screen.tsx](./user/user-returns-screen.tsx) |
 | `/account/security` | [user-security-screen.tsx](./user/user-security-screen.tsx) |
 | `/orders` | [user-orders-screen.tsx](./user/user-orders-screen.tsx) |
+| `/favorites` | [user-favorites-screen.tsx](./user/user-favorites-screen.tsx) |
 
 ## Seller
 

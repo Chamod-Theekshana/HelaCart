@@ -1,0 +1,66 @@
+.detail-favorite {
+  margin: 15px 0;
+}
+.storefront-header .favorites-nav {
+  color: var(--teal);
+}
+.favorites-nav > span,
+.account-favorites > span {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  min-height: 22px;
+  padding: 1px 6px;
+  border-radius: 99px;
+  background: var(--greenwash);
+  color: var(--teal);
+  font-size: 10px;
+}
+.account-tabs {
+  max-width: 100%;
+  overflow-x: auto;
+}
+.account-tabs > .account-favorites {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  flex-shrink: 0;
+  white-space: nowrap;
+  padding: 13px 17px;
+  color: var(--teal);
+  font-size: 12px;
+  font-weight: 650;
+  border-right: 1px solid var(--border);
+}
+.account-side > .account-favorites {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 46px;
+  padding: 12px 14px;
+  color: var(--teal);
+  font-size: 12px;
+}
+.account-favorites:hover {
+  background: var(--greenwash);
+}
+.account-favorites:focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 2px;
+}
+.account-tabs > [role="tab"] {
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+@media (max-width: 780px) {
+  .account-tabs > [role="tab"] {
+    flex: 0 0 auto;
+  }
+  .account-tabs > .account-favorites {
+    padding: 12px 15px;
+    font-size: 11px;
+  }
+  .account-tabs > .account-favorites > svg {
+    display: none;
+  }
+}

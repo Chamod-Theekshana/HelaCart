@@ -7,6 +7,7 @@ import {
   Bell,
   ClipboardList,
   House,
+  Heart,
   LogOut,
   MapPin,
   Package,
@@ -36,11 +37,15 @@ import profileStyles from "./profile.module.css";
 import type { Address, Notification, Order, SellerOrder } from "@/lib/types";
 import { Breadcrumbs } from "./breadcrumbs";
 import { useShop } from "./shop-provider";
+import { useFavorites } from "./favorites-provider";
 
-type Tab = "profile" | "orders" | "returns" | "addresses" | "notifications" | "security";
+type Tab =
+  "profile" | "orders" | "returns" | "addresses" | "notifications" | "security";
 const progress = ["PLACED", "ACCEPTED", "PACKED", "SHIPPED", "DELIVERED"];
 export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
-  const { user, authReady, isPreview, signOutBuyer, accountProfile } = useShop();
+  const { user, authReady, isPreview, signOutBuyer, accountProfile } =
+    useShop();
+  const favorites = useFavorites();
   const [tab, setTab] = useState<Tab>(initialTab);
   const [revision, setRevision] = useState(0),
     [orderPage, setOrderPage] = useState(1),
@@ -150,7 +155,10 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
   }
   const buyerName = isPreview
     ? previewAccount.name!
-    : accountProfile?.name || user?.displayName || user?.email?.split("@")[0] || "Your account";
+    : accountProfile?.name ||
+      user?.displayName ||
+      user?.email?.split("@")[0] ||
+      "Your account";
   return (
     <div className="container account-page">
       <Breadcrumbs
@@ -229,6 +237,17 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
             role="tablist"
             aria-label="Account sections"
           >
+            <Link href="/favorites" className="account-favorites">
+              <Heart size={17} />
+              My Favorites{" "}
+              <span>
+                {favorites.loading
+                  ? "…"
+                  : favorites.error
+                    ? "—"
+                    : favorites.count}
+              </span>
+            </Link>
             {(
               [
                 ["profile", UserRound, "My Profile"],
@@ -277,7 +296,10 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
               {message}
             </div>
           )}
-          {!isPreview && !user?.emailVerified && tab !== "security" && tab !== "profile" ? (
+          {!isPreview &&
+          !user?.emailVerified &&
+          tab !== "security" &&
+          tab !== "profile" ? (
             <div className={s.notice}>
               Verify your email to view your orders and returns.{" "}
               <button
@@ -291,7 +313,23 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
             <div className="account-content">
               <aside className="panel account-side">
                 <strong>ACCOUNT NAVIGATION</strong>
-                <button className={tab === "profile" ? "active" : ""} onClick={() => setTab("profile")}><UserRound size={17} /> My Profile</button>
+                <Link href="/favorites" className="account-favorites">
+                  <Heart size={17} />
+                  My Favorites{" "}
+                  <span>
+                    {favorites.loading
+                      ? "…"
+                      : favorites.error
+                        ? "—"
+                        : favorites.count}
+                  </span>
+                </Link>
+                <button
+                  className={tab === "profile" ? "active" : ""}
+                  onClick={() => setTab("profile")}
+                >
+                  <UserRound size={17} /> My Profile
+                </button>
                 <button
                   className={tab === "returns" ? "active" : ""}
                   onClick={() => setTab("returns")}

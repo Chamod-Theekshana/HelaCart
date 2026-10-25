@@ -1,7 +1,8 @@
 "use client";
 import Image from "next/image";
 import Link from "next/link";
-import { Search, ShoppingBag, Store, UserRound } from "lucide-react";
+import { Heart, Search, ShoppingBag, Store, UserRound } from "lucide-react";
+import { useFavorites } from "./favorites-provider";
 import { useShop } from "./shop-provider";
 import { ProfileAvatar } from "./profile-avatar";
 import type { Category } from "@/lib/types";
@@ -23,6 +24,7 @@ export function Brand() {
 }
 export function SiteHeader({ categories }: { categories: Category[] }) {
   const { cart, user, accountProfile, cartLoading } = useShop();
+  const favorites = useFavorites();
   const count = cart?.items.reduce((sum, row) => sum + row.quantity, 0) ?? 0;
   const search = (mobile = false) => (
     <form
@@ -86,6 +88,17 @@ export function SiteHeader({ categories }: { categories: Category[] }) {
             Categories
           </Link>
           <Link href="/shops">Shops</Link>
+          <Link href="/favorites" className="favorites-nav">
+            <Heart size={15} />
+            Favorites
+            <span>
+              {favorites.loading
+                ? "…"
+                : favorites.error
+                  ? "—"
+                  : favorites.count}
+            </span>
+          </Link>
           <Link href="/orders">Track order</Link>
           <Link href="/seller" className="nav-seller">
             <Store size={16} />
