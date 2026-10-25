@@ -1,0 +1,258 @@
+.card {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: white;
+  overflow: hidden;
+  transition:
+    transform 0.2s,
+    border-color 0.2s,
+    box-shadow 0.2s;
+}
+.card:hover {
+  transform: translateY(-3px);
+  border-color: #b4cec9;
+  box-shadow: 0 8px 24px #0f172a08;
+}
+.imageLink {
+  display: block;
+  position: relative;
+  border-bottom: 1px solid var(--border);
+}
+.card .imageLink .photo {
+  height: auto;
+  aspect-ratio: 1/1;
+  background: white;
+  border-radius: 0;
+  position: relative;
+  overflow: hidden;
+}
+.card .photo img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  padding: 22px;
+}
+.category {
+  position: absolute;
+  top: 13px;
+  left: 13px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  background: var(--navy);
+  color: white;
+  font-size: 10px;
+  font-weight: 650;
+}
+.card .body {
+  padding: 15px 16px 16px;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+}
+.card .seller {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  color: var(--muted);
+  font-size: 11px;
+  margin-bottom: 5px;
+  min-width: 0;
+}
+.seller > span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.seller > svg {
+  display: none;
+}
+.card .title {
+  font-family: Inter, Arial, sans-serif;
+  color: var(--navy);
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.55;
+  min-height: 41px;
+  height: 41px;
+  margin: 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.meta {
+  display: flex;
+  align-items: flex-start;
+  flex-direction: column;
+  gap: 5px;
+  margin: 13px 0 14px;
+  min-height: 52px;
+}
+.price {
+  font-family: "Plus Jakarta Sans", Inter, Arial, sans-serif;
+  font-size: 18px;
+  letter-spacing: -0.035em;
+  line-height: 1.5;
+  color: var(--navy);
+  overflow-wrap: anywhere;
+}
+.stock {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--teal);
+  font-size: 11px;
+  line-height: 1.5;
+}
+.stock > span {
+  display: none;
+}
+.soldOut {
+  color: var(--danger);
+}
+.lowStock {
+  color: #966016;
+}
+.card .add {
+  width: 100%;
+  min-height: 42px;
+  border-radius: 8px;
+  margin-top: auto;
+  padding: 10px 8px;
+  font-size: 12px;
+  line-height: 1.5;
+  font-weight: 650;
+}
+.card .options {
+  background: var(--greenwash);
+  color: var(--teal);
+  border-color: var(--greenwash);
+}
+.card .options:hover {
+  background: #d6f3e9;
+  color: var(--teal);
+}
+.card .added {
+  background: var(--greenwash);
+  color: var(--teal);
+  border-color: #c1e3d6;
+}
+.feedback {
+  margin: 0;
+  color: var(--teal);
+  font-size: 10px;
+  line-height: 1.6;
+  overflow-wrap: anywhere;
+}
+.feedback:not(:empty) {
+  padding-top: 9px;
+}
+.error {
+  color: var(--danger);
+}
+.imageFallback {
+  display: flex;
+  align-items: center;
+  flex-direction: column;
+  gap: 9px;
+  color: #758b86;
+  padding: 18px;
+  text-align: center;
+}
+.imageFallback small {
+  font-size: 11px;
+}
+.spinner {
+  animation: spin 1s linear infinite;
+}
+.card :is(a, button):focus-visible {
+  outline: 2px solid var(--teal);
+  outline-offset: 3px;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+@media (max-width: 600px) {
+  .card {
+    border-radius: 11px;
+  }
+  .card .photo img {
+    padding: 14px;
+  }
+  .card .body {
+    padding: 12px;
+  }
+  .card .title {
+    font-size: 12px;
+    min-height: 38px;
+    height: 38px;
+  }
+  .card .seller {
+    font-size: 10px;
+  }
+  .price {
+    font-size: 16px;
+  }
+  .stock {
+    font-size: 10px;
+  }
+  .meta {
+    margin: 10px 0 12px;
+    min-height: 48px;
+  }
+  .card .add {
+    font-size: 11px;
+    min-height: 42px;
+    gap: 5px;
+  }
+  .category {
+    left: 9px;
+    top: 9px;
+    font-size: 9px;
+  }
+  .card .add svg {
+    width: 14px;
+    height: 14px;
+  }
+  .imageFallback small {
+    font-size: 10px;
+  }
+}
+@media (max-width: 350px) {
+  .card .body {
+    padding: 10px;
+  }
+  .card .add {
+    font-size: 10px;
+    padding: 10px 5px;
+  }
+  .card .photo img {
+    padding: 10px;
+  }
+  .card .seller {
+    font-size: 9px;
+  }
+  .price {
+    font-size: 15px;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .card {
+    transition: none;
+  }
+  .card:hover {
+    transform: none;
+  }
+  .spinner {
+    animation: none;
+  }
+}

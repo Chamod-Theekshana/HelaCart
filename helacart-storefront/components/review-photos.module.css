@@ -1,0 +1,177 @@
+.gallery {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin: 14px 0;
+}
+.gallery > button,
+.draft {
+  position: relative;
+  width: 86px;
+  height: 86px;
+  border: 1px solid #dce4d7;
+  border-radius: 10px;
+  background: #f5f7f0;
+  overflow: hidden;
+  padding: 0;
+  flex-shrink: 0;
+}
+.gallery img,
+.draft > img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.gallery > button:hover {
+  border-color: #5c7c43;
+}
+.gallery > button:focus-visible,
+.dialog button:focus-visible,
+.draft button:focus-visible {
+  outline: 2px solid #4a793e;
+  outline-offset: 3px;
+}
+.unavailable {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  color: #718465;
+  font-size: 9px;
+  padding: 4px;
+}
+.dialog {
+  padding: 0;
+  border: 1px solid #d8e2d1;
+  border-radius: 14px;
+  width: min(900px, calc(100vw - 24px));
+  max-width: calc(100vw - 24px);
+  max-height: calc(100dvh - 32px);
+  background: #fff;
+  color: #203c29;
+  overflow: auto;
+}
+.dialog::backdrop {
+  background: #102217b8;
+}
+.dialog header,
+.dialog footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  gap: 12px;
+  font-size: 13px;
+}
+.dialog footer {
+  justify-content: center;
+}
+.dialog button {
+  border: 0;
+  background: #f0f4ea;
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  min-width: 38px;
+  min-height: 38px;
+  color: #315a36;
+}
+.fullImage {
+  display: grid;
+  place-items: center;
+  min-height: 160px;
+  height: min(65dvh, 650px);
+  background: #f2f4ed;
+}
+.fullImage img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  max-height: min(65dvh, 650px);
+}
+.picker {
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.picker > strong {
+  font-size: 12px;
+}
+.picker input {
+  max-width: 100%;
+  min-width: 0;
+  font-size: 12px;
+}
+.picker p {
+  font-size: 12px;
+  color: #6f7c67;
+  line-height: 1.7;
+  margin: 0;
+}
+.drafts {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+.draft {
+  width: 90px;
+  height: 90px;
+  overflow: visible;
+}
+.draft > img {
+  border-radius: 9px;
+}
+.draft button {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  display: grid;
+  place-items: center;
+  min-width: 28px;
+  min-height: 28px;
+  border: 1px solid #c9d7c0;
+  background: #fff;
+  border-radius: 50%;
+  color: #385b32;
+}
+.draft small {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  font-size: 9px;
+  text-align: center;
+  background: #24432bde;
+  color: #fff;
+  border-radius: 0 0 9px 9px;
+}
+.adminError {
+  color: #8d4935;
+  font-size: 12px;
+}
+.uploadLabel {
+  display: grid;
+  gap: 8px;
+  font-size: 12px;
+  font-weight: 600;
+}
+@media (max-width: 480px) {
+  .gallery > button {
+    width: 74px;
+    height: 74px;
+  }
+  .dialog header {
+    padding: 10px 12px;
+  }
+  .fullImage {
+    height: 60dvh;
+    max-height: 60dvh;
+  }
+  .fullImage img {
+    max-height: 60dvh;
+  }
+}

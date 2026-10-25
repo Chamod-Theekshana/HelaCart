@@ -1,0 +1,13 @@
+node_modules
+dist
+coverage
+.git
+.env
+.env.*
+!.env.example
+*.log
+*.tsbuildinfo
+secrets
+firebase-admin*.json
+*service-account*.json
+src/generated/prisma
