@@ -13,6 +13,10 @@ import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthService } from '../auth/auth.service.js';
 import { adminVerificationSelect } from '../sellers/shop-verification.service.js';
 import {
+  buyerSellerOrderFields,
+  buyerOrderItemFields,
+} from '../commerce/commerce.service.js';
+import {
   CatalogService,
   privateProduct,
   publicProduct,
@@ -52,7 +56,11 @@ const sellerPart = {
 const orderInclude = {
   sellerOrders: {
     orderBy: [{ createdAt: 'asc' }, { id: 'asc' }],
-    include: sellerPart,
+    select: {
+      ...buyerSellerOrderFields,
+      ...sellerPart,
+      items: { select: buyerOrderItemFields },
+    },
   },
 } satisfies Prisma.OrderInclude;
 const sellerOrderInclude = {
@@ -78,7 +86,7 @@ const returnInclude = {
       orderId: true,
       sellerId: true,
       seller: { select: { id: true, name: true, slug: true } },
-      items: true,
+      items: { select: buyerOrderItemFields },
     },
   },
 } satisfies Prisma.ReturnRequestInclude;

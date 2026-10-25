@@ -19,17 +19,46 @@ import { CatalogService } from '../catalog/catalog.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import {
+  accrueCommission,
+  commissionSnapshot,
+  itemCommissionSnapshot,
+} from '../commission/commission-ledger.js';
+import {
   AddressDto,
   CheckoutDto,
   SellerOrderStatusDto,
 } from './commerce.dto.js';
 
+export const buyerOrderItemFields = {
+  id: true,
+  sellerOrderId: true,
+  variantId: true,
+  productTitle: true,
+  sku: true,
+  optionValues: true,
+  unitLkrMinor: true,
+  quantity: true,
+  lineLkrMinor: true,
+} as const;
+export const buyerSellerOrderFields = {
+  id: true,
+  orderId: true,
+  sellerId: true,
+  status: true,
+  subtotalLkrMinor: true,
+  shippingLkrMinor: true,
+  totalLkrMinor: true,
+  paymentCollectedAt: true,
+  createdAt: true,
+  updatedAt: true,
+} as const;
 const orderDetail = {
   sellerOrders: {
     orderBy: { createdAt: 'asc' as const },
-    include: {
+    select: {
+      ...buyerSellerOrderFields,
       seller: { select: { id: true, name: true, slug: true } },
-      items: true,
+      items: { select: buyerOrderItemFields },
       events: { orderBy: { createdAt: 'asc' as const } },
     },
   },
@@ -288,6 +317,7 @@ export class CommerceService {
                 );
             }
             const hash = this.checkoutHash(dto.addressId, dto.quote);
+            const commission = await commissionSnapshot(tx);
             const order = await tx.order.create({
               data: {
                 buyerId: user.id,
@@ -322,6 +352,11 @@ export class CommerceService {
                         create: group.map((row) => ({
                           variantId: row.variantId,
                           productTitle: row.variant.product.title,
+                          ...itemCommissionSnapshot(
+                            row.variant.product,
+                            row.quantity * row.variant.priceLkrMinor,
+                            commission,
+                          ),
                           sku: row.variant.sku,
                           optionValues: row.variant
                             .optionValues as Prisma.InputJsonValue,
@@ -530,6 +565,8 @@ export class CommerceService {
       });
       if (!changed.count)
         throw new ConflictException('Order cannot advance to that status');
+      if (dto.status === SellerOrderStatus.DELIVERED)
+        await accrueCommission(tx, sellerOrderId);
       await tx.sellerOrderEvent.create({
         data: {
           sellerOrderId,
@@ -551,7 +588,11 @@ export class CommerceService {
       );
       return tx.sellerOrder.findUniqueOrThrow({
         where: { id: sellerOrderId },
-        include: { items: true, events: true },
+        select: {
+          ...buyerSellerOrderFields,
+          items: { select: buyerOrderItemFields },
+          events: true,
+        },
       });
     }, orderWriteOptions);
   }
@@ -627,7 +668,11 @@ export class CommerceService {
       );
       return tx.sellerOrder.findUniqueOrThrow({
         where: { id: sellerOrderId },
-        include: { items: true, events: true },
+        select: {
+          ...buyerSellerOrderFields,
+          items: { select: buyerOrderItemFields },
+          events: true,
+        },
       });
     }, orderWriteOptions);
   }

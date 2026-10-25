@@ -38,6 +38,7 @@ HelaCart brings product discovery, shop profiles, verified-purchase reviews, fav
 - Adjust inventory and inspect stock movement history.
 - Process COD orders through acceptance, packing, shipping, and delivery, with collection confirmation.
 - Read buyer feedback and publish replies to shop reviews.
+- Review commission charges, monthly statements, and balances; submit private bank-payment receipts for owner verification.
 
 ### Admin workspace
 
@@ -45,7 +46,7 @@ HelaCart brings product discovery, shop profiles, verified-purchase reviews, fav
 - Award or revoke shop verification with recorded reasons and decision history.
 - Moderate product submissions and manage category names, images, ordering, and archive/restore states.
 - Edit homepage hero images and copy, preview changes, and publish content.
-- Inspect orders, review return requests, and record COD reconciliation and disputes.
+- Assign product-specific commission rates, configure payment days in Settings, hold disputed order commissions, verify seller bank payments, and record item-specific refund credits.
 - Moderate reported reviews and manage the administrator's own profile and security.
 
 Selling approval, shop identity verification, and verified-purchase reviews are separate workflows. Protected actions are checked by the API using Firebase identity and the relevant account, shop membership, or administrator permissions.
@@ -225,7 +226,7 @@ Each app has its own `package.json` and lockfile. Install and run commands insid
 
 ## Current scope
 
-HelaCart currently supports **cash on delivery**. Online payment gateways, automated refunds, seller payouts/commissions, and courier dispatch integrations are future extensions. Return resolution records the operational outcome; it does not automatically refund money or restock inventory.
+HelaCart currently supports **cash on delivery**. Sellers collect buyer payments and pay HelaCart commission separately by bank transfer, with owner verification. Each product remains commission-inactive until an admin assigns its rate. Order items freeze their rates and commission amounts at checkout; commission is due 14 days from successful delivery by default, with admin-configurable terms and return/dispute holds. Online payment gateways, automated refunds, seller payouts, and courier dispatch integrations are future extensions. Return resolution records the operational outcome; it does not automatically refund money or restock inventory.
 
 Deployment configuration and real operational processes still need environment-specific verification before accepting public orders. See the [operations runbook](helacart-api/OPERATIONS-RUNBOOK.md) for deployment, backup, and COD operations guidance.
 
@@ -234,6 +235,7 @@ Deployment configuration and real operational processes still need environment-s
 - [API setup and endpoint guide](helacart-api/README.md)
 - [Web application notes](helacart-storefront/README.md) and [screen file index](helacart-storefront/screens/README.md)
 - [Favorites and save-after-sign-in behavior](helacart-storefront/docs/product-favorites.md)
+- [Seller commission, statements, and collection workflow](helacart-storefront/docs/seller-commission.md)
 - [Shop profiles, reviews, photos, and moderation](helacart-storefront/docs/shops-and-reviews.md)
 - [Verified shops and administrator decisions](helacart-storefront/docs/shop-verification.md)
 - [Buyer, shop, and admin profiles](helacart-storefront/docs/account-profiles.md)

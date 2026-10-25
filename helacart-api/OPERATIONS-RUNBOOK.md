@@ -72,11 +72,28 @@ and [S3 operation support](https://developers.cloudflare.com/r2/api/s3/api/).
 
 - Review `GET /api/v1/admin/returns/page?status=PENDING&limit=20`; pass the
   returned `nextCursor` as `cursor` to read the following page.
-- Confirm COD cash/deposit evidence outside the API, then review
-  `GET /api/v1/admin/cod/reconciliation-queue/page?limit=20`.
-- Record the full amount and unique remittance reference. A mismatched amount
-  creates a DISPUTED record; investigate, then enter a new reference when the
-  full amount is confirmed. The API does not move cash or issue a seller payout.
+- Sellers collect buyer COD payments and pay HelaCart commission separately.
+  Assign rates individually under `/admin/commission` → Product rates.
+  Unassigned products remain inactive; there is no common percentage.
+  Configure payment days and bank details under `/admin/settings`. The default
+  commission due date is delivery plus 14 days; future orders snapshot changes.
+  Existing orders retain their rates and terms and are not back-charged.
+- Open returns automatically hold commission. Use **Hold payment** on an order
+  charge to pause every charged item in that shop order for unresolved refunds,
+  returns or disputes. A manual release cannot bypass an open return case and
+  retains the original due date. Keep the required hold/release reason specific.
+- Review submitted commission receipts against the actual bank account, then
+  confirm or reject the payment with a recorded note. A receipt does not itself
+  reduce the seller's balance. Do not record the full buyer COD amount as a
+  HelaCart commission payment.
+- Monthly account statements, per-shop balances and overdue reminders are in
+  the same workspace. Record commission credit only for a verified merchandise
+  refund; resolving a return may instead represent a replacement and does not
+  automatically create a refund or credit.
+- Legacy COD reconciliation records and API endpoints remain for compatibility.
+  The `/admin/cod` screen is now a read-only seller-collection view. Legacy
+  records do not settle commission. See
+  [the commission guide](../helacart-storefront/docs/seller-commission.md).
 - Recount stock when physical stock differs and record seller stock adjustments
   with the actual reason. Periodically review return and stock movement history.
 

@@ -18,8 +18,10 @@ const items = [
   { href: "/admin/appearance", title: "Storefront appearance", icon: LayoutDashboard },
   { href: "/admin/orders", title: "Orders", icon: ShoppingBag, section: "FULFILMENT & SETTLEMENTS" },
   { href: "/admin/returns", title: "Returns", icon: RotateCcw },
-  { href: "/admin/cod", title: "COD reconciliation", icon: Wallet },
+  { href: "/admin/commission", title: "Commission & collections", icon: Wallet },
+  { href: "/admin/cod", title: "COD records", icon: ClipboardList },
   { href: "/admin/profile", title: "My profile", icon: UserRound, section: "ACCOUNT" },
+  { href: "/admin/settings", title: "Settings", icon: ClipboardList },
 ];
 
 export function AdminShell({ children }: { children: React.ReactNode }) {

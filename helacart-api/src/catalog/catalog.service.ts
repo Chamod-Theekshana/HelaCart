@@ -79,7 +79,13 @@ export class CatalogService {
       where: { isActive: true },
       orderBy: [{ sortOrder: 'asc' }, { name: 'asc' }, { id: 'asc' }],
       take: 100,
-      select: { id: true, name: true, slug: true, description: true, imageUrl: true },
+      select: {
+        id: true,
+        name: true,
+        slug: true,
+        description: true,
+        imageUrl: true,
+      },
     });
   }
 

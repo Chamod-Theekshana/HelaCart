@@ -64,6 +64,14 @@ model User {
   shopReplies    ShopReview[] @relation("ShopReviewReplyAuthor")
   shopReviewReports ShopReviewReport[] @relation("ShopReportAuthor")
   shopReportDecisions ShopReviewReport[] @relation("ShopReportModerator")
+  commissionPolicyChanges CommissionPolicyChange[]
+  commissionSubmissions CommissionPayment[] @relation("CommissionSubmitter")
+  commissionDecisions CommissionPayment[] @relation("CommissionReviewer")
+  commissionRefunds CommissionRefund[]
+  commissionReminders CommissionReminder[]
+  commissionCorrections CommissionCorrection[]
+  productCommissionChanges ProductCommissionChange[]
+  commissionHolds CommissionHoldEvent[]
 }
 
 model Seller {
@@ -92,6 +100,11 @@ model Seller {
   logoUrl       String?
   coverUrl      String?
   customerReviews ShopReview[]
+  commissionCharges CommissionCharge[]
+  commissionPayments CommissionPayment[]
+  commissionRefunds CommissionRefund[]
+  commissionReminders CommissionReminder[]
+  commissionCorrections CommissionCorrection[]
 
   @@index([status])
 }
@@ -207,6 +220,9 @@ model Product {
   reviews       ProductReview[]
   variants      ProductVariant[]
   favorites     ProductFavorite[]
+  commissionRateBps Int?
+  commissionVersion Int @default(0)
+  commissionChanges ProductCommissionChange[]
 
   @@unique([sellerId, slug])
   @@unique([sellerId, sku])
@@ -393,6 +409,11 @@ model SellerOrder {
   returnRequest      ReturnRequest?
   codReconciliations CodReconciliation[]
   shopReview         ShopReview?
+  commissionRateBps Int?
+  commissionPolicyVersion Int?
+  commissionReturnDays Int?
+  commissionPaymentDays Int?
+  commissionCharges CommissionCharge[]
 
   @@unique([orderId, sellerId])
   @@index([sellerId, createdAt])
@@ -408,6 +429,12 @@ model OrderItem {
   unitLkrMinor   Int
   quantity       Int
   lineLkrMinor   Int
+  commissionRateBps Int?
+  commissionAmountMinor Int?
+  commissionProductVersion Int?
+  commissionPaymentDays Int?
+  commissionPolicyVersion Int?
+  commissionCharge CommissionCharge?
   sellerOrder    SellerOrder @relation(fields: [sellerOrderId], references: [id], onDelete: Restrict)
   variant        ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
 
@@ -433,6 +460,9 @@ enum NotificationType {
   RETURN_REQUESTED
   RETURN_REVIEWED
   COD_RECONCILED
+  COMMISSION_SUBMITTED
+  COMMISSION_REVIEWED
+  COMMISSION_REMINDER
 }
 
 model Notification {
@@ -564,4 +594,165 @@ model ShopReviewPhoto {
   review      ShopReview @relation(fields: [reviewId], references: [id], onDelete: Restrict)
 
   @@index([reviewId, deletedAt, createdAt])
+}
+
+model CommissionPolicy {
+  id String @id @default("platform")
+  enabled Boolean @default(false)
+  rateBps Int @default(0)
+  paymentDays Int @default(14)
+  bankName String? @db.VarChar(100)
+  accountName String? @db.VarChar(150)
+  accountNumber String? @db.VarChar(50)
+  instructions String? @db.VarChar(1000)
+  version Int @default(0)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+}
+
+model CommissionPolicyChange {
+  id String @id @default(uuid()) @db.Uuid
+  version Int @unique
+  actorId String @db.Uuid
+  before Json
+  after Json
+  reason String @db.VarChar(500)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+}
+
+model CommissionCharge {
+  id String @id @default(uuid()) @db.Uuid
+  sellerOrderId String @db.Uuid
+  orderItemId String? @unique @db.Uuid
+  sellerId String @db.Uuid
+  baseMinor Int
+  rateBps Int
+  amountMinor Int
+  holdUntil DateTime @db.Timestamptz(3)
+  dueAt DateTime @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  sellerOrder SellerOrder @relation(fields: [sellerOrderId], references: [id], onDelete: Restrict)
+  seller Seller @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  refunds CommissionRefund[]
+  orderItem OrderItem? @relation(fields: [orderItemId], references: [id], onDelete: Restrict)
+  holds CommissionHoldEvent[]
+
+  @@index([sellerOrderId])
+  @@index([sellerId, createdAt])
+  @@index([dueAt])
+}
+
+model ProductCommissionChange {
+  id String @id @default(uuid()) @db.Uuid
+  productId String @db.Uuid
+  version Int
+  actorId String @db.Uuid
+  beforeRateBps Int?
+  rateBps Int?
+  reason String @db.VarChar(500)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  product Product @relation(fields: [productId], references: [id], onDelete: Restrict)
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  @@unique([productId, version])
+}
+
+model CommissionHoldEvent {
+  id String @id @default(uuid()) @db.Uuid
+  chargeId String @db.Uuid
+  version Int
+  actorId String @db.Uuid
+  held Boolean
+  reason String @db.VarChar(500)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  charge CommissionCharge @relation(fields: [chargeId], references: [id], onDelete: Restrict)
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  @@unique([chargeId, version])
+}
+
+enum CommissionPaymentStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model CommissionPayment {
+  id String @id @default(uuid()) @db.Uuid
+  sellerId String @db.Uuid
+  submitterId String @db.Uuid
+  requestKey String @db.Uuid
+  payloadHash String @db.VarChar(64)
+  amountMinor Int
+  reference String @db.VarChar(100)
+  paidOn String @db.VarChar(10)
+  status CommissionPaymentStatus @default(PENDING)
+  storageKey String @unique
+  contentType String
+  byteSize Int
+  note String? @db.VarChar(500)
+  reviewerId String? @db.Uuid
+  reviewNote String? @db.VarChar(500)
+  reviewedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  seller Seller @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  submitter User @relation("CommissionSubmitter", fields: [submitterId], references: [id], onDelete: Restrict)
+  reviewer User? @relation("CommissionReviewer", fields: [reviewerId], references: [id], onDelete: Restrict)
+  correction CommissionCorrection?
+
+  @@unique([sellerId, requestKey])
+  @@index([reference])
+  @@index([sellerId, createdAt])
+  @@index([status, createdAt])
+}
+
+model CommissionRefund {
+  id String @id @default(uuid()) @db.Uuid
+  sellerId String @db.Uuid
+  chargeId String @db.Uuid
+  actorId String @db.Uuid
+  requestKey String @unique @db.Uuid
+  baseMinor Int
+  creditMinor Int
+  reference String @unique @db.VarChar(100)
+  reason String @db.VarChar(500)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  seller Seller @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  charge CommissionCharge @relation(fields: [chargeId], references: [id], onDelete: Restrict)
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  correction CommissionCorrection?
+
+  @@index([sellerId, createdAt])
+  @@index([chargeId])
+}
+
+model CommissionReminder {
+  id String @id @default(uuid()) @db.Uuid
+  sellerId String @db.Uuid
+  actorId String @db.Uuid
+  day String @db.VarChar(10)
+  amountMinor BigInt
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  seller Seller @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@unique([sellerId, day])
+}
+
+model CommissionCorrection {
+  id String @id @default(uuid()) @db.Uuid
+  sellerId String @db.Uuid
+  actorId String @db.Uuid
+  paymentId String? @unique @db.Uuid
+  refundId String? @unique @db.Uuid
+  requestKey String @unique @db.Uuid
+  amountMinor Int
+  baseMinor Int @default(0)
+  reference String @unique @db.VarChar(100)
+  reason String @db.VarChar(500)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  seller Seller @relation(fields: [sellerId], references: [id], onDelete: Restrict)
+  actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
+  payment CommissionPayment? @relation(fields: [paymentId], references: [id], onDelete: Restrict)
+  refund CommissionRefund? @relation(fields: [refundId], references: [id], onDelete: Restrict)
+
+  @@index([sellerId, createdAt])
 }

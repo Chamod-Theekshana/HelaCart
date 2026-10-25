@@ -15,6 +15,7 @@ const nav = [
   { href: "/seller/products", label: "Products", icon: Box },
   { href: "/seller/inventory", label: "Inventory & Stock", icon: ShoppingBag },
   { href: "/seller/orders", label: "Orders", icon: ClipboardList },
+  { href: "/seller/commission", label: "Commission & payments", icon: Wallet },
   { href: "/seller/shop", label: "Shop profile", icon: Store },
   { href: "/seller/reviews", label: "Customer reviews", icon: MessageSquare },
   { href: "/seller/settings", label: "Delivery Settings", icon: Settings },

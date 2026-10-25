@@ -26,6 +26,12 @@ export class RequestLimitGuard implements CanActivate {
       request.method !== 'OPTIONS'
     ) {
       if (
+        /^\/api\/v1\/(?:admin\/commission|sellers\/[^/]+\/commission)(?:\/|$)/.test(
+          request.path,
+        )
+      )
+        this.consume(`commission:${ip}`, 20, now);
+      if (
         request.path === '/api/v1/auth/me' ||
         request.path === '/api/v1/auth/me/photo' ||
         /^\/api\/v1\/(?:me\/orders\/checkout|me\/returns|seller-applications|sellers\/[^/]+\/products\/[^/]+\/images|sellers\/[^/]+\/shop\/images\/(?:logo|cover))$/.test(

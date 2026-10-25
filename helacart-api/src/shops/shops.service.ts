@@ -7,7 +7,12 @@ import type { DecodedIdToken } from 'firebase-admin/auth';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CatalogService, publicProduct } from '../catalog/catalog.service.js';
-import { ShopPageDto, ShopProductsDto, UpdateShopDto, UpdateShopBusinessDto } from './shops.dto.js';
+import {
+  ShopPageDto,
+  ShopProductsDto,
+  UpdateShopDto,
+  UpdateShopBusinessDto,
+} from './shops.dto.js';
 
 export const shopSelect = {
   id: true,
@@ -222,11 +227,18 @@ export class ShopsService {
     });
   }
 
-  async updateBusiness(sellerId: string, identity: DecodedIdToken, dto: UpdateShopBusinessDto) {
+  async updateBusiness(
+    sellerId: string,
+    identity: DecodedIdToken,
+    dto: UpdateShopBusinessDto,
+  ) {
     await this.catalog.requireSellerMember(sellerId, identity, true);
     return this.prisma.seller.update({
       where: { id: sellerId, status: 'APPROVED' },
-      data: { contactPhone: dto.contactPhone, pickupAddress: dto.pickupAddress },
+      data: {
+        contactPhone: dto.contactPhone,
+        pickupAddress: dto.pickupAddress,
+      },
       select: privateShopSelect,
     });
   }

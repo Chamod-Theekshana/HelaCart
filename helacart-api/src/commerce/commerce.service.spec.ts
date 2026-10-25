@@ -12,6 +12,7 @@ describe('Reviewed COD checkout', () => {
     buyerAddress: { findFirst: vi.fn() },
     order: { findUnique: vi.fn(), create: vi.fn() },
     inventoryMovement: { create: vi.fn() },
+    commissionPolicy: { findUnique: vi.fn() },
     $queryRaw: vi.fn(),
     $transaction: vi.fn(),
   };
@@ -54,6 +55,7 @@ describe('Reviewed COD checkout', () => {
   let rows: ReturnType<typeof row>[];
   beforeEach(() => {
     vi.resetAllMocks();
+    db.commissionPolicy.findUnique.mockResolvedValue(null);
     rows = [row()];
     db.cartItem.findMany.mockImplementation(() => Promise.resolve(rows));
     db.order.findUnique.mockResolvedValue(null);

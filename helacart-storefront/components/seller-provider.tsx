@@ -9,6 +9,7 @@ import {
   useState,
 } from "react";
 import { api, errorMessage } from "@/lib/api";
+import { usePathname } from "next/navigation";
 import { clientAuth, subscribeToAuth } from "@/lib/firebase";
 import { useShop } from "./shop-provider";
 import { ListPagination, useDebounced } from "./list-controls";
@@ -46,6 +47,7 @@ type SellerContext = {
 const sellerContext = createContext<SellerContext | null>(null);
 
 export function SellerProvider({ children }: { children: React.ReactNode }) {
+  const financeRoute = usePathname() === "/seller/commission";
   const { user, authReady, isPreview } = useShop();
   const [profile, setProfile] = useState<SellerProfile | null>(null);
   const [applications, setApplications] = useState<SellerApplication[]>([]);
@@ -64,8 +66,8 @@ export function SellerProvider({ children }: { children: React.ReactNode }) {
         ? [previewSeller]
         : (visibleProfile?.memberships
             .map((row) => row.seller)
-            .filter((row) => row.status === "APPROVED") ?? []),
-    [isPreview, visibleProfile],
+            .filter((row) => row.status === "APPROVED" || (financeRoute && row.status === "SUSPENDED")) ?? []),
+    [isPreview, visibleProfile, financeRoute],
   );
   const seller =
     sellers.find((row) => row.id === selectedId) ?? sellers[0] ?? null;
