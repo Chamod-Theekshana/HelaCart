@@ -97,6 +97,22 @@ and [S3 operation support](https://developers.cloudflare.com/r2/api/s3/api/).
 - Recount stock when physical stock differs and record seller stock adjustments
   with the actual reason. Periodically review return and stock movement history.
 
+## Item returns, refunds and support
+
+Review item quantities in `/admin/returns`; purchased quantities and return values
+come from immutable order snapshots. Verify actual seller refunds in
+`/admin/refunds` before confirming records. Pending records reserve refund budgets
+and hold commission; verification creates applicable original-rate commission
+credit. Refund-record corrections preserve the original evidence and reverse the
+linked credit rather than deleting history.
+
+Use `/admin/support` for private case conversations and versioned decisions.
+An order-linked case can hold commission until its review completes. Closing one
+case releases only that case's hold. Return resolution records full/partial
+verified refund, replacement or another agreed outcome; it does not transfer
+money or automatically restock returned goods. See the
+[after-sales guide](../helacart-storefront/docs/after-sales.md).
+
 ## Recovery and rollout limits
 
 All migrations are forward-only. Rolling back a deployed application does not

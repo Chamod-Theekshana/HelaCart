@@ -1,6 +1,7 @@
 "use client";
+import { PageQueryBridge } from "@/components/page-query-bridge";
 
-import { useEffect, useState } from "react";
+import { useCallback, useState } from "react";
 import { ClipboardList, MapPin, Phone, Search, Truck } from "lucide-react";
 import { previewOrders } from "@/lib/seller";
 import { previewSellerSummary, type SellerSummary } from "@/lib/workspace";
@@ -16,6 +17,9 @@ import {
   useSellerResource,
 } from "@/components/seller-provider";
 import { SellerPageHeading, SellerStatusBadge } from "@/components/seller-ui";
+import { ShipmentTracking } from "@/components/shipment-tracking";
+import { ShipmentEditor } from "@/components/shipment-editor";
+import Link from "next/link";
 
 const nextStatus: Partial<Record<OrderStatus, OrderStatus>> = {
   PLACED: "ACCEPTED",
@@ -40,15 +44,16 @@ export default function SellerOrders() {
   );
   const [busy, setBusy] = useState(false);
   const [notice, setNotice] = useState("");
-  useEffect(() => {
-    const frame = requestAnimationFrame(() => {
-      const target = new URLSearchParams(window.location.search).get("order");
-      if (target) {
-        setSelectedId(target);
-        setQuery(target);
-      }
-    });
-    return () => cancelAnimationFrame(frame);
+  const [shipmentOrder, setShipmentOrder] = useState<SellerOrderRecord | null>(
+    null,
+  );
+  const applyQuery = useCallback((params: URLSearchParams) => {
+    const target = params.get("order");
+    if (target) {
+      setSelectedId(target);
+      setQuery(target);
+      setStatus("ALL");
+    }
   }, []);
   const sample = previewOrders.filter(
     (row) =>
@@ -81,6 +86,10 @@ export default function SellerOrders() {
 
   async function update(row: SellerOrderRecord, newStatus: OrderStatus) {
     if (!seller || isPreview) return;
+    if (newStatus === "SHIPPED") {
+      setShipmentOrder(row);
+      return;
+    }
     if (newStatus === "DELIVERED" && paymentCollectedFor !== row.id) {
       setNotice(
         "Confirm COD payment collection before marking this order delivered.",
@@ -110,6 +119,7 @@ export default function SellerOrders() {
   }
   return (
     <>
+      <PageQueryBridge onChange={applyQuery} />
       <SellerPageHeading
         kicker="FULFILMENT & COD"
         title="Customer orders"
@@ -302,6 +312,22 @@ export default function SellerOrders() {
                 </p>
               </div>
               <div className="seller-detail-section seller-order-totals">
+                <ShipmentTracking order={selected} />
+                <Link
+                  className="outline-btn"
+                  href={`/seller/support?order=${selected.id}`}
+                >
+                  Get support for this order
+                </Link>
+                {selected.status === "SHIPPED" && (
+                  <button
+                    className="outline-btn"
+                    disabled={busy || isPreview}
+                    onClick={() => setShipmentOrder(selected)}
+                  >
+                    Edit tracking details
+                  </button>
+                )}
                 <div className="seller-detail-line">
                   <span>Items</span>
                   <b>{money(selected.subtotalLkrMinor)}</b>
@@ -380,6 +406,19 @@ export default function SellerOrders() {
         </aside>
       </div>
       {resource.pagination}
+      {shipmentOrder && seller && (
+        <ShipmentEditor
+          key={`${shipmentOrder.id}:${shipmentOrder.shipment?.version ?? 0}`}
+          order={shipmentOrder}
+          sellerId={seller.id}
+          request={request}
+          onClose={() => setShipmentOrder(null)}
+          onSaved={async () => {
+            await refreshOrders();
+            setNotice("Shipment updated. Buyer notification created.");
+          }}
+        />
+      )}
     </>
   );
 }

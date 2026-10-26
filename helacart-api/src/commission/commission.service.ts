@@ -86,10 +86,10 @@ const balanceCte = Prisma.sql`WITH refunds AS (
 ), charges AS (
   SELECT c."sellerId", SUM(c."amountMinor") AS gross, SUM(COALESCE(r.credit,0)) AS credits,
     SUM(c."amountMinor"-COALESCE(r.credit,0)) AS net,
-    SUM(CASE WHEN c."holdUntil" <= NOW() AND NOT COALESCE((SELECT h.held FROM "CommissionHoldEvent" h WHERE h."chargeId"=c.id ORDER BY h.version DESC LIMIT 1),false) AND NOT EXISTS (
+    SUM(CASE WHEN c."holdUntil" <= NOW() AND NOT COALESCE((SELECT h.held FROM "CommissionHoldEvent" h WHERE h."chargeId"=c.id ORDER BY h.version DESC LIMIT 1),false) AND NOT EXISTS (SELECT 1 FROM "RefundRecord" fr JOIN "ReturnItem" ri ON ri.id=fr."returnItemId" JOIN "ReturnRequest" rr ON rr.id=ri."returnRequestId" WHERE rr."sellerOrderId"=c."sellerOrderId" AND fr.status='PENDING') AND NOT EXISTS (SELECT 1 FROM "SupportCase" sc WHERE sc."sellerOrderId"=c."sellerOrderId" AND sc."financeHold"=TRUE AND sc.status NOT IN ('RESOLVED','CLOSED')) AND NOT EXISTS (
       SELECT 1 FROM "ReturnRequest" rr WHERE rr."sellerOrderId"=c."sellerOrderId" AND rr.status IN ('PENDING','APPROVED')
     ) THEN c."amountMinor"-COALESCE(r.credit,0) ELSE 0 END) AS mature,
-    SUM(CASE WHEN c."dueAt" < NOW() AND NOT COALESCE((SELECT h.held FROM "CommissionHoldEvent" h WHERE h."chargeId"=c.id ORDER BY h.version DESC LIMIT 1),false) AND NOT EXISTS (
+    SUM(CASE WHEN c."dueAt" < NOW() AND NOT COALESCE((SELECT h.held FROM "CommissionHoldEvent" h WHERE h."chargeId"=c.id ORDER BY h.version DESC LIMIT 1),false) AND NOT EXISTS (SELECT 1 FROM "RefundRecord" fr JOIN "ReturnItem" ri ON ri.id=fr."returnItemId" JOIN "ReturnRequest" rr ON rr.id=ri."returnRequestId" WHERE rr."sellerOrderId"=c."sellerOrderId" AND fr.status='PENDING') AND NOT EXISTS (SELECT 1 FROM "SupportCase" sc WHERE sc."sellerOrderId"=c."sellerOrderId" AND sc."financeHold"=TRUE AND sc.status NOT IN ('RESOLVED','CLOSED')) AND NOT EXISTS (
       SELECT 1 FROM "ReturnRequest" rr WHERE rr."sellerOrderId"=c."sellerOrderId" AND rr.status IN ('PENDING','APPROVED')
     ) THEN c."amountMinor"-COALESCE(r.credit,0) ELSE 0 END) AS overdue
   FROM "CommissionCharge" c LEFT JOIN refunds r ON r."chargeId"=c.id GROUP BY c."sellerId"
@@ -432,7 +432,28 @@ export class CommissionService {
             sellerOrder: {
               select: {
                 orderId: true,
-                returnRequest: { select: { status: true } },
+                returnRequests: {
+                  where: {
+                    OR: [
+                      { status: { in: ['PENDING', 'APPROVED'] } },
+                      {
+                        items: {
+                          some: { refunds: { some: { status: 'PENDING' } } },
+                        },
+                      },
+                    ],
+                  },
+                  select: { status: true },
+                  take: 1,
+                },
+                supportCases: {
+                  where: {
+                    financeHold: true,
+                    status: { notIn: ['RESOLVED', 'CLOSED'] },
+                  },
+                  select: { id: true },
+                  take: 1,
+                },
               },
             },
           },
@@ -453,9 +474,8 @@ export class CommissionService {
           (s, r) => s + r.creditMinor - (r.correction?.amountMinor ?? 0),
           0,
         ),
-        returnOnHold: ['PENDING', 'APPROVED'].includes(
-          row.sellerOrder.returnRequest?.status ?? '',
-        ),
+        returnOnHold: row.sellerOrder.returnRequests.length > 0,
+        supportOnHold: row.sellerOrder.supportCases.length > 0,
       })),
       total,
       query,

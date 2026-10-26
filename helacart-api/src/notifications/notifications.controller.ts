@@ -18,6 +18,16 @@ import { NotificationsService } from './notifications.service.js';
 @UseGuards(FirebaseAuthGuard)
 export class NotificationsController {
   constructor(private readonly notifications: NotificationsService) {}
+  @Get('inbox') @Header('Cache-Control', 'private, no-store') inbox(
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.notifications.inbox(request.user);
+  }
+  @Patch('read-all') @Header('Cache-Control', 'private, no-store') readAll(
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.notifications.markAllRead(request.user);
+  }
   @Get() @Header('Cache-Control', 'no-store') list(
     @Req() request: AuthenticatedRequest,
   ) {

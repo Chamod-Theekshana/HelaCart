@@ -56,6 +56,7 @@ export type CommissionPayment = {
   seller?: { name: string; slug: string };
 };
 export type CommissionCharge = {
+  supportOnHold?:boolean;
   orderItem?: { productTitle: string; sku: string } | null;
   manualOnHold?: boolean;
   holdVersion?: number;

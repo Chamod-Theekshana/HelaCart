@@ -165,7 +165,10 @@ describe('Package 1 read APIs and buyer cancellation', () => {
         include: expect.objectContaining({
           sellerOrders: expect.objectContaining({
             select: expect.objectContaining({
-              returnRequest: { select: { id: true, status: true } },
+              returnRequests: {
+                select: { id: true, status: true },
+                orderBy: { createdAt: 'desc' },
+              },
               events: expect.any(Object),
             }),
           }),

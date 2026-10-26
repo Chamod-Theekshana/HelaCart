@@ -194,7 +194,7 @@ export default function CartPage() {
                   {isPreview
                     ? "Delivery is shown in the live cart."
                     : items[0]?.shippingConfigured
-                      ? `Delivery: ${money(items[0].shippingFeeLkrMinor ?? 0)} · charged once for this shop.`
+                      ? `Estimated delivery: ${money(items[0].shippingFeeLkrMinor ?? 0)} · final rate depends on your address at checkout.`
                       : "This shop has not configured delivery yet."}
                 </div>
               </section>
@@ -207,7 +207,7 @@ export default function CartPage() {
               <strong>{money(cart?.subtotalLkrMinor ?? 0)}</strong>
             </div>
             <div className="summary-row">
-              <span>Delivery</span>
+              <span>Estimated delivery</span>
               <strong>
                 {isPreview
                   ? "Calculated on live cart"
@@ -215,7 +215,7 @@ export default function CartPage() {
               </strong>
             </div>
             <div className="summary-total">
-              <span>Total</span>
+              <span>Estimated total</span>
               <strong>{money(cart?.totalLkrMinor ?? 0)}</strong>
             </div>
             <div className="cod-note">

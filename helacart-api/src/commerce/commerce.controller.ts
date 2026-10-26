@@ -11,6 +11,7 @@ import {
   Put,
   Req,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import {
   FirebaseAuthGuard,
@@ -23,6 +24,9 @@ import {
   CheckoutDto,
   DeliveryFeeDto,
   SellerOrderStatusDto,
+  CartQuoteDto,
+  DeliverySettingsDto,
+  ShipmentDto,
 } from './commerce.dto.js';
 import { CommerceService } from './commerce.service.js';
 
@@ -54,8 +58,9 @@ export class BuyerCommerceController {
   }
   @Get('cart') @Header('Cache-Control', 'no-store') cart(
     @Req() request: AuthenticatedRequest,
+    @Query() query: CartQuoteDto,
   ) {
-    return this.commerce.cart(request.user);
+    return this.commerce.cart(request.user, query.addressId);
   }
   @Put('cart/items/:variantId') @Header('Cache-Control', 'no-store') setItem(
     @Req() request: AuthenticatedRequest,
@@ -104,6 +109,38 @@ export class BuyerCommerceController {
 @UseGuards(FirebaseAuthGuard)
 export class SellerCommerceController {
   constructor(private readonly commerce: CommerceService) {}
+  @Get('delivery-settings')
+  @Header('Cache-Control', 'private, no-store')
+  settings(
+    @Param('sellerId', uuid) sellerId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.commerce.deliverySettings(sellerId, request.user);
+  }
+  @Put('delivery-settings')
+  @Header('Cache-Control', 'private, no-store')
+  saveSettings(
+    @Param('sellerId', uuid) sellerId: string,
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: DeliverySettingsDto,
+  ) {
+    return this.commerce.setDeliverySettings(sellerId, request.user, dto);
+  }
+  @Patch('orders/:sellerOrderId/shipment')
+  @Header('Cache-Control', 'private, no-store')
+  shipment(
+    @Param('sellerId', uuid) sellerId: string,
+    @Param('sellerOrderId', uuid) sellerOrderId: string,
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: ShipmentDto,
+  ) {
+    return this.commerce.updateShipment(
+      sellerId,
+      sellerOrderId,
+      request.user,
+      dto,
+    );
+  }
   @Patch('delivery-settings') @Header('Cache-Control', 'no-store') delivery(
     @Param('sellerId', uuid) sellerId: string,
     @Req() request: AuthenticatedRequest,

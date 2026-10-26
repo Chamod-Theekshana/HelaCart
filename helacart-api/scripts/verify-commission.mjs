@@ -684,7 +684,7 @@ try {
       .payableMinor,
     0,
   );
-  await p.returnRequest.update({
+  await p.returnRequest.updateMany({
     where: { sellerOrderId: b.sellerOrderId },
     data: { status: 'RESOLVED' },
   });

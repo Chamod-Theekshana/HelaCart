@@ -1,4 +1,4 @@
-import { Transform } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   IsEnum,
   IsInt,
@@ -8,15 +8,34 @@ import {
   Length,
   Max,
   Min,
+  IsArray,
+  ArrayMinSize,
+  ArrayMaxSize,
+  ArrayUnique,
+  ValidateNested,
+  IsIn,
 } from 'class-validator';
 import { ReturnStatus } from '../generated/prisma/client.js';
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
+export class ReturnLineDto {
+  @IsUUID('4') orderItemId!: string;
+  @IsInt() @Min(1) @Max(100) quantity!: number;
+}
 export class RequestReturnDto {
   @IsUUID('4') sellerOrderId!: string;
   @Transform(trim) @IsString() @Length(10, 1000) reason!: string;
+  @IsOptional() @IsUUID('4') requestKey?: string;
+  @IsOptional()
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @ArrayUnique((i: ReturnLineDto) => i.orderItemId)
+  @ValidateNested({ each: true })
+  @Type(() => ReturnLineDto)
+  items?: ReturnLineDto[];
 }
 
 export class ReviewReturnDto {
@@ -25,6 +44,9 @@ export class ReviewReturnDto {
 
 export class ResolveReturnDto {
   @Transform(trim) @IsString() @Length(10, 1000) note!: string;
+  @IsOptional()
+  @IsIn(['REFUNDED', 'PARTIAL_REFUND', 'REPLACED', 'OTHER'])
+  outcome = 'OTHER';
 }
 
 export class PageDto {

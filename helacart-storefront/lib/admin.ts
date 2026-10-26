@@ -17,15 +17,17 @@ export type AdminOrder = {
   id: string; recipient: string; phone: string; line1: string; line2: string | null;
   city: string; district: string; postalCode: string; createdAt: string;
   totalLkrMinor: number; subtotalLkrMinor: number; buyerId: string;
-  sellerOrders: {
+  sellerOrders: (import('./delivery').DeliveryTracking & {
     id: string; status: string; subtotalLkrMinor: number; shippingLkrMinor: number;
     totalLkrMinor: number; paymentCollectedAt: string | null;
     seller: { id: string; name: string; slug: string };
     items: { id: string; productTitle: string; sku: string; quantity: number; unitLkrMinor: number; lineLkrMinor: number }[];
     events: { id: string; fromStatus: string; toStatus: string; createdAt: string }[];
-  }[];
+  })[];
 };
 export type AdminReturn = {
+  outcome?:string|null;
+  items?:import('./after-sales').ReturnCase['items'];
   id: string; status: "PENDING" | "APPROVED" | "REJECTED" | "RESOLVED";
   reason: string; reviewReason: string | null; resolutionNote: string | null;
   createdAt: string; reviewedAt: string | null; resolvedAt: string | null; buyerId: string;

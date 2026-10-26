@@ -1,7 +1,7 @@
+import { requestItemReturn } from '../after-sales/return-workflow.js';
 import {
   BadRequestException,
   ConflictException,
-  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -35,57 +35,14 @@ export class OperationsService {
   ) {}
 
   async requestReturn(identity: DecodedIdToken, dto: RequestReturnDto) {
-    if (!identity.email_verified)
-      throw new ForbiddenException(
-        'Verify your email before requesting a return',
-      );
-    const buyer = await this.auth.getOrCreateProfile(identity);
-    const cutoff = new Date(
-      Date.now() -
-        this.config.getOrThrow<number>('RETURN_WINDOW_DAYS') * 86_400_000,
+    return requestItemReturn(
+      this.prisma,
+      this.auth,
+      this.notifications,
+      this.config,
+      identity,
+      dto,
     );
-    try {
-      return await this.prisma.$transaction(async (tx) => {
-        const order = await tx.sellerOrder.findFirst({
-          where: {
-            id: dto.sellerOrderId,
-            status: SellerOrderStatus.DELIVERED,
-            events: {
-              some: {
-                toStatus: SellerOrderStatus.DELIVERED,
-                createdAt: { gte: cutoff },
-              },
-            },
-            order: { buyerId: buyer.id },
-          },
-          select: { id: true, sellerId: true },
-        });
-        if (!order)
-          throw new NotFoundException(
-            'Eligible delivered seller order not found within return window',
-          );
-        const created = await tx.returnRequest.create({
-          data: {
-            sellerOrderId: order.id,
-            buyerId: buyer.id,
-            reason: dto.reason,
-          },
-        });
-        await this.notifications.forSeller(
-          tx,
-          order.sellerId,
-          NotificationType.RETURN_REQUESTED,
-          created.id,
-          'A buyer requested a return',
-        );
-        return created;
-      }, orderWriteOptions);
-    } catch (error) {
-      this.unique(
-        error,
-        'A return request already exists for this seller order',
-      );
-    }
   }
 
   async myReturns(identity: DecodedIdToken) {
@@ -138,6 +95,7 @@ export class OperationsService {
         where: { id: returnId, status: ReturnStatus.PENDING },
         data: {
           status: decision,
+          version: { increment: 1 },
           reviewReason: reason,
           reviewerUserId: admin.id,
           reviewedAt: new Date(),
@@ -171,17 +129,51 @@ export class OperationsService {
     returnId: string,
     reviewer: DecodedIdToken,
     note: string,
+    outcome = 'OTHER',
   ) {
     if (!note || note.trim().length < 10)
       throw new BadRequestException('Provide a resolution note');
     const admin = await this.auth.getOrCreateProfile(reviewer);
     return this.prisma.$transaction(async (tx) => {
+      const request = await tx.returnRequest.findUnique({
+        where: { id: returnId },
+        include: {
+          items: {
+            include: {
+              refunds: {
+                where: { status: { not: 'REJECTED' }, reversal: null },
+              },
+            },
+          },
+        },
+      });
+      if (!request) throw new NotFoundException('Return request not found');
+      const records = request.items.flatMap((item) => item.refunds);
+      if (records.some((r) => r.status === 'PENDING'))
+        throw new ConflictException(
+          'Review pending refund records before resolving this return',
+        );
+      const base = request.items.reduce((sum, i) => sum + i.baseMinor, 0),
+        refunded = records.reduce((sum, r) => sum + r.merchandiseMinor, 0);
+      if (outcome === 'REFUNDED' && (!request.items.length || refunded < base))
+        throw new ConflictException(
+          'Verify the full item refund before recording a refunded outcome',
+        );
+      if (
+        outcome === 'PARTIAL_REFUND' &&
+        !records.some((r) => r.status === 'APPROVED')
+      )
+        throw new ConflictException(
+          'Verify a refund record before recording a partial refund outcome',
+        );
       const updated = await tx.returnRequest.updateMany({
         where: { id: returnId, status: ReturnStatus.APPROVED },
         data: {
           status: ReturnStatus.RESOLVED,
           resolvedAt: new Date(),
           resolutionNote: note.trim(),
+          outcome,
+          version: { increment: 1 },
           resolverUserId: admin.id,
         },
       });

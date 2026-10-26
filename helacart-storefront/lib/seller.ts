@@ -32,7 +32,7 @@ export type SellerProduct = {
   createdAt: string; updatedAt: string;
   reviews: { decision: string; reason: string | null; createdAt: string }[];
 };
-export type SellerOrderRecord = {
+export type SellerOrderRecord = import('./delivery').DeliveryTracking & {
   id: string; orderId: string; status: OrderStatus; createdAt: string;
   subtotalLkrMinor: number; shippingLkrMinor: number; totalLkrMinor: number;
   paymentCollectedAt: string | null;

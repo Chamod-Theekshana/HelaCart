@@ -13,7 +13,9 @@ import {
   Truck,
 } from "lucide-react";
 import { api, ApiError, errorMessage, money } from "@/lib/api";
-import type { Address, Order } from "@/lib/types";
+import type { Address, Order, Cart } from "@/lib/types";
+import { deliveryDistricts } from "@/lib/delivery";
+import deliveryStyles from "@/components/delivery-workspace.module.css";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useShop } from "@/components/shop-provider";
 import { CartFeedback } from "@/components/cart-feedback";
@@ -56,6 +58,49 @@ function CheckoutForm() {
   const pendingRef = useRef<CheckoutIntent | null>(null);
   const operation = useRef(false);
   const [completedOrderId, setCompletedOrderId] = useState("");
+  const [quoteAttempt, setQuoteAttempt] = useState(0);
+  const quoteKey = `${user?.uid}:${selected}:${cart?.checkoutQuote}:${quoteAttempt}`;
+  const [deliveryState, setDeliveryState] = useState<{
+    key: string;
+    cart: Cart | null;
+    error: string;
+  } | null>(null);
+  const quotedCart = isPreview
+    ? cart
+    : deliveryState?.key === quoteKey
+      ? deliveryState.cart
+      : null;
+  const quoteError = deliveryState?.key === quoteKey ? deliveryState.error : "";
+  const quoteLoading =
+    !isPreview &&
+    Boolean(user?.emailVerified && selected) &&
+    deliveryState?.key !== quoteKey;
+  useEffect(() => {
+    if (isPreview || !user?.emailVerified || !selected || !cart?.checkoutQuote)
+      return;
+    let active = true;
+    user
+      .getIdToken()
+      .then((token) =>
+        api<Cart>(`/me/cart?addressId=${encodeURIComponent(selected)}`, {
+          token,
+        }),
+      )
+      .then((value) => {
+        if (active) setDeliveryState({ key: quoteKey, cart: value, error: "" });
+      })
+      .catch((cause) => {
+        if (active)
+          setDeliveryState({
+            key: quoteKey,
+            cart: null,
+            error: errorMessage(cause),
+          });
+      });
+    return () => {
+      active = false;
+    };
+  }, [user, isPreview, selected, cart?.checkoutQuote, quoteKey]);
   const [addressError, setAddressError] = useState("");
   const [addressAttempt, setAddressAttempt] = useState(0);
   const [addressesLoading, setAddressesLoading] = useState(
@@ -131,8 +176,8 @@ function CheckoutForm() {
     if (
       !recovery &&
       (!selected ||
-        !cart?.canCheckout ||
-        !cart.checkoutQuote ||
+        !quotedCart?.canCheckout ||
+        !quotedCart.checkoutQuote ||
         cartLoading ||
         cartError)
     )
@@ -149,7 +194,7 @@ function CheckoutForm() {
         userId: user.uid,
         checkoutKey: crypto.randomUUID(),
         addressId: selected,
-        quote: cart!.checkoutQuote!,
+        quote: quotedCart!.checkoutQuote!,
       };
       pendingRef.current = intent;
       setPending(intent);
@@ -176,6 +221,7 @@ function CheckoutForm() {
         pendingRef.current = null;
         setPending(null);
         await refreshCart().catch(() => undefined);
+        setQuoteAttempt((v) => v + 1);
       }
     } finally {
       operation.current = false;
@@ -226,6 +272,17 @@ function CheckoutForm() {
         </div>
       )}
       <CartFeedback />
+      {quoteError && (
+        <div className="message error" role="alert">
+          {quoteError}
+          <button
+            className="outline-btn"
+            onClick={() => setQuoteAttempt((v) => v + 1)}
+          >
+            Recalculate delivery
+          </button>
+        </div>
+      )}
       {pending && !loading && (
         <div className="message info" role="status">
           A previous checkout needs confirmation. Check it before starting a new
@@ -363,12 +420,14 @@ function CheckoutForm() {
                   </label>
                   <label>
                     District
-                    <input
-                      name="district"
-                      required
-                      minLength={2}
-                      maxLength={80}
-                    />
+                    <select name="district" required defaultValue="">
+                      <option value="" disabled>
+                        Select district
+                      </option>
+                      {deliveryDistricts.map((d) => (
+                        <option key={d}>{d}</option>
+                      ))}
+                    </select>
                   </label>
                   <label>
                     Postal code
@@ -463,22 +522,56 @@ function CheckoutForm() {
             <>
               <div className="summary-row">
                 <span>Items subtotal</span>
-                <strong>{money(cart?.subtotalLkrMinor ?? 0)}</strong>
+                <strong>
+                  {money(
+                    quotedCart?.subtotalLkrMinor ?? cart?.subtotalLkrMinor ?? 0,
+                  )}
+                </strong>
               </div>
               <div className="summary-row">
                 <span>Delivery</span>
                 <strong>
                   {isPreview
                     ? "Preview only"
-                    : money(cart?.shippingLkrMinor ?? 0)}
+                    : quoteLoading
+                      ? "Calculating…"
+                      : quotedCart
+                        ? money(quotedCart.shippingLkrMinor)
+                        : "Select an address"}
                 </strong>
               </div>
               <div className="summary-total">
                 <span>Total due on delivery</span>
-                <strong>{money(cart?.totalLkrMinor ?? 0)}</strong>
+                <strong>
+                  {quotedCart ? money(quotedCart.totalLkrMinor) : "—"}
+                </strong>
               </div>
             </>
           )}
+          {!pending &&
+            quotedCart?.deliveryBySeller?.map((d) => (
+              <div className={deliveryStyles.quote} key={d.sellerId}>
+                <strong>{d.sellerName}</strong>
+                {d.available ? (
+                  <>
+                    <span>
+                      {d.freeDelivery
+                        ? "Free delivery"
+                        : money(d.feeMinor ?? 0)}
+                      {d.district ? ` · ${d.district}` : ""}
+                    </span>
+                    {d.minDays && d.maxDays && (
+                      <p className={deliveryStyles.muted}>
+                        Estimated {d.minDays}–{d.maxDays} calendar days after
+                        dispatch.
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p role="alert">{d.reason}</p>
+                )}
+              </div>
+            ))}
           <div className="cod-note">
             <ShieldCheck size={21} />
             <span>
@@ -496,8 +589,9 @@ function CheckoutForm() {
               (!pending &&
                 (cartLoading ||
                   Boolean(cartError) ||
-                  !cart?.canCheckout ||
-                  !cart.checkoutQuote ||
+                  quoteLoading ||
+                  !quotedCart?.canCheckout ||
+                  !quotedCart.checkoutQuote ||
                   !selected))
             }
             onClick={placeOrder}

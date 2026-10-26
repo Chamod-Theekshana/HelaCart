@@ -1,10 +1,15 @@
 "use client";
+import { PageQueryBridge } from "./page-query-bridge";
+
 /* eslint-disable react/no-unescaped-entities */
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { ShipmentTracking } from "./shipment-tracking";
+import { notificationHref } from "@/lib/notifications";
 import Link from "next/link";
 import {
   Bell,
+  MessageSquare,
   ClipboardList,
   House,
   Heart,
@@ -30,6 +35,7 @@ import {
   useBuyerResource,
   useDebounced,
 } from "./list-controls";
+import { ItemReturnDialog } from "./item-return-dialog";
 import { BuyerReturns } from "./buyer-returns";
 import { BuyerCancelOrder } from "./buyer-order-actions";
 import s from "./list-controls.module.css";
@@ -52,6 +58,25 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
     [noticePage, setNoticePage] = useState(1),
     [query, setQuery] = useState(""),
     [status, setStatus] = useState("ALL");
+  const applyQuery = useCallback((params: URLSearchParams) => {
+    const order = params.get("order"),
+      tab = params.get("tab");
+    if (order) {
+      setQuery(order);
+      setTab("orders");
+    } else if (
+      tab &&
+      [
+        "orders",
+        "returns",
+        "addresses",
+        "notifications",
+        "profile",
+        "security",
+      ].includes(tab)
+    )
+      setTab(tab as Tab);
+  }, []);
   const search = useDebounced(query);
   const ordersResource = useBuyerResource<Page<Order>>(
     `/workspace/me/orders?${queryString({ page: orderPage, q: search, status })}`,
@@ -102,8 +127,6 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [returnOrder, setReturnOrder] = useState<string | null>(null);
-  const [reason, setReason] = useState("");
-  const [returnBusy, setReturnBusy] = useState(false);
   async function removeAddress(id: string) {
     if (!user) return;
     try {
@@ -129,30 +152,6 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
       setError(errorMessage(issue));
     }
   }
-  async function requestReturn(event: React.FormEvent) {
-    event.preventDefault();
-    if (!user || !returnOrder || returnBusy) return;
-    setReturnBusy(true);
-    setError("");
-    try {
-      await api("/me/returns", {
-        method: "POST",
-        token: await user.getIdToken(),
-        body: { sellerOrderId: returnOrder, reason: reason.trim() },
-      });
-      setMessage(
-        "Return request submitted for review. Follow its progress below.",
-      );
-      setReturnOrder(null);
-      setReason("");
-      setRevision((value) => value + 1);
-      setTab("returns");
-    } catch (issue) {
-      setError(errorMessage(issue));
-    } finally {
-      setReturnBusy(false);
-    }
-  }
   const buyerName = isPreview
     ? previewAccount.name!
     : accountProfile?.name ||
@@ -161,6 +160,7 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
       "Your account";
   return (
     <div className="container account-page">
+      <PageQueryBridge onChange={applyQuery} />
       <Breadcrumbs
         items={[
           { label: "My Account" },
@@ -247,6 +247,9 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                     ? "—"
                     : favorites.count}
               </span>
+            </Link>
+            <Link href="/account/support" className="account-favorites">
+              <MessageSquare size={17} /> Support & help
             </Link>
             {(
               [
@@ -495,6 +498,7 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                                     <b>{money(item.lineLkrMinor)}</b>
                                   </div>
                                 ))}
+                                <ShipmentTracking order={sellerOrder} />
                                 {sellerOrder.status === "DELIVERED" && (
                                   <Link
                                     className="outline-btn return-trigger"
@@ -515,17 +519,15 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                                     }}
                                   />
                                 )}
-                                {sellerOrder.returnRequest ? (
+                                {!!sellerOrder.returnRequests?.length && (
                                   <button
                                     className={s.returnButton}
                                     onClick={() => setTab("returns")}
                                   >
-                                    Return{" "}
-                                    {sellerOrder.returnRequest.status.toLowerCase()}{" "}
-                                    · View progress
+                                    View item return progress
                                   </button>
-                                ) : (
-                                  sellerOrder.status === "DELIVERED" &&
+                                )}
+                                {sellerOrder.status === "DELIVERED" &&
                                   !isPreview && (
                                     <button
                                       className="outline-btn return-trigger"
@@ -533,10 +535,15 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                                         setReturnOrder(sellerOrder.id)
                                       }
                                     >
-                                      <RotateCcw size={15} /> Request return
+                                      <RotateCcw size={15} /> Return items
                                     </button>
-                                  )
-                                )}
+                                  )}
+                                <Link
+                                  className="outline-btn"
+                                  href={`/account/support?order=${sellerOrder.id}`}
+                                >
+                                  Get support
+                                </Link>
                               </div>
                             ),
                           )}
@@ -561,40 +568,19 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                       label="Your order pages"
                     />
                     {returnOrder && (
-                      <form
-                        className="panel return-form"
-                        onSubmit={requestReturn}
-                      >
-                        <h3>Request a return</h3>
-                        <p>
-                          Tell the seller why you would like to return this
-                          delivered order.
-                        </p>
-                        <textarea
-                          required
-                          minLength={10}
-                          maxLength={1000}
-                          value={reason}
-                          onChange={(event) => setReason(event.target.value)}
-                        />
-                        <div>
-                          <button
-                            className="primary-btn"
-                            type="submit"
-                            disabled={returnBusy || reason.trim().length < 10}
-                          >
-                            {returnBusy ? "Sending…" : "Send request"}
-                          </button>
-                          <button
-                            className="outline-btn"
-                            type="button"
-                            disabled={returnBusy}
-                            onClick={() => setReturnOrder(null)}
-                          >
-                            Cancel
-                          </button>
-                        </div>
-                      </form>
+                      <ItemReturnDialog
+                        key={`${user?.uid}:${returnOrder}`}
+                        sellerOrderId={returnOrder}
+                        onClose={() => setReturnOrder(null)}
+                        onSaved={() => {
+                          setReturnOrder(null);
+                          setRevision((v) => v + 1);
+                          setTab("returns");
+                          setMessage(
+                            "Item return request submitted for review.",
+                          );
+                        }}
+                      />
                     )}
                   </>
                 )}
@@ -637,6 +623,24 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                   <>
                     <div className="account-section-title">
                       <h2>Notifications</h2>
+                      <button
+                        className="outline-btn"
+                        disabled={isPreview || !user}
+                        onClick={async () => {
+                          if (!user) return;
+                          try {
+                            await api("/me/notifications/read-all", {
+                              method: "PATCH",
+                              token: await user.getIdToken(),
+                            });
+                            setRevision((v) => v + 1);
+                          } catch (cause) {
+                            setError(errorMessage(cause));
+                          }
+                        }}
+                      >
+                        Mark all read
+                      </button>
                     </div>
                     {notifications.length ? (
                       notifications.map((entry) => (
@@ -648,6 +652,17 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                                 "HelaCart update"}
                             </strong>
                             <p>{entry.message}</p>
+                            {entry.href &&
+                              entry.href.startsWith("/") &&
+                              !entry.href.startsWith("//") && (
+                                <Link
+                                  className="text-link"
+                                  href={notificationHref(entry)}
+                                  onClick={() => void readNotice(entry.id)}
+                                >
+                                  View update
+                                </Link>
+                              )}
                             <small>
                               {new Date(entry.createdAt).toLocaleDateString(
                                 "en-LK",

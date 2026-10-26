@@ -11,12 +11,17 @@ describe('Reviewed COD checkout', () => {
     cartItem: { findMany: vi.fn(), deleteMany: vi.fn() },
     buyerAddress: { findFirst: vi.fn() },
     order: { findUnique: vi.fn(), create: vi.fn() },
-    inventoryMovement: { create: vi.fn() },
+    inventoryMovement: { createMany: vi.fn() },
     commissionPolicy: { findUnique: vi.fn() },
     $queryRaw: vi.fn(),
     $transaction: vi.fn(),
   };
-  const notices = { forUser: vi.fn(), forSeller: vi.fn() };
+  const notices = {
+    forUser: vi.fn(),
+    forSeller: vi.fn(),
+    forAdmins: vi.fn(),
+    forSellerOrders: vi.fn(),
+  };
   const service = new CommerceService(
     db as unknown as PrismaService,
     {
@@ -48,6 +53,15 @@ describe('Reviewed COD checkout', () => {
           slug: 'island-shop',
           status: 'APPROVED',
           shippingFeeLkrMinor: 5000,
+          deliveryRules: [] as {
+            district: string;
+            available: boolean;
+            feeMinor: number;
+          }[],
+          freeShippingThresholdMinor: null as number | null,
+          deliveryMinDays: null as number | null,
+          deliveryMaxDays: null as number | null,
+          deliveryRevision: 0,
         },
       },
     },
@@ -64,6 +78,7 @@ describe('Reviewed COD checkout', () => {
       recipient: 'Buyer',
       line1: 'Address',
       city: 'Kandy',
+      district: 'Kandy',
     });
     db.$queryRaw.mockResolvedValue([{ id: 'variant-a' }]);
     db.$transaction.mockImplementation((callback: (tx: typeof db) => unknown) =>
@@ -98,6 +113,69 @@ describe('Reviewed COD checkout', () => {
     rows.push({ ...row(), variantId: 'variant-b' });
     expect((await service.cart(identity)).shippingLkrMinor).toBe(5000);
   });
+  it('quotes district delivery for an owned address and binds the quote to it', async () => {
+    rows[0].variant.product.seller.deliveryRules = [
+      { district: 'Kandy', available: true, feeMinor: 7000 },
+    ];
+    const generic = await service.cart(identity),
+      quoted = await service.cart(identity, 'address-a');
+    expect(quoted).toMatchObject({
+      addressId: 'address-a',
+      shippingLkrMinor: 7000,
+      deliveryQuoted: true,
+    });
+    expect(quoted.checkoutQuote).not.toBe(generic.checkoutQuote);
+    await expect(
+      service.checkout(identity, {
+        addressId: 'address-a',
+        checkoutKey: 'key-a',
+        quote: generic.checkoutQuote,
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(db.order.create).not.toHaveBeenCalled();
+    await service.checkout(identity, {
+      addressId: 'address-a',
+      checkoutKey: 'key-a',
+      quote: quoted.checkoutQuote,
+    });
+    expect(db.order.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          shippingLkrMinor: 7000,
+          sellerOrders: expect.objectContaining({
+            create: [
+              expect.objectContaining({
+                shippingLkrMinor: 7000,
+                deliveryDistrict: 'Kandy',
+              }),
+            ],
+          }),
+        }),
+      }),
+    );
+  });
+  it('blocks unavailable districts even when free delivery qualifies', async () => {
+    rows[0].variant.product.seller.deliveryRules = [
+      { district: 'Kandy', available: false, feeMinor: 5000 },
+    ];
+    rows[0].variant.product.seller.freeShippingThresholdMinor = 1;
+    const quote = await service.cart(identity, 'address-a');
+    expect(quote.canCheckout).toBe(false);
+    await expect(
+      service.checkout(identity, {
+        addressId: 'address-a',
+        checkoutKey: 'key-a',
+        quote: quote.checkoutQuote,
+      }),
+    ).rejects.toMatchObject({ status: 409 });
+    expect(db.$queryRaw).not.toHaveBeenCalled();
+  });
+  it('rejects an address outside the buyer account', async () => {
+    db.buyerAddress.findFirst.mockResolvedValue(null);
+    await expect(service.cart(identity, 'other-address')).rejects.toMatchObject(
+      { status: 404 },
+    );
+  });
   it.each(['price', 'delivery', 'quantity'])(
     'refuses a changed %s before stock or order writes',
     async (change) => {
@@ -125,19 +203,21 @@ describe('Reviewed COD checkout', () => {
       quote,
     });
     expect(db.$transaction).toHaveBeenCalledOnce();
-    expect(db.inventoryMovement.create).toHaveBeenCalledWith({
-      data: {
-        variantId: 'variant-a',
-        actorUserId: 'buyer-id',
-        delta: -2,
-        reason: 'COD order order-a placed',
-      },
+    expect(db.inventoryMovement.createMany).toHaveBeenCalledWith({
+      data: [
+        {
+          variantId: 'variant-a',
+          actorUserId: 'buyer-id',
+          delta: -2,
+          reason: 'COD order order-a placed',
+        },
+      ],
     });
     expect(db.cartItem.deleteMany).toHaveBeenCalledWith({
       where: { userId: 'buyer-id' },
     });
     expect(notices.forUser).toHaveBeenCalledOnce();
-    expect(notices.forSeller).toHaveBeenCalledOnce();
+    expect(notices.forSellerOrders).toHaveBeenCalledOnce();
   });
   it('retries the same checkout without charging stock twice, even after the cart is cleared', async () => {
     const quote = (await service.cart(identity)).checkoutQuote;

@@ -280,14 +280,16 @@ export default async function ShopPage({ params, searchParams }: Props) {
             <Truck size={17} /> Shopping information
           </h3>
           <dl>
-            <dt>Delivery fee</dt>
+            <dt>Standard delivery fee</dt>
             <dd>
               {shop.shippingFeeLkrMinor == null
                 ? "See at checkout"
                 : shop.shippingFeeLkrMinor === 0
-                  ? "Free delivery"
+                  ? "Standard delivery is free"
                   : money(shop.shippingFeeLkrMinor)}
             </dd>
+            <dt>Destination rates</dt>
+            <dd>Final delivery fee and availability are confirmed for your address at checkout.</dd>
             <dt>Payment</dt>
             <dd>Cash on delivery</dd>
             <dt>On HelaCart since</dt>

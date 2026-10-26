@@ -27,18 +27,22 @@ HelaCart brings product discovery, shop profiles, verified-purchase reviews, fav
 - Save products to account-based favorites across devices, with current prices and availability.
 - Choose product variants, manage a cart grouped by shop, and see delivery fees before checkout.
 - Use saved addresses, place cash-on-delivery orders, and follow order status.
+- Review destination-specific delivery fees at checkout and follow seller-provided courier references and delivery progress.
 - Manage a personal profile, account security, notifications, cancellations, and return requests.
+- Request returns for selected items/quantities, follow verified refund records, and open private support conversations.
 - Review shops after a delivered purchase: 1–5 stars, comments, optional photos, edit/delete, and reporting.
 
 ### Seller Center
 
 - Apply with mandatory front/back NIC or driving-licence photos and an optional business-registration image.
 - Manage the shop profile, logo, cover, public location, private business details, and delivery fee.
+- Configure district delivery rates, unavailable destinations, optional free-delivery thresholds, and dispatch estimates.
 - Create and edit products, manage variants, upload images, and submit listings for approval.
 - Adjust inventory and inspect stock movement history.
 - Process COD orders through acceptance, packing, shipping, and delivery, with collection confirmation.
 - Read buyer feedback and publish replies to shop reviews.
 - Review commission charges, monthly statements, and balances; submit private bank-payment receipts for owner verification.
+- Respond to support cases and submit records of actual buyer refunds for HelaCart verification.
 
 ### Admin workspace
 
@@ -47,6 +51,7 @@ HelaCart brings product discovery, shop profiles, verified-purchase reviews, fav
 - Moderate product submissions and manage category names, images, ordering, and archive/restore states.
 - Edit homepage hero images and copy, preview changes, and publish content.
 - Assign product-specific commission rates, configure payment days in Settings, hold disputed order commissions, verify seller bank payments, and record item-specific refund credits.
+- Review item returns and buyer refund evidence, record corrections and resolution outcomes, and manage support conversations and case holds.
 - Moderate reported reviews and manage the administrator's own profile and security.
 
 Selling approval, shop identity verification, and verified-purchase reviews are separate workflows. Protected actions are checked by the API using Firebase identity and the relevant account, shop membership, or administrator permissions.
@@ -236,6 +241,8 @@ Deployment configuration and real operational processes still need environment-s
 - [Web application notes](helacart-storefront/README.md) and [screen file index](helacart-storefront/screens/README.md)
 - [Favorites and save-after-sign-in behavior](helacart-storefront/docs/product-favorites.md)
 - [Seller commission, statements, and collection workflow](helacart-storefront/docs/seller-commission.md)
+- [Delivery rates, tracking, and order notifications](helacart-storefront/docs/delivery-tracking.md)
+- [Support cases, item returns, and refund records](helacart-storefront/docs/after-sales.md)
 - [Shop profiles, reviews, photos, and moderation](helacart-storefront/docs/shops-and-reviews.md)
 - [Verified shops and administrator decisions](helacart-storefront/docs/shop-verification.md)
 - [Buyer, shop, and admin profiles](helacart-storefront/docs/account-profiles.md)

@@ -5,6 +5,7 @@ import { Heart, Search, ShoppingBag, Store, UserRound } from "lucide-react";
 import { useFavorites } from "./favorites-provider";
 import { useShop } from "./shop-provider";
 import { ProfileAvatar } from "./profile-avatar";
+import {NotificationBell} from './notification-bell';
 import type { Category } from "@/lib/types";
 
 export function Brand() {
@@ -47,6 +48,7 @@ export function SiteHeader({ categories }: { categories: Category[] }) {
         <Brand />
         {search()}
         <div className="header-actions">
+          <NotificationBell/>
           <Link
             href={user ? "/account/profile" : "/auth"}
             className="account-link"

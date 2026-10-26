@@ -72,6 +72,14 @@ model User {
   commissionCorrections CommissionCorrection[]
   productCommissionChanges ProductCommissionChange[]
   commissionHolds CommissionHoldEvent[]
+  shipmentChanges ShipmentChange[]
+  supportOpened SupportCase[] @relation("SupportOpener")
+  supportBuyerCases SupportCase[] @relation("SupportBuyer")
+  supportMessages SupportMessage[]
+  supportDecisions SupportCaseEvent[]
+  refundSubmissions RefundRecord[] @relation("RefundSubmitter")
+  refundDecisions RefundRecord[] @relation("RefundReviewer")
+  refundReversals RefundReversal[]
 }
 
 model Seller {
@@ -94,6 +102,11 @@ model Seller {
   variants      ProductVariant[]
   sellerOrders  SellerOrder[]
   shippingFeeLkrMinor Int?
+  deliveryRevision Int @default(0)
+  deliveryRules Json @default("[]")
+  freeShippingThresholdMinor Int?
+  deliveryMinDays Int?
+  deliveryMaxDays Int?
   identityDocumentType SellerIdentityDocumentType?
   documents     SellerApplicationDocument[]
   publicLocation String?
@@ -105,6 +118,8 @@ model Seller {
   commissionRefunds CommissionRefund[]
   commissionReminders CommissionReminder[]
   commissionCorrections CommissionCorrection[]
+  supportCases SupportCase[]
+  refundRecords RefundRecord[]
 
   @@index([status])
 }
@@ -406,7 +421,8 @@ model SellerOrder {
   seller             Seller @relation(fields: [sellerId], references: [id], onDelete: Restrict)
   items              OrderItem[]
   events             SellerOrderEvent[]
-  returnRequest      ReturnRequest?
+  returnRequests     ReturnRequest[]
+  supportCases SupportCase[]
   codReconciliations CodReconciliation[]
   shopReview         ShopReview?
   commissionRateBps Int?
@@ -414,6 +430,11 @@ model SellerOrder {
   commissionReturnDays Int?
   commissionPaymentDays Int?
   commissionCharges CommissionCharge[]
+  deliveryDistrict String?
+  deliveryRateRevision Int?
+  deliveryMinDays Int?
+  deliveryMaxDays Int?
+  shipment SellerShipment?
 
   @@unique([orderId, sellerId])
   @@index([sellerId, createdAt])
@@ -435,10 +456,37 @@ model OrderItem {
   commissionPaymentDays Int?
   commissionPolicyVersion Int?
   commissionCharge CommissionCharge?
+  returnItems ReturnItem[]
   sellerOrder    SellerOrder @relation(fields: [sellerOrderId], references: [id], onDelete: Restrict)
   variant        ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
 
   @@index([sellerOrderId])
+}
+
+model SellerShipment {
+  id String @id @default(uuid()) @db.Uuid
+  sellerOrderId String @unique @db.Uuid
+  courierName String @db.VarChar(100)
+  trackingNumber String? @db.VarChar(100)
+  version Int @default(1)
+  shippedAt DateTime @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  sellerOrder SellerOrder @relation(fields:[sellerOrderId],references:[id],onDelete:Restrict)
+  changes ShipmentChange[]
+}
+
+model ShipmentChange {
+  id String @id @default(uuid()) @db.Uuid
+  shipmentId String @db.Uuid
+  actorId String @db.Uuid
+  version Int
+  before Json
+  after Json
+  reason String @db.VarChar(500)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  shipment SellerShipment @relation(fields:[shipmentId],references:[id],onDelete:Restrict)
+  actor User @relation(fields:[actorId],references:[id],onDelete:Restrict)
+  @@unique([shipmentId,version])
 }
 
 model SellerOrderEvent {
@@ -457,12 +505,15 @@ model SellerOrderEvent {
 enum NotificationType {
   ORDER_PLACED
   ORDER_UPDATED
+  ORDER_TRACKING_UPDATED
   RETURN_REQUESTED
   RETURN_REVIEWED
   COD_RECONCILED
   COMMISSION_SUBMITTED
   COMMISSION_REVIEWED
   COMMISSION_REMINDER
+  SUPPORT_UPDATED
+  REFUND_UPDATED
 }
 
 model Notification {
@@ -471,11 +522,13 @@ model Notification {
   type      NotificationType
   subjectId String @db.Uuid
   message   String
+  href String? @db.VarChar(300)
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   readAt    DateTime? @db.Timestamptz(3)
   user      User @relation(fields: [userId], references: [id], onDelete: Restrict)
 
   @@index([userId, createdAt])
+  @@index([userId, readAt])
 }
 
 enum ReturnStatus {
@@ -487,7 +540,7 @@ enum ReturnStatus {
 
 model ReturnRequest {
   id             String @id @default(uuid()) @db.Uuid
-  sellerOrderId  String @unique @db.Uuid
+  sellerOrderId  String @db.Uuid
   buyerId        String @db.Uuid
   status         ReturnStatus @default(PENDING)
   reason         String
@@ -498,6 +551,10 @@ model ReturnRequest {
   createdAt      DateTime @default(now()) @db.Timestamptz(3)
   reviewedAt     DateTime? @db.Timestamptz(3)
   resolvedAt     DateTime? @db.Timestamptz(3)
+  requestKey String? @db.Uuid
+  outcome String? @db.VarChar(30)
+  version Int @default(0)
+  items ReturnItem[]
   sellerOrder    SellerOrder @relation(fields: [sellerOrderId], references: [id], onDelete: Restrict)
   buyer          User @relation("BuyerReturns", fields: [buyerId], references: [id], onDelete: Restrict)
   reviewer       User? @relation("AdminReturns", fields: [reviewerUserId], references: [id], onDelete: Restrict)
@@ -505,6 +562,126 @@ model ReturnRequest {
 
   @@index([buyerId, createdAt])
   @@index([status, createdAt])
+  @@index([sellerOrderId])
+  @@unique([buyerId, requestKey])
+}
+
+model ReturnItem {
+  id String @id @default(uuid()) @db.Uuid
+  returnRequestId String @db.Uuid
+  orderItemId String @db.Uuid
+  quantity Int
+  baseMinor Int
+  returnRequest ReturnRequest @relation(fields:[returnRequestId],references:[id],onDelete:Restrict)
+  orderItem OrderItem @relation(fields:[orderItemId],references:[id],onDelete:Restrict)
+  refunds RefundRecord[]
+  @@unique([returnRequestId,orderItemId])
+  @@index([orderItemId])
+}
+
+enum RefundStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model RefundRecord {
+  id String @id @default(uuid()) @db.Uuid
+  sellerId String @db.Uuid
+  returnItemId String @db.Uuid
+  submitterId String @db.Uuid
+  requestKey String @db.Uuid
+  merchandiseMinor Int
+  shippingMinor Int @default(0)
+  amountMinor Int
+  method String @db.VarChar(30)
+  reference String @db.VarChar(100)
+  paidOn String @db.VarChar(10)
+  note String? @db.VarChar(500)
+  status RefundStatus @default(PENDING)
+  reviewerId String? @db.Uuid
+  reviewNote String? @db.VarChar(500)
+  reviewedAt DateTime? @db.Timestamptz(3)
+  commissionRefundId String? @unique @db.Uuid
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  seller Seller @relation(fields:[sellerId],references:[id],onDelete:Restrict)
+  returnItem ReturnItem @relation(fields:[returnItemId],references:[id],onDelete:Restrict)
+  submitter User @relation("RefundSubmitter",fields:[submitterId],references:[id],onDelete:Restrict)
+  reviewer User? @relation("RefundReviewer",fields:[reviewerId],references:[id],onDelete:Restrict)
+  commissionRefund CommissionRefund? @relation(fields:[commissionRefundId],references:[id],onDelete:Restrict)
+  reversal RefundReversal?
+  @@unique([sellerId,requestKey])
+  @@index([sellerId,status,createdAt])
+  @@index([returnItemId])
+}
+
+model RefundReversal {
+  id String @id @default(uuid()) @db.Uuid
+  refundRecordId String @unique @db.Uuid
+  actorId String @db.Uuid
+  requestKey String @unique @db.Uuid
+  reference String @unique @db.VarChar(100)
+  reason String @db.VarChar(500)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  refundRecord RefundRecord @relation(fields:[refundRecordId],references:[id],onDelete:Restrict)
+  actor User @relation(fields:[actorId],references:[id],onDelete:Restrict)
+}
+
+model SupportCase {
+  id String @id @default(uuid()) @db.Uuid
+  openerId String @db.Uuid
+  buyerId String? @db.Uuid
+  sellerId String? @db.Uuid
+  sellerOrderId String? @db.Uuid
+  requestKey String @db.Uuid
+  title String @db.VarChar(150)
+  category String @db.VarChar(30)
+  status String @default("OPEN") @db.VarChar(30)
+  version Int @default(0)
+  financeHold Boolean @default(false)
+  resolution String? @db.VarChar(1000)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  opener User @relation("SupportOpener",fields:[openerId],references:[id],onDelete:Restrict)
+  buyer User? @relation("SupportBuyer",fields:[buyerId],references:[id],onDelete:Restrict)
+  seller Seller? @relation(fields:[sellerId],references:[id],onDelete:Restrict)
+  sellerOrder SellerOrder? @relation(fields:[sellerOrderId],references:[id],onDelete:Restrict)
+  messages SupportMessage[]
+  events SupportCaseEvent[]
+  @@unique([openerId,requestKey])
+  @@index([buyerId,updatedAt])
+  @@index([sellerId,updatedAt])
+  @@index([status,updatedAt])
+  @@index([sellerOrderId,financeHold])
+}
+
+model SupportMessage {
+  id String @id @default(uuid()) @db.Uuid
+  caseId String @db.Uuid
+  authorId String @db.Uuid
+  authorRole String @db.VarChar(10)
+  requestKey String @db.Uuid
+  body String @db.VarChar(4000)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  case SupportCase @relation(fields:[caseId],references:[id],onDelete:Restrict)
+  author User @relation(fields:[authorId],references:[id],onDelete:Restrict)
+  @@unique([caseId,requestKey])
+  @@index([caseId,createdAt])
+}
+
+model SupportCaseEvent {
+  id String @id @default(uuid()) @db.Uuid
+  caseId String @db.Uuid
+  actorId String @db.Uuid
+  version Int
+  fromStatus String @db.VarChar(30)
+  toStatus String @db.VarChar(30)
+  financeHold Boolean
+  reason String @db.VarChar(1000)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  case SupportCase @relation(fields:[caseId],references:[id],onDelete:Restrict)
+  actor User @relation(fields:[actorId],references:[id],onDelete:Restrict)
+  @@unique([caseId,version])
 }
 
 enum CodReconciliationDecision {
@@ -719,6 +896,7 @@ model CommissionRefund {
   charge CommissionCharge @relation(fields: [chargeId], references: [id], onDelete: Restrict)
   actor User @relation(fields: [actorId], references: [id], onDelete: Restrict)
   correction CommissionCorrection?
+  refundRecord RefundRecord?
 
   @@index([sellerId, createdAt])
   @@index([chargeId])

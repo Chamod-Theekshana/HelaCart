@@ -19,6 +19,7 @@ import { WorkspaceModule } from './workspace/workspace.module.js';
 import { StorefrontContentModule } from './storefront-content/storefront-content.module.js';
 import { FavoritesModule } from './favorites/favorites.module.js';
 import { CommissionModule } from './commission/commission.module.js';
+import { AfterSalesModule } from './after-sales/after-sales.module.js';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { CommissionModule } from './commission/commission.module.js';
     StorefrontContentModule,
     FavoritesModule,
     CommissionModule,
+    AfterSalesModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService, { provide: APP_GUARD, useClass: RequestLimitGuard }],

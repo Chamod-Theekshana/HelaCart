@@ -248,7 +248,10 @@
     width: calc(100% - 32px);
   }
   .storefront-header .header-actions {
-    gap: 9px;
+    gap: 4px;
+  }
+  .storefront-header .cart-button {
+    padding: 9px 8px;
   }
   .storefront-header .nav-inner {
     gap: 20px;

@@ -8,6 +8,7 @@ import { ProfileAvatar } from "./profile-avatar";
 import { useShop } from "./shop-provider";
 import { useAdmin } from "./admin-provider";
 import { Brand } from "./site-header";
+import {NotificationBell} from './notification-bell';
 
 const items = [
   { href: "/admin", title: "Overview", icon: LayoutDashboard, section: "CORE PLATFORM" },
@@ -18,6 +19,8 @@ const items = [
   { href: "/admin/appearance", title: "Storefront appearance", icon: LayoutDashboard },
   { href: "/admin/orders", title: "Orders", icon: ShoppingBag, section: "FULFILMENT & SETTLEMENTS" },
   { href: "/admin/returns", title: "Returns", icon: RotateCcw },
+  { href: "/admin/refunds", title: "Buyer refund records", icon: Wallet },
+  { href: "/admin/support", title: "Support cases", icon: ClipboardCheck },
   { href: "/admin/commission", title: "Commission & collections", icon: Wallet },
   { href: "/admin/cod", title: "COD records", icon: ClipboardList },
   { href: "/admin/profile", title: "My profile", icon: UserRound, section: "ACCOUNT" },
@@ -53,6 +56,7 @@ export function AdminShell({ children }: { children: React.ReactNode }) {
       <button className="admin-menu" aria-label={open ? "Close navigation" : "Open navigation"} onClick={() => setOpen(!open)}>{open ? <X size={20} /> : <Menu size={20} />}</button>
       <span className="admin-top-context"><ClipboardList size={17} /> Operations / {activeName}</span>
       <span className="admin-top-spacer" />
+      <NotificationBell workspace="admin"/>
       {isPreview && <span className="admin-preview-chip">Sample data</span>}
       <Link href="/" className="admin-top-store">View buyer storefront <ExternalLink size={15} /></Link>
       <Link href="/admin/profile" className="admin-top-user" aria-label="My admin profile"><ProfileAvatar name={accountProfile?.name || user?.email || "Admin"} small /><span>{accountProfile?.name || user?.email || "Admin preview"}<small>{isPreview ? "Design preview" : "Authorized admin"}</small></span></Link>

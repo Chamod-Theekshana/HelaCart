@@ -567,11 +567,13 @@ export function CommissionAccount({
                       <span>
                         {row.manualOnHold
                           ? "Admin hold"
-                          : row.returnOnHold
-                            ? "Return case on hold"
-                            : new Date(row.holdUntil) > new Date()
-                              ? "Waiting for due date"
-                              : "Payable"}
+                          : row.supportOnHold
+                            ? "Support case on hold"
+                            : row.returnOnHold
+                              ? "Return or refund case on hold"
+                              : new Date(row.holdUntil) > new Date()
+                                ? "Waiting for due date"
+                                : "Payable"}
                       </span>
                       <small>Available {dateTime(row.holdUntil)}</small>
                       <small>Due {dateTime(row.dueAt)}</small>

@@ -25,6 +25,7 @@ Screen implementations retain their server/client boundaries, metadata and origi
 | `/account` | [user-account-screen.tsx](./user/user-account-screen.tsx) |
 | `/account/profile` | [user-profile-screen.tsx](./user/user-profile-screen.tsx) |
 | `/account/returns` | [user-returns-screen.tsx](./user/user-returns-screen.tsx) |
+| `/account/support` | [user-support-screen.tsx](./user/user-support-screen.tsx) |
 | `/account/security` | [user-security-screen.tsx](./user/user-security-screen.tsx) |
 | `/orders` | [user-orders-screen.tsx](./user/user-orders-screen.tsx) |
 | `/favorites` | [user-favorites-screen.tsx](./user/user-favorites-screen.tsx) |
@@ -38,6 +39,8 @@ Screen implementations retain their server/client boundaries, metadata and origi
 | `/seller/inventory` | [seller-inventory-screen.tsx](./seller/seller-inventory-screen.tsx) |
 | `/seller/orders` | [seller-orders-screen.tsx](./seller/seller-orders-screen.tsx) |
 | `/seller/commission` | [seller-commission-screen.tsx](./seller/seller-commission-screen.tsx) |
+| `/seller/returns` | [seller-returns-screen.tsx](./seller/seller-returns-screen.tsx) |
+| `/seller/support` | [seller-support-screen.tsx](./seller/seller-support-screen.tsx) |
 | `/seller/products` | [seller-products-screen.tsx](./seller/seller-products-screen.tsx) |
 | `/seller/products/[id]` | [seller-product-details-screen.tsx](./seller/seller-product-details-screen.tsx) |
 | `/seller/products/new` | [seller-create-product-screen.tsx](./seller/seller-create-product-screen.tsx) |
@@ -55,6 +58,8 @@ Screen implementations retain their server/client boundaries, metadata and origi
 | `/admin/cod` | [admin-cod-reconciliation-screen.tsx](./admin/admin-cod-reconciliation-screen.tsx) |
 | `/admin/commission` | [admin-commission-screen.tsx](./admin/admin-commission-screen.tsx) |
 | `/admin/settings` | [admin-settings-screen.tsx](./admin/admin-settings-screen.tsx) |
+| `/admin/refunds` | [admin-refunds-screen.tsx](./admin/admin-refunds-screen.tsx) |
+| `/admin/support` | [admin-support-screen.tsx](./admin/admin-support-screen.tsx) |
 | `/admin/orders` | [admin-orders-screen.tsx](./admin/admin-orders-screen.tsx) |
 | `/admin/products` | [admin-product-approvals-screen.tsx](./admin/admin-product-approvals-screen.tsx) |
 | `/admin/profile` | [admin-profile-screen.tsx](./admin/admin-profile-screen.tsx) |

@@ -22,6 +22,8 @@ export type Cart = {
   items: CartItem[]; subtotalLkrMinor: number; shippingLkrMinor: number;
   totalLkrMinor: number; canCheckout: boolean;
   checkoutQuote?: string;
+  addressId?:string|null; deliveryQuoted?:boolean;
+  deliveryBySeller?:import('./delivery').DeliveryQuote[];
 };
 export type Address = {
   id: string; recipient: string; phone: string; line1: string;
@@ -31,10 +33,11 @@ export type OrderItem = {
   id: string; productTitle: string; sku: string; optionValues: Record<string,string>;
   unitLkrMinor: number; lineLkrMinor: number; quantity: number;
 };
-export type SellerOrder = {
+export type SellerOrder = import('./delivery').DeliveryTracking & {
   id: string; status: string; seller: { id?: string; name: string; slug?: string };
   totalLkrMinor: number; items: OrderItem[];
   returnRequest?: {id:string;status:string}|null;
+  returnRequests?:{id:string;status:string}[];
   events?: {id:string;fromStatus:string;toStatus:string;createdAt:string}[];
 };
 export type Order = {
@@ -43,4 +46,4 @@ export type Order = {
   subtotalLkrMinor: number; shippingLkrMinor: number; totalLkrMinor: number;
   sellerOrders: SellerOrder[];
 };
-export type Notification = { id: string; type?: string; message: string; readAt?: string | null; createdAt: string };
+export type Notification = { id: string; type?: string; message: string; href?:string|null; subjectId?:string; readAt?: string | null; createdAt: string };

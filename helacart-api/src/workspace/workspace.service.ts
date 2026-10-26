@@ -11,6 +11,7 @@ import {
 } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthService } from '../auth/auth.service.js';
+import { refundSelect } from '../after-sales/after-sales.service.js';
 import { adminVerificationSelect } from '../sellers/shop-verification.service.js';
 import {
   buyerSellerOrderFields,
@@ -48,10 +49,14 @@ export function uuidPrefix(value?: string) {
   return { gte: uuid(hex.padEnd(32, '0')), lte: uuid(hex.padEnd(32, 'f')) };
 }
 const sellerPart = {
+  shipment: true,
   seller: { select: { id: true, name: true, slug: true } },
   items: true,
   events: { orderBy: [{ createdAt: 'asc' }, { id: 'asc' }] },
-  returnRequest: { select: { id: true, status: true } },
+  returnRequests: {
+    select: { id: true, status: true },
+    orderBy: { createdAt: 'desc' },
+  },
 } satisfies Prisma.SellerOrderInclude;
 const orderInclude = {
   sellerOrders: {
@@ -80,6 +85,12 @@ const sellerOrderInclude = {
   },
 } satisfies Prisma.SellerOrderInclude;
 const returnInclude = {
+  items: {
+    include: {
+      orderItem: { select: buyerOrderItemFields },
+      refunds: { select: refundSelect },
+    },
+  },
   sellerOrder: {
     select: {
       id: true,

@@ -27,7 +27,10 @@ import {
   AddressDto,
   CheckoutDto,
   SellerOrderStatusDto,
+  DeliverySettingsDto,
+  ShipmentDto,
 } from './commerce.dto.js';
+import { canonicalDistrict, deliveryFor } from './delivery-rules.js';
 
 export const buyerOrderItemFields = {
   id: true,
@@ -51,6 +54,10 @@ export const buyerSellerOrderFields = {
   paymentCollectedAt: true,
   createdAt: true,
   updatedAt: true,
+  deliveryDistrict: true,
+  deliveryRateRevision: true,
+  deliveryMinDays: true,
+  deliveryMaxDays: true,
 } as const;
 const orderDetail = {
   sellerOrders: {
@@ -59,11 +66,12 @@ const orderDetail = {
       ...buyerSellerOrderFields,
       seller: { select: { id: true, name: true, slug: true } },
       items: { select: buyerOrderItemFields },
+      shipment: true,
       events: { orderBy: { createdAt: 'asc' as const } },
     },
   },
 } as const;
-const orderWriteOptions = { timeout: 15_000, maxWait: 10_000 } as const;
+const orderWriteOptions = { timeout: 45_000, maxWait: 10_000 } as const;
 
 type CartRow = Prisma.CartItemGetPayload<{
   include: {
@@ -164,9 +172,16 @@ export class CommerceService {
     return { deleted: true };
   }
 
-  async cart(identity: DecodedIdToken) {
+  async cart(identity: DecodedIdToken, addressId?: string) {
     const user = await this.buyer(identity);
+    const address = addressId
+      ? await this.prisma.buyerAddress.findFirst({
+          where: { id: addressId, userId: user.id, isActive: true },
+        })
+      : undefined;
+    if (addressId && !address) throw new NotFoundException('Address not found');
     const rows = await this.cartRows(this.prisma, user.id);
+    const delivery = this.deliveryQuotes(rows, address?.district);
     const items = rows.map((item) => ({
       variantId: item.variantId,
       quantity: item.quantity,
@@ -176,35 +191,32 @@ export class CommerceService {
       sellerName: item.variant.product.seller.name,
       sellerSlug: item.variant.product.seller.slug,
       imageUrl: item.variant.product.imageUrls[0] ?? null,
-      shippingFeeLkrMinor: item.variant.product.seller.shippingFeeLkrMinor,
+      shippingFeeLkrMinor: delivery.find(
+        (d) => d.sellerId === item.variant.sellerId,
+      )!.feeMinor,
       sku: item.variant.sku,
       optionValues: item.variant.optionValues,
       priceLkrMinor: item.variant.priceLkrMinor,
       availableQuantity: item.variant.onHand - item.variant.reserved,
       available: this.isAvailable(item),
-      shippingConfigured:
-        item.variant.product.seller.shippingFeeLkrMinor !== null,
+      shippingConfigured: delivery.find(
+        (d) => d.sellerId === item.variant.sellerId,
+      )!.available,
     }));
     const subtotal = items.reduce(
       (sum, item) => sum + item.priceLkrMinor * item.quantity,
       0,
     );
-    const sellers = new Map(
-      rows.map((row) => [
-        row.variant.sellerId,
-        row.variant.product.seller.shippingFeeLkrMinor,
-      ]),
-    );
-    const shipping = [...sellers.values()].reduce<number>(
-      (sum, fee) => sum + (fee ?? 0),
-      0,
-    );
+    const shipping = delivery.reduce((sum, d) => sum + (d.feeMinor ?? 0), 0);
     return {
       items,
       subtotalLkrMinor: subtotal,
       shippingLkrMinor: shipping,
       totalLkrMinor: subtotal + shipping,
-      checkoutQuote: this.quote(rows),
+      checkoutQuote: this.quote(rows, address ?? undefined),
+      addressId: address?.id ?? null,
+      deliveryQuoted: Boolean(address),
+      deliveryBySeller: delivery,
       canCheckout:
         items.length > 0 &&
         items.length <= 50 &&
@@ -227,9 +239,61 @@ export class CommerceService {
     await this.catalog.requireSellerMember(sellerId, identity, true);
     return this.prisma.seller.update({
       where: { id: sellerId },
-      data: { shippingFeeLkrMinor },
+      data: { shippingFeeLkrMinor, deliveryRevision: { increment: 1 } },
       select: { id: true, shippingFeeLkrMinor: true },
     });
+  }
+  async deliverySettings(sellerId: string, identity: DecodedIdToken) {
+    await this.catalog.requireSellerMember(sellerId, identity, false);
+    return this.prisma.seller.findUniqueOrThrow({
+      where: { id: sellerId },
+      select: {
+        id: true,
+        shippingFeeLkrMinor: true,
+        deliveryRevision: true,
+        deliveryRules: true,
+        freeShippingThresholdMinor: true,
+        deliveryMinDays: true,
+        deliveryMaxDays: true,
+      },
+    });
+  }
+  async setDeliverySettings(
+    sellerId: string,
+    identity: DecodedIdToken,
+    dto: DeliverySettingsDto,
+  ) {
+    await this.catalog.requireSellerMember(sellerId, identity, true);
+    if (
+      (dto.deliveryMinDays == null) !== (dto.deliveryMaxDays == null) ||
+      (dto.deliveryMinDays != null &&
+        dto.deliveryMinDays > dto.deliveryMaxDays!)
+    )
+      throw new BadRequestException(
+        'Set both delivery estimates, with minimum no greater than maximum',
+      );
+    const changed = await this.prisma.seller.updateMany({
+      where: {
+        id: sellerId,
+        deliveryRevision: dto.version,
+        status: SellerStatus.APPROVED,
+      },
+      data: {
+        shippingFeeLkrMinor: dto.shippingFeeLkrMinor,
+        deliveryRevision: { increment: 1 },
+        deliveryRules: [...dto.districtRates].sort((a, b) =>
+          a.district.localeCompare(b.district),
+        ) as unknown as Prisma.InputJsonValue,
+        freeShippingThresholdMinor: dto.freeShippingThresholdMinor,
+        deliveryMinDays: dto.deliveryMinDays,
+        deliveryMaxDays: dto.deliveryMaxDays,
+      },
+    });
+    if (!changed.count)
+      throw new ConflictException(
+        'Delivery settings changed. Reload before saving',
+      );
+    return this.deliverySettings(sellerId, identity);
   }
 
   async checkout(identity: DecodedIdToken, dto: CheckoutDto) {
@@ -264,7 +328,19 @@ export class CommerceService {
             if (!rows.length) throw new BadRequestException('Cart is empty');
             if (rows.length > 50)
               throw new BadRequestException('Cart exceeds 50 items');
-            if (this.quote(rows) !== dto.quote)
+            const hasCustomDelivery = rows.some((row) => {
+              const s = row.variant.product.seller;
+              return (
+                (Array.isArray(s.deliveryRules) &&
+                  s.deliveryRules.length > 0) ||
+                s.freeShippingThresholdMinor != null ||
+                s.deliveryMinDays != null
+              );
+            });
+            if (
+              this.quote(rows, address) !== dto.quote &&
+              (hasCustomDelivery || this.quote(rows) !== dto.quote)
+            )
               throw new ConflictException(
                 'Your cart or delivery charges changed. Review the updated cart before placing your order.',
               );
@@ -277,6 +353,11 @@ export class CommerceService {
                   'Product or seller delivery is unavailable',
                 );
             }
+            const delivery = this.deliveryQuotes(rows, address.district);
+            if (delivery.some((d) => !d.available))
+              throw new ConflictException(
+                'A shop cannot deliver to this address. Review delivery details before checkout',
+              );
             const grouped = new Map<string, CartRow[]>();
             for (const row of rows)
               grouped.set(row.variant.sellerId, [
@@ -287,11 +368,7 @@ export class CommerceService {
               (sum, row) => sum + row.quantity * row.variant.priceLkrMinor,
               0,
             );
-            const shipping = [...grouped.values()].reduce(
-              (sum, group) =>
-                sum + group[0].variant.product.seller.shippingFeeLkrMinor!,
-              0,
-            );
+            const shipping = delivery.reduce((sum, d) => sum + d.feeMinor!, 0);
             if (
               !Number.isSafeInteger(subtotal + shipping) ||
               subtotal + shipping > 1_000_000_000
@@ -341,9 +418,15 @@ export class CommerceService {
                         sum + row.quantity * row.variant.priceLkrMinor,
                       0,
                     );
-                    const shippingLkrMinor =
-                      group[0].variant.product.seller.shippingFeeLkrMinor!;
+                    const deliveryTerms = delivery.find(
+                      (d) => d.sellerId === sellerId,
+                    )!;
+                    const shippingLkrMinor = deliveryTerms.feeMinor!;
                     return {
+                      deliveryDistrict: canonicalDistrict(address.district),
+                      deliveryRateRevision: deliveryTerms.revision,
+                      deliveryMinDays: deliveryTerms.minDays,
+                      deliveryMaxDays: deliveryTerms.maxDays,
                       sellerId,
                       subtotalLkrMinor,
                       shippingLkrMinor,
@@ -372,15 +455,14 @@ export class CommerceService {
               },
               include: orderDetail,
             });
-            for (const row of rows)
-              await tx.inventoryMovement.create({
-                data: {
-                  variantId: row.variantId,
-                  actorUserId: user.id,
-                  delta: -row.quantity,
-                  reason: `COD order ${order.id} placed`,
-                },
-              });
+            await tx.inventoryMovement.createMany({
+              data: rows.map((row) => ({
+                variantId: row.variantId,
+                actorUserId: user.id,
+                delta: -row.quantity,
+                reason: `COD order ${order.id} placed`,
+              })),
+            });
             await tx.cartItem.deleteMany({ where: { userId: user.id } });
             await this.notifications.forUser(
               tx,
@@ -388,15 +470,16 @@ export class CommerceService {
               NotificationType.ORDER_PLACED,
               order.id,
               'Your COD order was placed',
+              `/orders?order=${order.id}`,
             );
-            for (const sellerOrder of order.sellerOrders)
-              await this.notifications.forSeller(
-                tx,
-                sellerOrder.sellerId,
-                NotificationType.ORDER_PLACED,
-                sellerOrder.id,
-                'A new COD order needs fulfillment',
-              );
+            await this.notifications.forSellerOrders(tx, order.sellerOrders);
+            await this.notifications.forAdmins(
+              tx,
+              NotificationType.ORDER_PLACED,
+              order.id,
+              'A new COD order was placed',
+              `/admin/orders?order=${order.id}`,
+            );
             return order;
           },
           {
@@ -523,6 +606,17 @@ export class CommerceService {
       identity,
       true,
     );
+    if (
+      dto.status !== SellerOrderStatus.SHIPPED &&
+      (dto.courierName !== undefined || dto.trackingNumber !== undefined)
+    )
+      throw new BadRequestException(
+        'Tracking details are supplied when marking an order shipped',
+      );
+    if (dto.trackingNumber !== undefined && !dto.courierName)
+      throw new BadRequestException(
+        'Provide the courier or delivery service name',
+      );
     if (dto.status === SellerOrderStatus.CANCELLED)
       return this.cancel(sellerOrderId, user.id, {
         sellerId,
@@ -567,6 +661,29 @@ export class CommerceService {
         throw new ConflictException('Order cannot advance to that status');
       if (dto.status === SellerOrderStatus.DELIVERED)
         await accrueCommission(tx, sellerOrderId);
+      if (dto.status === SellerOrderStatus.SHIPPED && dto.courierName) {
+        const shipment = await tx.sellerShipment.create({
+          data: {
+            sellerOrderId,
+            courierName: dto.courierName,
+            trackingNumber: dto.trackingNumber || null,
+            shippedAt: new Date(),
+          },
+        });
+        await tx.shipmentChange.create({
+          data: {
+            shipmentId: shipment.id,
+            actorId: user.id,
+            version: 1,
+            before: {},
+            after: {
+              courierName: shipment.courierName,
+              trackingNumber: shipment.trackingNumber,
+            },
+            reason: 'Shipment details recorded at dispatch',
+          },
+        });
+      }
       await tx.sellerOrderEvent.create({
         data: {
           sellerOrderId,
@@ -577,7 +694,7 @@ export class CommerceService {
       });
       const buyer = await tx.sellerOrder.findUniqueOrThrow({
         where: { id: sellerOrderId },
-        select: { order: { select: { buyerId: true } } },
+        select: { orderId: true, order: { select: { buyerId: true } } },
       });
       await this.notifications.forUser(
         tx,
@@ -585,6 +702,15 @@ export class CommerceService {
         NotificationType.ORDER_UPDATED,
         sellerOrderId,
         `Your seller order is ${dto.status.toLowerCase()}`,
+        `/orders?order=${buyer.orderId}`,
+      );
+      await this.notifications.forSeller(
+        tx,
+        sellerId,
+        NotificationType.ORDER_UPDATED,
+        sellerOrderId,
+        `Order ${sellerOrderId.slice(0, 8).toUpperCase()} is ${dto.status.toLowerCase()}`,
+        `/seller/orders?order=${sellerOrderId}`,
       );
       return tx.sellerOrder.findUniqueOrThrow({
         where: { id: sellerOrderId },
@@ -592,8 +718,94 @@ export class CommerceService {
           ...buyerSellerOrderFields,
           items: { select: buyerOrderItemFields },
           events: true,
+          shipment: true,
         },
       });
+    }, orderWriteOptions);
+  }
+
+  async updateShipment(
+    sellerId: string,
+    sellerOrderId: string,
+    identity: DecodedIdToken,
+    dto: ShipmentDto,
+  ) {
+    const actor = await this.catalog.requireSellerMember(
+      sellerId,
+      identity,
+      true,
+    );
+    return this.prisma.$transaction(async (tx) => {
+      const locked = await tx.$queryRaw<
+        { id: string }[]
+      >`SELECT id FROM "SellerOrder" WHERE id=${sellerOrderId}::uuid AND "sellerId"=${sellerId}::uuid FOR UPDATE`;
+      if (!locked.length) throw new NotFoundException('Seller order not found');
+      const order = await tx.sellerOrder.findUniqueOrThrow({
+        where: { id: sellerOrderId },
+        include: {
+          shipment: true,
+          events: {
+            where: { toStatus: 'SHIPPED' },
+            orderBy: { createdAt: 'asc' },
+            take: 1,
+          },
+          order: { select: { buyerId: true } },
+        },
+      });
+      if (order.status !== 'SHIPPED')
+        throw new ConflictException(
+          'Tracking details can be changed while the order is shipped',
+        );
+      if ((order.shipment?.version ?? 0) !== dto.version)
+        throw new ConflictException('Tracking changed. Reload before saving');
+      const data = {
+        courierName: dto.courierName,
+        trackingNumber: dto.trackingNumber || null,
+      };
+      const shipment = order.shipment
+        ? await tx.sellerShipment.update({
+            where: { id: order.shipment.id },
+            data: { ...data, version: { increment: 1 } },
+          })
+        : await tx.sellerShipment.create({
+            data: {
+              ...data,
+              sellerOrderId,
+              shippedAt: order.events[0]?.createdAt ?? order.updatedAt,
+            },
+          });
+      await tx.shipmentChange.create({
+        data: {
+          shipmentId: shipment.id,
+          actorId: actor.id,
+          version: shipment.version,
+          before: order.shipment
+            ? {
+                courierName: order.shipment.courierName,
+                trackingNumber: order.shipment.trackingNumber,
+              }
+            : {},
+          after: data,
+          reason: dto.reason,
+        },
+      });
+      await this.notifications.forUser(
+        tx,
+        order.order.buyerId,
+        NotificationType.ORDER_TRACKING_UPDATED,
+        sellerOrderId,
+        'Delivery tracking details were updated',
+        `/orders?order=${order.orderId}`,
+      );
+      await this.notifications.forSeller(
+        tx,
+        sellerId,
+        NotificationType.ORDER_TRACKING_UPDATED,
+        sellerOrderId,
+        'Order tracking details were updated',
+        `/seller/orders?order=${sellerOrderId}`,
+      );
+      return shipment;
     }, orderWriteOptions);
   }
 
@@ -650,7 +862,11 @@ export class CommerceService {
       });
       const buyer = await tx.sellerOrder.findUniqueOrThrow({
         where: { id: sellerOrderId },
-        select: { order: { select: { buyerId: true } }, sellerId: true },
+        select: {
+          orderId: true,
+          order: { select: { buyerId: true } },
+          sellerId: true,
+        },
       });
       await this.notifications.forUser(
         tx,
@@ -658,6 +874,7 @@ export class CommerceService {
         NotificationType.ORDER_UPDATED,
         sellerOrderId,
         'A seller order was cancelled',
+        `/orders?order=${buyer.orderId}`,
       );
       await this.notifications.forSeller(
         tx,
@@ -665,6 +882,7 @@ export class CommerceService {
         NotificationType.ORDER_UPDATED,
         sellerOrderId,
         'A seller order was cancelled',
+        `/seller/orders?order=${sellerOrderId}`,
       );
       return tx.sellerOrder.findUniqueOrThrow({
         where: { id: sellerOrderId },
@@ -683,17 +901,56 @@ export class CommerceService {
       .digest('hex');
   }
 
-  private quote(rows: CartRow[]) {
+  private deliveryQuotes(rows: CartRow[], district?: string) {
+    const groups = new Map<string, CartRow[]>();
+    for (const row of rows)
+      groups.set(row.variant.sellerId, [
+        ...(groups.get(row.variant.sellerId) ?? []),
+        row,
+      ]);
+    return [...groups].map(([sellerId, group]) => ({
+      sellerId,
+      sellerName: group[0].variant.product.seller.name,
+      ...deliveryFor(
+        group[0].variant.product.seller,
+        group.reduce((s, r) => s + r.quantity * r.variant.priceLkrMinor, 0),
+        district,
+      ),
+    }));
+  }
+  private quote(
+    rows: CartRow[],
+    address?: {
+      id: string;
+      district: string;
+      recipient: string;
+      phone: string;
+      line1: string;
+      line2?: string | null;
+      city: string;
+      postalCode: string;
+    },
+  ) {
     return createHash('sha256')
       .update(
-        JSON.stringify(
-          rows
+        JSON.stringify({
+          address: address ?? null,
+          items: rows
             .map((row) => ({
               variantId: row.variantId,
               sellerId: row.variant.sellerId,
               quantity: row.quantity,
               price: row.variant.priceLkrMinor,
               delivery: row.variant.product.seller.shippingFeeLkrMinor,
+              deliveryRules: row.variant.product.seller.deliveryRules ?? [],
+              deliveryRevision:
+                row.variant.product.seller.deliveryRevision ?? 0,
+              freeShippingThresholdMinor:
+                row.variant.product.seller.freeShippingThresholdMinor ?? null,
+              deliveryMinDays:
+                row.variant.product.seller.deliveryMinDays ?? null,
+              deliveryMaxDays:
+                row.variant.product.seller.deliveryMaxDays ?? null,
               title: row.variant.product.title,
               sku: row.variant.sku,
               options: Object.entries(
@@ -701,7 +958,7 @@ export class CommerceService {
               ).sort(([a], [b]) => a.localeCompare(b)),
             }))
             .sort((a, b) => a.variantId.localeCompare(b.variantId)),
-        ),
+        }),
       )
       .digest('hex');
   }

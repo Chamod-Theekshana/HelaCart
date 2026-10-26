@@ -1,6 +1,8 @@
 "use client";
+import { PageQueryBridge } from "@/components/page-query-bridge";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import { ShipmentTracking } from "@/components/shipment-tracking";
 import { MapPin, Phone, Search, ShoppingBag } from "lucide-react";
 import { previewAdminSummary, type AdminSummary } from "@/lib/workspace";
 import { money } from "@/lib/api";
@@ -31,11 +33,20 @@ export default function AdminOrdersPage() {
     previewAdminSummary,
   );
   const [selectedId, setSelectedId] = useState("");
+  const applyQuery = useCallback((params: URLSearchParams) => {
+    const target = params.get("order");
+    if (target) {
+      setQuery(target);
+      setSelectedId(target);
+      setStatus("ALL");
+    }
+  }, []);
   const shown = resource.data ?? [];
   const selected =
     shown.find((row) => row.id === selectedId) ?? shown[0] ?? null;
   return (
     <>
+      <PageQueryBridge onChange={applyQuery} />
       <AdminHeading
         eyebrow="FULFILMENT / COD"
         title="Orders"
@@ -165,6 +176,7 @@ export default function AdminOrdersPage() {
                     <AdminBadge value={part.status} />
                   </div>
                   <small>Seller order {shortId(part.id)}</small>
+                  <ShipmentTracking order={part} />
                   {part.items.map((item) => (
                     <div className="admin-line" key={item.id}>
                       <span>

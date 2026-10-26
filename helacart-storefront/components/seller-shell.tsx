@@ -9,12 +9,15 @@ import { Brand } from "./site-header";
 import { useShop } from "./shop-provider";
 import { useSeller } from "./seller-provider";
 import { shopPath } from "@/lib/shops";
+import {NotificationBell} from './notification-bell';
 
 const nav = [
   { href: "/seller", label: "Overview", icon: LayoutDashboard },
   { href: "/seller/products", label: "Products", icon: Box },
   { href: "/seller/inventory", label: "Inventory & Stock", icon: ShoppingBag },
   { href: "/seller/orders", label: "Orders", icon: ClipboardList },
+  { href: "/seller/returns", label: "Returns & refunds", icon: ClipboardList },
+  { href: "/seller/support", label: "Support cases", icon: MessageSquare },
   { href: "/seller/commission", label: "Commission & payments", icon: Wallet },
   { href: "/seller/shop", label: "Shop profile", icon: Store },
   { href: "/seller/reviews", label: "Customer reviews", icon: MessageSquare },
@@ -89,7 +92,7 @@ export function SellerShell({ children }: { children: React.ReactNode }) {
         <div className="seller-top-pills"><span className="seller-top-pill"><span className="seller-live-dot" /> {seller ? "Approved store" : "Merchant workspace"}</span>
           <span className="seller-top-pill muted"><Wallet size={16} /> Cash on delivery</span></div>
         {seller && <Link className="primary-btn seller-top-add" href="/seller/products/new"><Plus size={17} /> Add product</Link>}
-        <Link href="/seller/shop" className="seller-top-account" aria-label="Your shop profile"><span title={seller?.name ?? "Your shop"}>{seller?.name ?? "Your shop"}</span>{seller?.logoUrl ? <img src={seller.logoUrl} width={32} height={32} alt="" style={{ borderRadius: 8, objectFit: "cover", flexShrink: 0 }} /> : <Store size={18} />}</Link></header>
+        <NotificationBell workspace="seller"/><Link href="/seller/shop" className="seller-top-account" aria-label="Your shop profile"><span title={seller?.name ?? "Your shop"}>{seller?.name ?? "Your shop"}</span>{seller?.logoUrl ? <img src={seller.logoUrl} width={32} height={32} alt="" style={{ borderRadius: 8, objectFit: "cover", flexShrink: 0 }} /> : <Store size={18} />}</Link></header>
       <main className="seller-content">
         {isPreview && <div className="seller-preview" role="status">Design preview · Sample products and orders. Connect the API and sign in to manage real store data.</div>}
         {!isPreview && (!authReady || (user && loading)) ? <div className="seller-state">Loading your seller workspace…</div>
