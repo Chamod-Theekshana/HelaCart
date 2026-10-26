@@ -26,6 +26,9 @@ export const publicProduct = {
   title: true,
   slug: true,
   description: true,
+  brand: true,
+  warranty: true,
+  specifications: true,
   priceLkrMinor: true,
   imageUrls: true,
   updatedAt: true,
@@ -138,7 +141,7 @@ export class CatalogService {
     try {
       return await this.prisma.product.create({
         data: {
-          ...dto,
+          ...this.productData(dto),
           sellerId,
           status: ProductStatus.DRAFT,
           variants: {
@@ -215,7 +218,7 @@ export class CatalogService {
             },
           },
           // Editing an approved product immediately removes it from the public catalog.
-          data: { ...dto, status: ProductStatus.DRAFT },
+          data: { ...this.productData(dto), status: ProductStatus.DRAFT },
         });
         if (updated.count !== 1)
           await this.productTransitionError(sellerId, productId);
@@ -386,6 +389,16 @@ export class CatalogService {
         'Seller must be approved to manage products',
       );
     return profile;
+  }
+
+  private productData<T extends CreateProductDto | UpdateProductDto>(dto: T) {
+    return {
+      ...dto,
+      specifications: dto.specifications?.map(({ name, value }) => ({
+        name,
+        value,
+      })),
+    };
   }
 
   withAvailability<

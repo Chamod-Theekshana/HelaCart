@@ -1,5 +1,6 @@
 "use client";
 
+import {ProductSpecifications} from "@/components/product-specifications";
 import { useState } from "react";
 import { Box, Search, X } from "lucide-react";
 import { money } from "@/lib/api";
@@ -238,6 +239,7 @@ export default function AdminProductsPage() {
               </div>
               <h3>Description</h3>
               <p className="admin-description">{selected.description}</p>
+              <ProductSpecifications product={selected}/>
               <h3>Product details</h3>
               <dl className="admin-detail-list">
                 <dt>Seller</dt>

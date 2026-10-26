@@ -24,7 +24,7 @@ export default async function ProductPage({ params }: { params: Promise<{ id: st
     { label: product.category.name, href: `/products?category=${encodeURIComponent(product.category.slug)}` },
     { label: product.title },
   ]} />
-    <ProductDetail product={product} />
+    <ProductDetail key={product.id} product={product} />
     {related.length > 0 && <section className="home-section related-section"><div className="section-heading"><div><span className="section-kicker">YOU MAY ALSO LIKE</span><h2>Related products</h2></div></div>
       <div className="product-grid">{related.map((item) => <ProductCard key={item.id} product={item} />)}</div>
     </section>}

@@ -1,3 +1,4 @@
+import { AccountAccessService } from '../src/auth/account-access.service.js';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
@@ -53,6 +54,8 @@ describe('Private account and shop profiles', () => {
     const fixture = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
       .useValue(db)
+      .overrideProvider(AccountAccessService)
+      .useValue({ assertActive: async () => {} })
       .overrideProvider(FirebaseAdminService)
       .useValue(firebase)
       .overrideProvider(ProfilePhotoStorageService)

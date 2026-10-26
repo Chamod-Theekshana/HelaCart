@@ -6,17 +6,24 @@ import { FirebaseAdminService } from './firebase-admin.service.js';
 import { FirebaseAuthGuard } from './firebase-auth.guard.js';
 import { ProfilePhotosService } from './profile-photos.service.js';
 import { ProfilePhotoStorageService } from './profile-photo-storage.service.js';
+import { AccountAccessService } from './account-access.service.js';
 
 @Module({
   imports: [PrismaModule],
   controllers: [AuthController],
   providers: [
+    AccountAccessService,
     AuthService,
     FirebaseAdminService,
     FirebaseAuthGuard,
     ProfilePhotosService,
     ProfilePhotoStorageService,
   ],
-  exports: [AuthService, FirebaseAdminService, FirebaseAuthGuard],
+  exports: [
+    AuthService,
+    FirebaseAdminService,
+    FirebaseAuthGuard,
+    AccountAccessService,
+  ],
 })
 export class AuthModule {}

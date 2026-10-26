@@ -1,3 +1,4 @@
+import { AccountAccessService } from '../src/auth/account-access.service.js';
 import { Test } from '@nestjs/testing';
 import { Body, Controller, type INestApplication, Post } from '@nestjs/common';
 import { IsString } from 'class-validator';
@@ -170,6 +171,8 @@ describe('API HTTP behavior (database mocked)', () => {
     })
       .overrideProvider(PrismaService)
       .useValue(database)
+      .overrideProvider(AccountAccessService)
+      .useValue({ assertActive: async () => {} })
       .overrideProvider(FirebaseAdminService)
       .useValue(firebase)
       .compile();
@@ -358,7 +361,7 @@ describe('API HTTP behavior (database mocked)', () => {
       .expect({ ...profile, hasPhoto: false })
       .expect('Cache-Control', 'no-store');
 
-    expect(firebase.verifyIdToken).toHaveBeenCalledWith('valid-token');
+    expect(firebase.verifyIdToken).toHaveBeenCalledWith('valid-token', true);
     expect(database.user.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { firebaseUid: 'firebase-user-1' },

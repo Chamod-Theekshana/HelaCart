@@ -13,13 +13,41 @@ import {
   Matches,
   Max,
   Min,
+  ValidateNested,
+  ValidateIf,
 } from 'class-validator';
 import { ProductStatus } from '../../generated/prisma/client.js';
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === 'string' ? value.trim() : value;
 
-export class CreateProductDto {
+export class ProductSpecificationDto {
+  @Transform(trim) @IsString() @Length(1, 60) name!: string;
+  @Transform(trim) @IsString() @Length(1, 300) value!: string;
+}
+export class ProductDetailsDto {
+  @ValidateIf((_object, value) => value !== undefined)
+  @Transform(trim)
+  @IsString()
+  @Length(0, 100)
+  brand?: string;
+  @ValidateIf((_object, value) => value !== undefined)
+  @Transform(trim)
+  @IsString()
+  @Length(0, 500)
+  warranty?: string;
+  @ValidateIf((_object, value) => value !== undefined)
+  @IsArray()
+  @ArrayMaxSize(20)
+  @ArrayUnique((row: ProductSpecificationDto) =>
+    typeof row?.name === 'string' ? row.name.toLowerCase() : row,
+  )
+  @ValidateNested({ each: true })
+  @Type(() => ProductSpecificationDto)
+  specifications?: ProductSpecificationDto[];
+}
+
+export class CreateProductDto extends ProductDetailsDto {
   @Transform(trim)
   @IsString()
   @Length(3, 120)
@@ -58,7 +86,7 @@ export class CreateProductDto {
   imageUrls?: string[];
 }
 
-export class UpdateProductDto {
+export class UpdateProductDto extends ProductDetailsDto {
   @Transform(trim)
   @IsOptional()
   @IsString()

@@ -1,4 +1,7 @@
 "use client";
+import {ProductDetailsFields} from "@/components/product-details-fields";
+import {type ProductDetails} from "@/lib/product-feedback";
+
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
@@ -10,14 +13,15 @@ import { formatSellerDate, rupeesToMinor, type SellerProduct, type SellerVariant
 import { useSeller } from "@/components/seller-provider";
 import { SellerPageHeading, SellerStatusBadge } from "@/components/seller-ui";
 
-export default function SellerProductDetail() {
-  const { id } = useParams<{ id: string }>();
+export default function SellerProductDetail(){const {id}=useParams<{id:string}>();const {seller}=useSeller();return <SellerProductDetailContent key={`${seller?.id}:${id}`} id={id}/>;}
+function SellerProductDetailContent({id}:{id:string}) {
   const { seller, products, isPreview, request, refreshProducts } = useSeller();
   const previewProduct = isPreview ? products.find((row) => row.id === id) ?? null : null;
   const [liveProduct, setLiveProduct] = useState<SellerProduct | null>(null);
   const product = isPreview ? previewProduct : liveProduct;
   const [title, setTitle] = useState(previewProduct?.title ?? "");
   const [description, setDescription] = useState(previewProduct?.description ?? "");
+  const [details,setDetails]=useState<ProductDetails>({brand:previewProduct?.brand??"",warranty:previewProduct?.warranty??"",specifications:previewProduct?.specifications??[]});
   const [sku, setSku] = useState(previewProduct?.sku ?? "");
   const [price, setPrice] = useState(previewProduct ? (previewProduct.priceLkrMinor / 100).toFixed(2) : "");
   const [imageUrls, setImageUrls] = useState(previewProduct?.imageUrls.join("\n") ?? "");
@@ -32,7 +36,7 @@ export default function SellerProductDetail() {
     let active = true;
     request<SellerProduct>(`/sellers/${sellerId}/products/${id}`)
       .then((row) => { if (active) {
-        setLiveProduct(row); setTitle(row.title); setDescription(row.description ?? ""); setSku(row.sku);
+        setDetails({brand:row.brand??"",warranty:row.warranty??"",specifications:row.specifications??[]}); setLiveProduct(row); setTitle(row.title); setDescription(row.description ?? ""); setSku(row.sku);
         setPrice((row.priceLkrMinor / 100).toFixed(2)); setImageUrls(row.imageUrls.join("\n"));
       } })
       .catch((cause) => { if (active) setNotice(errorMessage(cause)); });
@@ -48,7 +52,7 @@ export default function SellerProductDetail() {
     setBusy("details"); setNotice("");
     try {
       const updated = await request<SellerProduct>(`/sellers/${seller.id}/products/${product.id}`, "PATCH", {
-        title: title.trim(), description: description.trim(), sku: sku.trim().toUpperCase(), priceLkrMinor, imageUrls: images,
+        title: title.trim(), description: description.trim(), sku: sku.trim().toUpperCase(), priceLkrMinor, imageUrls: images, ...details, specifications:details.specifications.map(row=>({name:row.name.trim(),value:row.value.trim()})),
       });
       setLiveProduct(updated); await refreshProducts(); setNotice("Product saved as a draft. Submit it for review when ready.");
     } catch (cause) { setNotice(errorMessage(cause)); }
@@ -137,6 +141,7 @@ export default function SellerProductDetail() {
           <label>Default SKU<input required minLength={2} maxLength={64} pattern="[A-Za-z0-9]+([-_][A-Za-z0-9]+)*" value={sku} onChange={(e) => setSku(e.target.value.toUpperCase())} /></label>
           <label>Default price (LKR)<input required inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} /></label>
           <label className="wide">Image URLs (one HTTPS URL per line, maximum five)<textarea rows={3} value={imageUrls} onChange={(e) => setImageUrls(e.target.value)} /></label></div>
+      <ProductDetailsFields value={details} onChange={setDetails} disabled={isPreview || Boolean(busy) || product.status === "PENDING"}/>
         <button className="primary-btn" disabled={isPreview || Boolean(busy) || product.status === "PENDING"} type="submit">{busy === "details" ? "Saving…" : "Save changes"}</button>
         {product.status === "PENDING" && <p className="seller-muted">Products under review cannot be edited.</p>}
       </form>

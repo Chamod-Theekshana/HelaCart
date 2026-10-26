@@ -1,7 +1,7 @@
 "use client";
 /* eslint-disable react/no-unescaped-entities */
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -19,8 +19,12 @@ import { shopPath } from "@/lib/shops";
 import { useShop } from "./shop-provider";
 import { StorefrontImage } from "./storefront-image";
 import { FavoriteButton } from "./favorite-button";
+import { ProductReviews } from "./product-reviews";
+import { ProductSpecifications } from "./product-specifications";
+import reviewStyles from "./product-feedback.module.css";
 
 export function ProductDetail({ product }: { product: Product }) {
+  const zoom = useRef<HTMLDialogElement>(null);
   const [image, setImage] = useState(0);
   const [variantId, setVariantId] = useState(
     product.variants.find((entry) => entry.availableQuantity)?.id ??
@@ -56,11 +60,19 @@ export function ProductDetail({ product }: { product: Product }) {
       <div className="detail-grid">
         <div className="gallery">
           <div className="gallery-main">
-            <StorefrontImage
-              src={product.imageUrls[image]}
-              alt={product.title}
-              fallback={<span className="image-fallback">HelaCart</span>}
-            />
+            <button
+              type="button"
+              className={reviewStyles.zoomTrigger}
+              aria-label="Enlarge product image"
+              disabled={!product.imageUrls[image]}
+              onClick={() => zoom.current?.showModal()}
+            >
+              <StorefrontImage
+                src={product.imageUrls[image]}
+                alt={product.title}
+                fallback={<span className="image-fallback">HelaCart</span>}
+              />
+            </button>
           </div>
           {product.imageUrls.length > 1 && (
             <div className="gallery-thumbs">
@@ -71,6 +83,7 @@ export function ProductDetail({ product }: { product: Product }) {
                   key={src}
                   onClick={() => setImage(index)}
                   aria-label={`View image ${index + 1}`}
+                  aria-pressed={image === index}
                 >
                   <StorefrontImage
                     src={src}
@@ -89,13 +102,18 @@ export function ProductDetail({ product }: { product: Product }) {
           </Link>
           <span className="category-pill">{product.category.name}</span>
           <h1>{product.title}</h1>
+          <a className="text-link" href="#product-reviews">
+            Read verified product reviews
+          </a>
           <p className="product-sku">{variant?.sku ?? "Product details"}</p>
           <div className="detail-price">
             {money(variant?.priceLkrMinor ?? product.priceLkrMinor)}
           </div>
           <p className="product-description">
-            {product.description ||
-              "Explore this product from a HelaCart seller."}
+            {(product.description ?? "").slice(0, 220) +
+              (product.description && product.description.length > 220
+                ? "…"
+                : "") || "Explore this product from a HelaCart seller."}
           </p>
           {product.variants.length > 1 && (
             <div className="detail-options">
@@ -205,10 +223,11 @@ export function ProductDetail({ product }: { product: Product }) {
         <div>
           <span className="section-kicker">PRODUCT DETAILS</span>
           <h2>About this item</h2>
-          <p>
+          <p className={reviewStyles.detailsText}>
             {product.description ||
               "The seller has not added a description yet."}
           </p>
+          <ProductSpecifications product={product} />
         </div>
         <div>
           <span className="section-kicker">SELLER</span>
@@ -221,6 +240,40 @@ export function ProductDetail({ product }: { product: Product }) {
           </Link>
         </div>
       </section>
+      <ProductReviews productId={product.id} />
+      <dialog
+        ref={zoom}
+        className={reviewStyles.zoom}
+        aria-label="Product image preview"
+      >
+        <button className="outline-btn" onClick={() => zoom.current?.close()}>
+          Close image
+        </button>
+        <StorefrontImage
+          src={product.imageUrls[image]}
+          alt={product.title}
+          fallback={<span>Image unavailable</span>}
+        />
+        <div className={reviewStyles.actions}>
+          <button
+            className="outline-btn"
+            disabled={image === 0}
+            onClick={() => setImage((i) => i - 1)}
+          >
+            Previous image
+          </button>
+          <span>
+            {image + 1} / {product.imageUrls.length}
+          </span>
+          <button
+            className="outline-btn"
+            disabled={image >= product.imageUrls.length - 1}
+            onClick={() => setImage((i) => i + 1)}
+          >
+            Next image
+          </button>
+        </div>
+      </dialog>
     </>
   );
 }

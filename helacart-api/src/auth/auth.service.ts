@@ -20,6 +20,8 @@ export const accountProfileSelect = {
   photoVersion: true,
   createdAt: true,
   updatedAt: true,
+  accessStatus: true,
+  accessVersion: true,
   memberships: {
     select: {
       role: true,
@@ -73,6 +75,10 @@ export class AuthService {
         },
         select: accountProfileSelect,
       });
+      if (profile.accessStatus === 'SUSPENDED')
+        throw new ForbiddenException(
+          'Your HelaCart account is suspended. Contact HelaCart support for help',
+        );
       return presentProfile(profile);
     } catch (error) {
       if (

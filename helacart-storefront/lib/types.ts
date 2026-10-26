@@ -4,6 +4,7 @@ export type Variant = {
   priceLkrMinor: number; availableQuantity: number;
 };
 export type Product = {
+  brand?:string|null;warranty?:string|null;specifications?:{name:string;value:string}[];
   id: string; title: string; slug?: string; description: string | null;
   imageUrls: string[]; priceLkrMinor: number;
   listingPriceLkrMinor?: number;
@@ -30,6 +31,7 @@ export type Address = {
   line2?: string | null; city: string; district: string; postalCode: string;
 };
 export type OrderItem = {
+  variant?:{productId:string};
   id: string; productTitle: string; sku: string; optionValues: Record<string,string>;
   unitLkrMinor: number; lineLkrMinor: number; quantity: number;
 };

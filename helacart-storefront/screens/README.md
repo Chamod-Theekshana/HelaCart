@@ -26,6 +26,7 @@ Screen implementations retain their server/client boundaries, metadata and origi
 | `/account/profile` | [user-profile-screen.tsx](./user/user-profile-screen.tsx) |
 | `/account/returns` | [user-returns-screen.tsx](./user/user-returns-screen.tsx) |
 | `/account/support` | [user-support-screen.tsx](./user/user-support-screen.tsx) |
+| `/account/reviews` | [user-product-reviews-screen.tsx](./user/user-product-reviews-screen.tsx) |
 | `/account/security` | [user-security-screen.tsx](./user/user-security-screen.tsx) |
 | `/orders` | [user-orders-screen.tsx](./user/user-orders-screen.tsx) |
 | `/favorites` | [user-favorites-screen.tsx](./user/user-favorites-screen.tsx) |
@@ -45,6 +46,8 @@ Screen implementations retain their server/client boundaries, metadata and origi
 | `/seller/products/[id]` | [seller-product-details-screen.tsx](./seller/seller-product-details-screen.tsx) |
 | `/seller/products/new` | [seller-create-product-screen.tsx](./seller/seller-create-product-screen.tsx) |
 | `/seller/reviews` | [seller-reviews-screen.tsx](./seller/seller-reviews-screen.tsx) |
+| `/seller/product-reviews` | [seller-product-reviews-screen.tsx](./seller/seller-product-reviews-screen.tsx) |
+| `/seller/team` | [seller-team-screen.tsx](./seller/seller-team-screen.tsx) |
 | `/seller/settings` | [seller-delivery-settings-screen.tsx](./seller/seller-delivery-settings-screen.tsx) |
 | `/seller/shop` | [seller-shop-profile-screen.tsx](./seller/seller-shop-profile-screen.tsx) |
 
@@ -65,4 +68,6 @@ Screen implementations retain their server/client boundaries, metadata and origi
 | `/admin/profile` | [admin-profile-screen.tsx](./admin/admin-profile-screen.tsx) |
 | `/admin/returns` | [admin-returns-screen.tsx](./admin/admin-returns-screen.tsx) |
 | `/admin/review-reports` | [admin-review-reports-screen.tsx](./admin/admin-review-reports-screen.tsx) |
+| `/admin/product-review-reports` | [admin-product-review-reports-screen.tsx](./admin/admin-product-review-reports-screen.tsx) |
+| `/admin/accounts` | [admin-accounts-screen.tsx](./admin/admin-accounts-screen.tsx) |
 | `/admin/seller-applications` | [admin-seller-applications-screen.tsx](./admin/admin-seller-applications-screen.tsx) |

@@ -20,6 +20,8 @@ const nav = [
   { href: "/seller/support", label: "Support cases", icon: MessageSquare },
   { href: "/seller/commission", label: "Commission & payments", icon: Wallet },
   { href: "/seller/shop", label: "Shop profile", icon: Store },
+  { href: "/seller/product-reviews", label: "Product reviews", icon: MessageSquare },
+  { href: "/seller/team", label: "Team & permissions", icon: Settings },
   { href: "/seller/reviews", label: "Customer reviews", icon: MessageSquare },
   { href: "/seller/settings", label: "Delivery Settings", icon: Settings },
 ];

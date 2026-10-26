@@ -7,6 +7,7 @@ import {
 import type { Request } from 'express';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import { FirebaseAdminService } from './firebase-admin.service.js';
+import { AccountAccessService } from './account-access.service.js';
 
 export type AuthenticatedRequest = Request & {
   user: DecodedIdToken;
@@ -14,7 +15,10 @@ export type AuthenticatedRequest = Request & {
 
 @Injectable()
 export class FirebaseAuthGuard implements CanActivate {
-  constructor(private readonly firebase: FirebaseAdminService) {}
+  constructor(
+    private readonly firebase: FirebaseAdminService,
+    private readonly access: AccountAccessService,
+  ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request = context.switchToHttp().getRequest<AuthenticatedRequest>();
@@ -24,10 +28,11 @@ export class FirebaseAuthGuard implements CanActivate {
     }
 
     try {
-      request.user = await this.firebase.verifyIdToken(match[1]);
-      return true;
+      request.user = await this.firebase.verifyIdToken(match[1], true);
     } catch {
       throw new UnauthorizedException('Invalid or expired Firebase token');
     }
+    await this.access.assertActive(request.user.uid);
+    return true;
   }
 }

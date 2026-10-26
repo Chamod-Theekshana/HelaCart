@@ -80,6 +80,15 @@ model User {
   refundSubmissions RefundRecord[] @relation("RefundSubmitter")
   refundDecisions RefundRecord[] @relation("RefundReviewer")
   refundReversals RefundReversal[]
+  accessStatus AccountAccessStatus @default(ACTIVE)
+  accessVersion Int @default(0)
+  accessChanges AccountAccessChange[] @relation("AccessTarget")
+  accessDecisions AccountAccessChange[] @relation("AccessActor")
+  customerProductReviews CustomerProductReview[] @relation("ProductBuyer")
+  productReplies CustomerProductReview[] @relation("ProductReplyAuthor")
+  productReviewReports CustomerProductReviewReport[] @relation("ProductReporter")
+  productReviewDecisions CustomerProductReviewReport[] @relation("ProductModerator")
+  teamChanges SellerTeamChange[]
 }
 
 model Seller {
@@ -120,6 +129,7 @@ model Seller {
   commissionCorrections CommissionCorrection[]
   supportCases SupportCase[]
   refundRecords RefundRecord[]
+  teamChanges SellerTeamChange[]
 
   @@index([status])
 }
@@ -238,6 +248,10 @@ model Product {
   commissionRateBps Int?
   commissionVersion Int @default(0)
   commissionChanges ProductCommissionChange[]
+  brand String? @db.VarChar(100)
+  warranty String? @db.VarChar(500)
+  specifications Json @default("[]")
+  customerReviews CustomerProductReview[]
 
   @@unique([sellerId, slug])
   @@unique([sellerId, sku])
@@ -259,6 +273,82 @@ model ProductFavorite {
   @@unique([userId, productId])
   @@index([userId, createdAt, id])
   @@index([productId])
+}
+
+enum AccountAccessStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+model AccountAccessChange {
+  id String @id @default(uuid()) @db.Uuid
+  userId String @db.Uuid
+  actorId String @db.Uuid
+  version Int
+  status AccountAccessStatus
+  reason String @db.VarChar(500)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  user User @relation("AccessTarget", fields:[userId],references:[id],onDelete:Restrict)
+  actor User @relation("AccessActor", fields:[actorId],references:[id],onDelete:Restrict)
+  @@unique([userId,version])
+}
+
+model SellerTeamChange {
+  id String @id @default(uuid()) @db.Uuid
+  sellerId String @db.Uuid
+  actorId String @db.Uuid
+  memberUserId String @db.Uuid
+  action String @db.VarChar(10)
+  reason String @db.VarChar(500)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  seller Seller @relation(fields:[sellerId],references:[id],onDelete:Restrict)
+  actor User @relation(fields:[actorId],references:[id],onDelete:Restrict)
+  @@index([sellerId,createdAt])
+}
+
+model CustomerProductReview {
+  id String @id @default(uuid()) @db.Uuid
+  productId String @db.Uuid
+  buyerId String @db.Uuid
+  orderItemId String @db.Uuid
+  buyerName String @db.VarChar(100)
+  rating Int
+  comment String @db.VarChar(1500)
+  variantLabel String @db.VarChar(300)
+  version Int @default(1)
+  isHidden Boolean @default(false)
+  deletedAt DateTime? @db.Timestamptz(3)
+  reply String? @db.VarChar(1500)
+  replyUserId String? @db.Uuid
+  repliedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  product Product @relation(fields:[productId],references:[id],onDelete:Restrict)
+  buyer User @relation("ProductBuyer", fields:[buyerId],references:[id],onDelete:Restrict)
+  replyAuthor User? @relation("ProductReplyAuthor", fields:[replyUserId],references:[id],onDelete:Restrict)
+  orderItem OrderItem @relation(fields:[orderItemId],references:[id],onDelete:Restrict)
+  reports CustomerProductReviewReport[]
+  @@unique([productId,buyerId])
+  @@index([productId,isHidden,deletedAt,createdAt])
+}
+
+model CustomerProductReviewReport {
+  id String @id @default(uuid()) @db.Uuid
+  reviewId String @db.Uuid
+  reporterId String @db.Uuid
+  reason String @db.VarChar(500)
+  ratingSnapshot Int
+  commentSnapshot String @db.VarChar(1500)
+  status ShopReviewReportStatus @default(OPEN)
+  moderatorId String? @db.Uuid
+  note String? @db.VarChar(500)
+  reviewedAt DateTime? @db.Timestamptz(3)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  review CustomerProductReview @relation(fields:[reviewId],references:[id],onDelete:Restrict)
+  reporter User @relation("ProductReporter",fields:[reporterId],references:[id],onDelete:Restrict)
+  moderator User? @relation("ProductModerator",fields:[moderatorId],references:[id],onDelete:Restrict)
+  @@unique([reviewId,reporterId])
+  @@index([status,createdAt])
 }
 
 model ProductVariant {
@@ -457,6 +547,7 @@ model OrderItem {
   commissionPolicyVersion Int?
   commissionCharge CommissionCharge?
   returnItems ReturnItem[]
+  customerReviews CustomerProductReview[]
   sellerOrder    SellerOrder @relation(fields: [sellerOrderId], references: [id], onDelete: Restrict)
   variant        ProductVariant @relation(fields: [variantId], references: [id], onDelete: Restrict)
 

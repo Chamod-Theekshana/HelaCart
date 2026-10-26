@@ -26,6 +26,12 @@ export class RequestLimitGuard implements CanActivate {
       request.method !== 'OPTIONS'
     ) {
       if (
+        /^\/api\/v1\/(?:products\/[^/]+\/customer-reviews|sellers\/[^/]+\/(?:product-reviews|team)|admin\/(?:product-review-reports|accounts))(?:\/|$)/.test(
+          request.path,
+        )
+      )
+        this.consume(`product-permissions:${ip}`, 20, now);
+      if (
         /^\/api\/v1\/(?:me|admin|sellers\/[^/]+)\/after-sales(?:\/|$)/.test(
           request.path,
         )

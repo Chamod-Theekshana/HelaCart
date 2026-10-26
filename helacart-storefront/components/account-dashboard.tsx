@@ -251,6 +251,7 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
             <Link href="/account/support" className="account-favorites">
               <MessageSquare size={17} /> Support & help
             </Link>
+            <Link href="/account/reviews" className="account-favorites"><MessageSquare size={17}/> My product reviews</Link>
             {(
               [
                 ["profile", UserRound, "My Profile"],
@@ -491,6 +492,7 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                                     </span>
                                     <div>
                                       <strong>{item.productTitle}</strong>
+                                      {sellerOrder.status === "DELIVERED" && item.variant?.productId && <Link className="text-link" href={`/products/${item.variant.productId}#product-reviews`}>Review this product</Link>}
                                       <small>
                                         Qty {item.quantity} · {item.sku}
                                       </small>

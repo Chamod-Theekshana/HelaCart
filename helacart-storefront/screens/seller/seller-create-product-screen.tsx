@@ -1,4 +1,7 @@
 "use client";
+import {ProductDetailsFields} from "@/components/product-details-fields";
+import {emptyProductDetails,type ProductDetails} from "@/lib/product-feedback";
+
 
 import { useEffect, useState, type FormEvent } from "react";
 import Link from "next/link";
@@ -19,6 +22,7 @@ export default function NewSellerProduct() {
   const [slug, setSlug] = useState("");
   const [slugEdited, setSlugEdited] = useState(false);
   const [description, setDescription] = useState("");
+  const [details,setDetails]=useState<ProductDetails>(emptyProductDetails);
   const [sku, setSku] = useState("");
   const [categoryId, setCategoryId] = useState("");
   const [price, setPrice] = useState("");
@@ -35,7 +39,7 @@ export default function NewSellerProduct() {
     try {
       const created = await request<SellerProduct>(`/sellers/${seller.id}/products`, "POST", {
         title: title.trim(), slug: slug.trim(), description: description.trim(), sku: sku.trim().toUpperCase(),
-        categoryId, priceLkrMinor,
+        categoryId, priceLkrMinor, ...details, specifications:details.specifications.map(row=>({name:row.name.trim(),value:row.value.trim()})),
       });
       await refreshProducts(); router.push(`/seller/products/${created.id}`);
     } catch (cause) { setError(errorMessage(cause)); }
@@ -53,6 +57,7 @@ export default function NewSellerProduct() {
           <label>SKU<input required minLength={2} maxLength={64} pattern="[A-Za-z0-9]+([-_][A-Za-z0-9]+)*" value={sku} onChange={(e) => setSku(e.target.value.toUpperCase())} placeholder="BASKET-001" /></label>
           <label>Price (LKR)<input required inputMode="decimal" value={price} onChange={(e) => setPrice(e.target.value)} placeholder="1250.00" /></label></div>
       </div>
+      <ProductDetailsFields value={details} onChange={setDetails} disabled={isPreview || saving}/>
       <div className="seller-inline-help"><ImagePlus size={19} /><span>Save the draft first. The next page lets you upload photos, add variants and record stock before review.</span></div>
       {error && <div className="message error" role="alert">{error}</div>}
       <div className="seller-form-actions"><Link className="outline-btn" href="/seller/products">Cancel</Link><button className="primary-btn" type="submit" disabled={isPreview || saving || !categories.length}>{saving ? "Saving…" : "Create draft"}</button></div>

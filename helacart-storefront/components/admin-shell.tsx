@@ -14,6 +14,8 @@ const items = [
   { href: "/admin", title: "Overview", icon: LayoutDashboard, section: "CORE PLATFORM" },
   { href: "/admin/seller-applications", title: "Seller applications", icon: Store, section: "MODERATION & GOVERNANCE" },
   { href: "/admin/products", title: "Product approvals", icon: BadgeCheck },
+  { href: "/admin/accounts", title: "Accounts & access", icon: UserRound },
+  { href: "/admin/product-review-reports", title: "Product review reports", icon: Flag },
   { href: "/admin/review-reports", title: "Review reports", icon: Flag },
   { href: "/admin/categories", title: "Categories", icon: FolderTree },
   { href: "/admin/appearance", title: "Storefront appearance", icon: LayoutDashboard },

@@ -20,6 +20,8 @@ import { StorefrontContentModule } from './storefront-content/storefront-content
 import { FavoritesModule } from './favorites/favorites.module.js';
 import { CommissionModule } from './commission/commission.module.js';
 import { AfterSalesModule } from './after-sales/after-sales.module.js';
+import { ProductFeedbackModule } from './product-feedback/product-feedback.module.js';
+import { AccountPermissionsModule } from './account-permissions/account-permissions.module.js';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { AfterSalesModule } from './after-sales/after-sales.module.js';
     FavoritesModule,
     CommissionModule,
     AfterSalesModule,
+    ProductFeedbackModule,
+    AccountPermissionsModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService, { provide: APP_GUARD, useClass: RequestLimitGuard }],

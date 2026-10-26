@@ -26,6 +26,7 @@ export type SellerVariant = {
   priceLkrMinor: number; onHand: number; reserved: number;
 };
 export type SellerProduct = {
+  brand?:string|null;warranty?:string|null;specifications?:{name:string;value:string}[];
   id: string; sellerId: string; categoryId: string; title: string; slug: string;
   description: string; sku: string; imageUrls: string[]; priceLkrMinor: number;
   status: ProductStatus; category: Category; variants: SellerVariant[];

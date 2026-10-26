@@ -33,6 +33,7 @@ import {
 import { canonicalDistrict, deliveryFor } from './delivery-rules.js';
 
 export const buyerOrderItemFields = {
+  variant: { select: { productId: true } },
   id: true,
   sellerOrderId: true,
   variantId: true,

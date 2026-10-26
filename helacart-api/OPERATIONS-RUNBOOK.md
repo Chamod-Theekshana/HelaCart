@@ -113,6 +113,21 @@ verified refund, replacement or another agreed outcome; it does not transfer
 money or automatically restock returned goods. See the
 [after-sales guide](../helacart-storefront/docs/after-sales.md).
 
+## Product feedback and account access
+
+Before public launch, review `/admin/product-review-reports` for reported product
+feedback and record hide/dismiss decisions with specific reasons. Product review
+moderation excludes hidden ratings from the public summary and preserves the
+reported text snapshot. Review seller brand, specification and warranty text in
+the existing product approval dialog.
+
+Use `/admin/accounts` to suspend/restore an account after investigation. This
+blocks authenticated buyer and seller access without changing existing orders,
+refund records or financial balances. Administrator accounts are protected from
+this UI; privileges remain controlled by `ADMIN_FIREBASE_UIDS`. Shop owners
+manage manager grants/revocations at `/seller/team`, with recorded reasons.
+See [product feedback and permissions](../helacart-storefront/docs/product-feedback-and-permissions.md).
+
 ## Recovery and rollout limits
 
 All migrations are forward-only. Rolling back a deployed application does not
