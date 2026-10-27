@@ -38,6 +38,7 @@ describe('Public shops and verified reviews HTTP boundaries', () => {
     updatedAt: new Date('2026-10-18'),
   };
   const database = {
+    promotion: { findMany: async () => [] },
     user: { upsert: vi.fn() },
     seller: {
       findFirst: vi.fn(),
@@ -46,6 +47,7 @@ describe('Public shops and verified reviews HTTP boundaries', () => {
       update: vi.fn(),
     },
     sellerMember: { findUnique: vi.fn() },
+    $queryRaw: vi.fn(),
     product: { findMany: vi.fn(), count: vi.fn() },
     category: { findMany: vi.fn() },
     sellerOrder: { findFirst: vi.fn(), findMany: vi.fn() },
@@ -88,6 +90,7 @@ describe('Public shops and verified reviews HTTP boundaries', () => {
   });
   beforeEach(() => {
     vi.resetAllMocks();
+    database.$queryRaw.mockResolvedValue([]);
     firebase.verifyIdToken.mockImplementation((token: string) =>
       Promise.resolve({
         uid: token,
@@ -183,16 +186,13 @@ describe('Public shops and verified reviews HTTP boundaries', () => {
         `${root}/products?category=home&minPrice=100&maxPrice=500&sort=price-asc`,
       )
       .expect(200);
-    expect(database.product.findMany.mock.calls[0]?.[0]).toMatchObject({
-      where: {
-        sellerId,
-        status: 'APPROVED',
-        seller: { status: 'APPROVED' },
-        category: { isActive: true, slug: 'home' },
-        priceLkrMinor: { gte: 100, lte: 500 },
-      },
-      take: 12,
-    });
+    const sql = database.$queryRaw.mock.calls[0][0];
+    expect(sql.sql).toContain("p.status='APPROVED'");
+    expect(sql.sql).toContain('p."sellerId"=');
+    expect(sql.values).toContain(sellerId);
+    expect(sql.values).toContain('home');
+    expect(sql.values).toContain(100);
+    expect(sql.values).toContain(500);
   });
   it('rejects inverted price ranges and invalid review filters', async () => {
     await request(app.getHttpServer())

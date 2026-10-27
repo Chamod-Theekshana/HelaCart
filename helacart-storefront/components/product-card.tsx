@@ -1,4 +1,5 @@
 "use client";
+import discoveryStyles from "./discovery.module.css";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { Check, LoaderCircle, Package, ShoppingBag, Store } from "lucide-react";
@@ -39,7 +40,9 @@ export function ProductCard({ product }: { product: Product }) {
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [result, setResult] = useState<"idle" | "success" | "error">("idle");
-  const variant = product.variants.find((entry) => entry.availableQuantity > 0);
+  const variant = product.variants
+    .filter((entry) => entry.availableQuantity > 0)
+    .sort((a, b) => a.priceLkrMinor - b.priceLkrMinor)[0];
   const hasOptions = product.variants.length > 1;
   const lowStock = variant && variant.availableQuantity < 5;
   useEffect(() => {
@@ -90,6 +93,17 @@ export function ProductCard({ product }: { product: Product }) {
         >
           {product.title}
         </Link>
+        {product.promotion && (
+          <span className={discoveryStyles.offer}>
+            {product.promotion.name}
+          </span>
+        )}
+        {variant?.originalPriceLkrMinor &&
+          variant.originalPriceLkrMinor > variant.priceLkrMinor && (
+            <del className={discoveryStyles.oldPrice}>
+              {money(variant.originalPriceLkrMinor)}
+            </del>
+          )}
         <div className={s.meta}>
           <strong className={s.price}>
             {money(

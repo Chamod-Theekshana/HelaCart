@@ -23,7 +23,12 @@ export function errorMessage(error: unknown): string {
 
 export async function api<T>(
   path: string,
-  options: { method?: string; token?: string; body?: unknown } = {},
+  options: {
+    method?: string;
+    token?: string;
+    body?: unknown;
+    responseType?: "json" | "text";
+  } = {},
 ): Promise<T> {
   if (!hasApi)
     throw new Error("Connect your HelaCart API to use this feature.");
@@ -35,6 +40,9 @@ export async function api<T>(
     () => controller.abort(),
     isMultipart ||
       isBinary ||
+      /^\/(?:sellers\/[^/]+|admin)\/(?:bulk-tools|reports)(?:[/?]|$)/.test(
+        path,
+      ) ||
       (path === "/me/orders/checkout" && options.method === "POST")
       ? 60_000
       : 15_000,
@@ -63,6 +71,8 @@ export async function api<T>(
       cache: "no-store",
       signal: controller.signal,
     });
+    if (response.ok && options.responseType === "text")
+      return (await response.text()) as T;
     const payload: unknown = await response.json().catch(() => null);
     if (!response.ok) {
       const detail =

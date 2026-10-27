@@ -33,6 +33,7 @@ HelaCart brings product discovery, shop profiles, verified-purchase reviews, fav
 - Review shops after a delivered purchase: 1–5 stars, comments, optional photos, edit/delete, and reporting.
 - Review individual purchased products, browse rating summaries and seller replies, and manage previous feedback from the account.
 - Read seller-supplied brands, specifications and warranty information, with an enlarged product-image gallery.
+- Search across product/brand/shop details, use suggestions and recommendations, browse approved offers, and opt into favorite price/restock alerts.
 
 ### Seller Center
 
@@ -46,6 +47,8 @@ HelaCart brings product discovery, shop profiles, verified-purchase reviews, fav
 - Review commission charges, monthly statements, and balances; submit private bank-payment receipts for owner verification.
 - Respond to support cases and submit records of actual buyer refunds for HelaCart verification.
 - Reply to product reviews and manage shop managers through owner-only team permissions.
+- Import counted stock from CSV with a preview, manage listings in bulk, configure stock alerts, and export date-filtered business reports.
+- Submit scheduled product discounts for HelaCart approval and manage campaign cancellation/history.
 
 ### Admin workspace
 
@@ -57,6 +60,8 @@ HelaCart brings product discovery, shop profiles, verified-purchase reviews, fav
 - Review item returns and buyer refund evidence, record corrections and resolution outcomes, and manage support conversations and case holds.
 - Moderate reported reviews and manage the administrator's own profile and security.
 - Moderate product-review reports and suspend or restore account access with recorded reasons and history.
+- Review listings in bulk and inspect marketplace sales, shop performance, verified refunds, and commission reports.
+- Approve, reject or cancel seller-funded promotions with recorded reasons and protected order-price snapshots.
 
 Selling approval, shop identity verification, and verified-purchase reviews are separate workflows. Protected actions are checked by the API using Firebase identity and the relevant account, shop membership, or administrator permissions.
 
@@ -248,6 +253,8 @@ Deployment configuration and real operational processes still need environment-s
 - [Delivery rates, tracking, and order notifications](helacart-storefront/docs/delivery-tracking.md)
 - [Support cases, item returns, and refund records](helacart-storefront/docs/after-sales.md)
 - [Product feedback, product details, and account permissions](helacart-storefront/docs/product-feedback-and-permissions.md)
+- [Bulk tools, stock alerts, and business reports](helacart-storefront/docs/bulk-stock-and-business-reports.md)
+- [Search, recommendations, favorite alerts, and promotions](helacart-storefront/docs/search-recommendations-and-promotions.md)
 - [Shop profiles, reviews, photos, and moderation](helacart-storefront/docs/shops-and-reviews.md)
 - [Verified shops and administrator decisions](helacart-storefront/docs/shop-verification.md)
 - [Buyer, shop, and admin profiles](helacart-storefront/docs/account-profiles.md)

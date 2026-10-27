@@ -48,6 +48,7 @@ export function GlobalCatalog({
             defaultValue={filters.sort}
             onChange={(event) => event.currentTarget.form?.requestSubmit()}
           >
+            <option value="relevance">Most relevant</option>
             <option value="newest">Newest first</option>
             <option value="price-asc">Price: low to high</option>
             <option value="price-desc">Price: high to low</option>
@@ -91,6 +92,7 @@ export function GlobalCatalog({
           >
             <input type="hidden" name="q" value={filters.q} />
             <input type="hidden" name="category" value={filters.category} />
+            <section><label className="check-row"><input type="checkbox" name="deals" value="true" defaultChecked={filters.deals}/>Active offers only</label></section>
             <section>
               <h3>Availability</h3>
               <label className="check-row">

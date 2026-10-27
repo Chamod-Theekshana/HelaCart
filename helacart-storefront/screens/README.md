@@ -38,6 +38,10 @@ Screen implementations retain their server/client boundaries, metadata and origi
 | `/seller` | [seller-overview-screen.tsx](./seller/seller-overview-screen.tsx) |
 | `/seller/apply` | [seller-application-screen.tsx](./seller/seller-application-screen.tsx) |
 | `/seller/inventory` | [seller-inventory-screen.tsx](./seller/seller-inventory-screen.tsx) |
+| `/seller/bulk-tools` | [seller-bulk-tools-screen.tsx](./seller/seller-bulk-tools-screen.tsx) |
+| `/seller/stock-alerts` | [seller-stock-alerts-screen.tsx](./seller/seller-stock-alerts-screen.tsx) |
+| `/seller/reports` | [seller-reports-screen.tsx](./seller/seller-reports-screen.tsx) |
+| `/seller/promotions` | [seller-promotions-screen.tsx](./seller/seller-promotions-screen.tsx) |
 | `/seller/orders` | [seller-orders-screen.tsx](./seller/seller-orders-screen.tsx) |
 | `/seller/commission` | [seller-commission-screen.tsx](./seller/seller-commission-screen.tsx) |
 | `/seller/returns` | [seller-returns-screen.tsx](./seller/seller-returns-screen.tsx) |
@@ -57,6 +61,9 @@ Screen implementations retain their server/client boundaries, metadata and origi
 | --- | --- |
 | `/admin` | [admin-overview-screen.tsx](./admin/admin-overview-screen.tsx) |
 | `/admin/categories` | [admin-categories-screen.tsx](./admin/admin-categories-screen.tsx) |
+| `/admin/bulk-tools` | [admin-bulk-tools-screen.tsx](./admin/admin-bulk-tools-screen.tsx) |
+| `/admin/reports` | [admin-reports-screen.tsx](./admin/admin-reports-screen.tsx) |
+| `/admin/promotions` | [admin-promotions-screen.tsx](./admin/admin-promotions-screen.tsx) |
 | `/admin/appearance` | [admin-storefront-appearance-screen.tsx](./admin/admin-storefront-appearance-screen.tsx) |
 | `/admin/cod` | [admin-cod-reconciliation-screen.tsx](./admin/admin-cod-reconciliation-screen.tsx) |
 | `/admin/commission` | [admin-commission-screen.tsx](./admin/admin-commission-screen.tsx) |

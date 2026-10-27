@@ -2,6 +2,9 @@ import type { Product } from "./types";
 export type FavoriteRef = { id: string; productId: string | null };
 export type FavoriteSummary = { items: FavoriteRef[]; total: number };
 export type FavoriteItem = FavoriteRef & {
+  priceAlerts?: boolean;
+  restockAlerts?: boolean;
+  alertVersion?: number;
   createdAt: string;
   title: string;
   sellerName: string;

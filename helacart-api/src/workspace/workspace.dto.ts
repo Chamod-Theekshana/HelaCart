@@ -44,6 +44,12 @@ export class ApplicationQuery extends ListQuery {
     SellerStatus.PENDING;
 }
 export class PublicCatalogQuery extends ListQuery {
+  @Transform(({ value }: { value: unknown }) =>
+    value === 'true' ? true : value === 'false' ? false : value,
+  )
+  @IsBoolean()
+  @IsOptional()
+  deals?: boolean;
   @IsString() @Length(1, 80) @IsOptional() category?: string;
   @Type(() => Number)
   @IsInt()
@@ -63,6 +69,7 @@ export class PublicCatalogQuery extends ListQuery {
   @IsBoolean()
   @IsOptional()
   inStock?: boolean;
-  @IsIn(['newest', 'price-asc', 'price-desc', 'name']) @IsOptional() sort =
-    'newest';
+  @IsIn(['newest', 'price-asc', 'price-desc', 'name', 'relevance'])
+  @IsOptional()
+  sort = 'newest';
 }

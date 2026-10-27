@@ -1,3 +1,4 @@
+import { activeOffers, discountedMinor } from '../discovery/pricing.js';
 import { createHash } from 'node:crypto';
 import {
   BadRequestException,
@@ -33,6 +34,8 @@ import {
 import { canonicalDistrict, deliveryFor } from './delivery-rules.js';
 
 export const buyerOrderItemFields = {
+  originalUnitLkrMinor: true,
+  promotionDiscountBps: true,
   variant: { select: { productId: true } },
   id: true,
   sellerOrderId: true,
@@ -74,13 +77,21 @@ const orderDetail = {
 } as const;
 const orderWriteOptions = { timeout: 45_000, maxWait: 10_000 } as const;
 
-type CartRow = Prisma.CartItemGetPayload<{
+type BaseCartRow = Prisma.CartItemGetPayload<{
   include: {
     variant: {
       include: { product: { include: { seller: true; category: true } } };
     };
   };
 }>;
+
+type CartRow = Omit<BaseCartRow, 'variant'> & {
+  variant: BaseCartRow['variant'] & {
+    originalPriceLkrMinor?: number;
+    promotionId?: string;
+    promotionDiscountBps?: number;
+  };
+};
 
 @Injectable()
 export class CommerceService {
@@ -198,6 +209,7 @@ export class CommerceService {
       sku: item.variant.sku,
       optionValues: item.variant.optionValues,
       priceLkrMinor: item.variant.priceLkrMinor,
+      originalPriceLkrMinor: item.variant.originalPriceLkrMinor,
       availableQuantity: item.variant.onHand - item.variant.reserved,
       available: this.isAvailable(item),
       shippingConfigured: delivery.find(
@@ -445,6 +457,11 @@ export class CommerceService {
                           optionValues: row.variant
                             .optionValues as Prisma.InputJsonValue,
                           unitLkrMinor: row.variant.priceLkrMinor,
+                          originalUnitLkrMinor:
+                            row.variant.originalPriceLkrMinor,
+                          promotionId: row.variant.promotionId,
+                          promotionDiscountBps:
+                            row.variant.promotionDiscountBps,
                           quantity: row.quantity,
                           lineLkrMinor:
                             row.quantity * row.variant.priceLkrMinor,
@@ -942,6 +959,9 @@ export class CommerceService {
               sellerId: row.variant.sellerId,
               quantity: row.quantity,
               price: row.variant.priceLkrMinor,
+              promotion: row.variant.promotionId,
+              promotionBps: row.variant.promotionDiscountBps,
+              originalPrice: row.variant.originalPriceLkrMinor,
               delivery: row.variant.product.seller.shippingFeeLkrMinor,
               deliveryRules: row.variant.product.seller.deliveryRules ?? [],
               deliveryRevision:
@@ -988,8 +1008,11 @@ export class CommerceService {
     );
   }
 
-  private cartRows(tx: Prisma.TransactionClient, userId: string) {
-    return tx.cartItem.findMany({
+  private async cartRows(
+    tx: Prisma.TransactionClient,
+    userId: string,
+  ): Promise<CartRow[]> {
+    const rows = await tx.cartItem.findMany({
       where: { userId },
       orderBy: { variantId: 'asc' },
       take: 51,
@@ -998,6 +1021,28 @@ export class CommerceService {
           include: { product: { include: { seller: true, category: true } } },
         },
       },
+    });
+    const offers = await activeOffers(
+      tx,
+      rows.map((r) => r.variant.productId),
+    );
+    return rows.map((row) => {
+      const offer = offers.get(row.variant.productId);
+      return offer
+        ? {
+            ...row,
+            variant: {
+              ...row.variant,
+              originalPriceLkrMinor: row.variant.priceLkrMinor,
+              priceLkrMinor: discountedMinor(
+                row.variant.priceLkrMinor,
+                offer.discountBps,
+              ),
+              promotionId: offer.id,
+              promotionDiscountBps: offer.discountBps,
+            },
+          }
+        : row;
     });
   }
 }

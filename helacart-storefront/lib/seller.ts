@@ -22,6 +22,7 @@ export type SellerApplication = SellerAccount & {
   reviews: { decision: string; reason: string | null }[];
 };
 export type SellerVariant = {
+  lowStockThreshold?:number;stockAlertsEnabled?:boolean;stockSettingsVersion?:number;
   id: string; position: number; sku: string; optionValues: Record<string, string>;
   priceLkrMinor: number; onHand: number; reserved: number;
 };
@@ -91,3 +92,5 @@ export const previewOrders: SellerOrderRecord[] = ["PLACED", "ACCEPTED", "PACKED
     unitLkrMinor: previewProducts[index].priceLkrMinor, lineLkrMinor: previewProducts[index].priceLkrMinor }],
   events: [],
 }));
+
+export function variantNeedsStock(variant: Pick<SellerVariant,"onHand"|"reserved"|"lowStockThreshold">){return variant.onHand-variant.reserved<=(variant.lowStockThreshold??5);}

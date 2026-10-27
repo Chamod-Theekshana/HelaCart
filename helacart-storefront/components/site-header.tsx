@@ -1,11 +1,12 @@
 "use client";
+import { SearchBox } from "./search-box";
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, Search, ShoppingBag, Store, UserRound } from "lucide-react";
+import { Heart, ShoppingBag, Store, UserRound } from "lucide-react";
 import { useFavorites } from "./favorites-provider";
 import { useShop } from "./shop-provider";
 import { ProfileAvatar } from "./profile-avatar";
-import {NotificationBell} from './notification-bell';
+import { NotificationBell } from "./notification-bell";
 import type { Category } from "@/lib/types";
 
 export function Brand() {
@@ -27,28 +28,13 @@ export function SiteHeader({ categories }: { categories: Category[] }) {
   const { cart, user, accountProfile, cartLoading } = useShop();
   const favorites = useFavorites();
   const count = cart?.items.reduce((sum, row) => sum + row.quantity, 0) ?? 0;
-  const search = (mobile = false) => (
-    <form
-      action="/products"
-      className={mobile ? "mobile-search container" : "site-search"}
-    >
-      <Search size={19} aria-hidden="true" />
-      <input
-        name="q"
-        maxLength={80}
-        aria-label="Search products"
-        placeholder="Search for your next good find"
-      />
-      <button type="submit">Search</button>
-    </form>
-  );
   return (
     <header className="site-header storefront-header">
       <div className="container header-main">
         <Brand />
-        {search()}
+        <SearchBox />
         <div className="header-actions">
-          <NotificationBell/>
+          <NotificationBell />
           <Link
             href={user ? "/account/profile" : "/auth"}
             className="account-link"
@@ -82,10 +68,11 @@ export function SiteHeader({ categories }: { categories: Category[] }) {
           </Link>
         </div>
       </div>
-      {search(true)}
+      <SearchBox mobile />
       <nav className="category-nav" aria-label="Storefront navigation">
         <div className="container nav-inner">
           <Link href="/products">All products</Link>
+          <Link href="/products?deals=true">Offers</Link>
           <Link href={categories.length ? "/#categories" : "/products"}>
             Categories
           </Link>

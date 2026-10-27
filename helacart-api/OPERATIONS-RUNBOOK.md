@@ -128,6 +128,34 @@ this UI; privileges remain controlled by `ADMIN_FIREBASE_UIDS`. Shop owners
 manage manager grants/revocations at `/seller/team`, with recorded reasons.
 See [product feedback and permissions](../helacart-storefront/docs/product-feedback-and-permissions.md).
 
+## Bulk tools, stock alerts and reports
+
+Bulk tools at `/seller/bulk-tools` and `/admin/bulk-tools` require saved previews,
+reasons and confirmation. A stale or invalid row rejects the whole batch. Reuse
+the original job ID when recovering from an interrupted apply request; an
+already-applied job is returned without applying the change twice.
+
+The stock-alert worker runs within the API about once a minute. Keep an API
+instance running for automatic in-app alerts. Dirty stock-watch rows are retained
+if a worker fails and are retried on the next tick. Multiple API instances use
+row locking to avoid duplicate alert episodes. The migration establishes a quiet
+baseline for existing variants rather than notifying every low-stock shop.
+
+Review `/admin/reports` for marketplace delivery/refund activity and commission
+accrual/collections. COD sales remain seller money. Report dates use Sri Lanka
+time; receipts/refunds use verification dates and corrections use their own
+recording date. See [bulk tools and reports](../helacart-storefront/docs/bulk-stock-and-business-reports.md).
+
+## Discovery and promotions
+
+Review seller offers at `/admin/promotions`. Approved discounts activate only
+within their saved dates and use the strongest product offer without stacking.
+Checkout saves the original price and applied offer; cancellation does not
+rewrite historical orders, commission snapshots or refund caps. Favorite alerts
+are opt-in and use an internal bounded worker while the API is running. Inspect
+worker warnings if notifications stop, and retry after connectivity recovers.
+See [discovery and promotions](../helacart-storefront/docs/search-recommendations-and-promotions.md).
+
 ## Recovery and rollout limits
 
 All migrations are forward-only. Rolling back a deployed application does not

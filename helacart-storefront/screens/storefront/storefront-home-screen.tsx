@@ -1,3 +1,4 @@
+import {Recommendations} from "@/components/recommendations";
 import Link from "next/link";
 import { ArrowRight, ChevronDown, PackageCheck, Store } from "lucide-react";
 import { api, hasApi } from "@/lib/api";
@@ -55,6 +56,7 @@ export default async function HomePage() {
   return (
     <div className={s.home}>
       <StorefrontHero hasCategories={categories.length > 0} content={hero} />
+      {hasApi&&<div className="container"><Recommendations/></div>}
       {categories.length > 0 && (
         <section
           id="categories"

@@ -14,6 +14,10 @@ import {NotificationBell} from './notification-bell';
 const nav = [
   { href: "/seller", label: "Overview", icon: LayoutDashboard },
   { href: "/seller/products", label: "Products", icon: Box },
+  { href: "/seller/promotions", label: "Promotions", icon: ShoppingBag },
+  { href: "/seller/bulk-tools", label: "Bulk tools", icon: Box },
+  { href: "/seller/stock-alerts", label: "Stock alerts", icon: ShoppingBag },
+  { href: "/seller/reports", label: "Business reports", icon: LayoutDashboard },
   { href: "/seller/inventory", label: "Inventory & Stock", icon: ShoppingBag },
   { href: "/seller/orders", label: "Orders", icon: ClipboardList },
   { href: "/seller/returns", label: "Returns & refunds", icon: ClipboardList },

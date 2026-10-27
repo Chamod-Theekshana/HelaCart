@@ -13,6 +13,9 @@ import {NotificationBell} from './notification-bell';
 const items = [
   { href: "/admin", title: "Overview", icon: LayoutDashboard, section: "CORE PLATFORM" },
   { href: "/admin/seller-applications", title: "Seller applications", icon: Store, section: "MODERATION & GOVERNANCE" },
+  { href: "/admin/promotions", title: "Promotions", icon: ShoppingBag },
+  { href: "/admin/bulk-tools", title: "Bulk tools", icon: ClipboardCheck },
+  { href: "/admin/reports", title: "Business reports", icon: LayoutDashboard },
   { href: "/admin/products", title: "Product approvals", icon: BadgeCheck },
   { href: "/admin/accounts", title: "Accounts & access", icon: UserRound },
   { href: "/admin/product-review-reports", title: "Product review reports", icon: Flag },

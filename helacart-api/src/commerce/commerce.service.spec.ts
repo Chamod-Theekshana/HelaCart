@@ -8,6 +8,7 @@ import { Prisma } from '../generated/prisma/client.js';
 describe('Reviewed COD checkout', () => {
   const identity = { uid: 'buyer', email_verified: true } as DecodedIdToken;
   const db = {
+    promotion: { findMany: async () => [] },
     cartItem: { findMany: vi.fn(), deleteMany: vi.fn() },
     buyerAddress: { findFirst: vi.fn() },
     order: { findUnique: vi.fn(), create: vi.fn() },

@@ -1,4 +1,5 @@
 "use client";
+import {variantNeedsStock} from "@/lib/seller";
 import {ProductDetailsFields} from "@/components/product-details-fields";
 import {type ProductDetails} from "@/lib/product-feedback";
 
@@ -185,7 +186,7 @@ function VariantStock({ variant, busy, disabled, onAdjust, onHistory, movements 
     // Successful and failed responses are surfaced by the parent. Keep form values for retry.
   }
   return <div className="seller-variant-row"><div className="seller-variant-meta"><strong>{variant.sku}</strong><small>{Object.entries(variant.optionValues).map(([key, value]) => `${key}: ${value}`).join(" · ") || "Default variant"} · {money(variant.priceLkrMinor)}</small>
-    <span>{variant.onHand} on hand · {variant.reserved} reserved · <b>{Math.max(0, variant.onHand - variant.reserved)} available</b> · <em className={variant.onHand - variant.reserved <= 5 ? "seller-low" : ""}>{variant.onHand - variant.reserved <= 0 ? "Out of stock" : variant.onHand - variant.reserved <= 5 ? "Low stock" : "In stock"}</em></span></div>
+    <span>{variant.onHand} on hand · {variant.reserved} reserved · <b>{Math.max(0, variant.onHand - variant.reserved)} available</b> · <em className={variantNeedsStock(variant) ? "seller-low" : ""}>{variant.onHand - variant.reserved <= 0 ? "Out of stock" : variantNeedsStock(variant) ? "Low stock" : "In stock"}</em></span></div>
     <form className="seller-stock-form" onSubmit={(event) => void submit(event)}><input required type="number" min="-1000000" max="1000000" step="1" value={delta} onChange={(e) => setDelta(e.target.value)} placeholder="+10 / -2" aria-label={`Stock change for ${variant.sku}`} />
       <input required minLength={5} maxLength={300} value={reason} onChange={(e) => setReason(e.target.value)} placeholder="Reason for adjustment" aria-label={`Adjustment reason for ${variant.sku}`} />
       <button className="outline-btn" disabled={disabled || busy} type="submit">{busy ? "Saving…" : "Adjust"}</button></form>

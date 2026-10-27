@@ -1,6 +1,7 @@
 "use client";
 /* eslint-disable react/no-unescaped-entities */
 
+import discoveryStyles from "./discovery.module.css";
 import { useRef, useState } from "react";
 import Link from "next/link";
 import {
@@ -27,7 +28,9 @@ export function ProductDetail({ product }: { product: Product }) {
   const zoom = useRef<HTMLDialogElement>(null);
   const [image, setImage] = useState(0);
   const [variantId, setVariantId] = useState(
-    product.variants.find((entry) => entry.availableQuantity)?.id ??
+    product.variants
+      .filter((entry) => entry.availableQuantity > 0)
+      .sort((a, b) => a.priceLkrMinor - b.priceLkrMinor)[0]?.id ??
       product.variants[0]?.id ??
       "",
   );
@@ -106,6 +109,17 @@ export function ProductDetail({ product }: { product: Product }) {
             Read verified product reviews
           </a>
           <p className="product-sku">{variant?.sku ?? "Product details"}</p>
+          {product.promotion && (
+            <div className={discoveryStyles.dealDetail}>
+              <span className={discoveryStyles.offer}>
+                {product.promotion.name}
+              </span>
+              {variant?.originalPriceLkrMinor &&
+                variant.originalPriceLkrMinor > variant.priceLkrMinor && (
+                  <del>{money(variant.originalPriceLkrMinor)}</del>
+                )}
+            </div>
+          )}
           <div className="detail-price">
             {money(variant?.priceLkrMinor ?? product.priceLkrMinor)}
           </div>

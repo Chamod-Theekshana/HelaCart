@@ -1,3 +1,4 @@
+import { browseCatalog } from '../discovery/catalog-query.js';
 import {
   BadRequestException,
   ForbiddenException,
@@ -17,11 +18,7 @@ import {
   buyerSellerOrderFields,
   buyerOrderItemFields,
 } from '../commerce/commerce.service.js';
-import {
-  CatalogService,
-  privateProduct,
-  publicProduct,
-} from '../catalog/catalog.service.js';
+import { CatalogService, privateProduct } from '../catalog/catalog.service.js';
 import {
   ApplicationQuery,
   ListQuery,
@@ -153,63 +150,9 @@ export class WorkspaceService {
       throw new BadRequestException(
         'Minimum price must not exceed maximum price',
       );
-    const price = Prisma.sql`COALESCE(offer."priceLkrMinor",p."priceLkrMinor")`;
-    const conditions = [
-      Prisma.sql`p."status"='APPROVED' AND s."status"='APPROVED' AND c."isActive"=TRUE`,
-    ];
-    if (query.q)
-      conditions.push(
-        Prisma.sql`position(lower(${query.q}) in lower(p."title"))>0`,
-      );
-    if (query.category) conditions.push(Prisma.sql`c."slug"=${query.category}`);
-    if (query.minPrice !== undefined)
-      conditions.push(Prisma.sql`${price}>=${query.minPrice}`);
-    if (query.maxPrice !== undefined)
-      conditions.push(Prisma.sql`${price}<=${query.maxPrice}`);
-    if (query.inStock) conditions.push(Prisma.sql`offer.available=TRUE`);
-    const from = Prisma.sql`FROM "Product" p JOIN "Seller" s ON s."id"=p."sellerId" JOIN "Category" c ON c."id"=p."categoryId" LEFT JOIN LATERAL(SELECT v."priceLkrMinor",(v."onHand">v."reserved") AS available FROM "ProductVariant" v WHERE v."productId"=p."id" ORDER BY (v."onHand">v."reserved") DESC,v."position" ASC,v."id" ASC LIMIT 1) offer ON TRUE WHERE ${Prisma.join(conditions, ' AND ')}`;
-    const sort =
-      query.sort === 'price-asc'
-        ? Prisma.sql`${price} ASC,p."id" ASC`
-        : query.sort === 'price-desc'
-          ? Prisma.sql`${price} DESC,p."id" ASC`
-          : query.sort === 'name'
-            ? Prisma.sql`p."title" ASC,p."id" ASC`
-            : Prisma.sql`p."createdAt" DESC,p."id" DESC`;
-    return this.prisma.$transaction(async (tx) => {
-      const [ids, counts] = await Promise.all([
-        tx.$queryRaw<{ id: string; price: number }[]>(
-          Prisma.sql`SELECT p."id",${price} AS price ${from} ORDER BY ${sort} LIMIT ${query.limit} OFFSET ${(query.page - 1) * query.limit}`,
-        ),
-        tx.$queryRaw<{ total: bigint }[]>(
-          Prisma.sql`SELECT count(*) AS total ${from}`,
-        ),
-      ]);
-      const rows = ids.length
-        ? await tx.product.findMany({
-            where: {
-              id: { in: ids.map((row) => row.id) },
-              status: 'APPROVED',
-              seller: { status: 'APPROVED' },
-              category: { isActive: true },
-            },
-            select: publicProduct,
-          })
-        : [];
-      return listPage(
-        ids.flatMap((id) =>
-          rows
-            .filter((row) => row.id === id.id)
-            .map((row) => ({
-              ...this.catalog.withAvailability(row),
-              listingPriceLkrMinor: id.price,
-            })),
-        ),
-        Number(counts[0]?.total ?? 0),
-        query,
-      );
-    }, readTransactionOptions);
+    return browseCatalog(this.prisma, this.catalog, query);
   }
+
   async buyerOrders(identity: DecodedIdToken, query: OrderQuery) {
     const user = await this.viewer(identity);
     const where: Prisma.OrderWhereInput = {
@@ -485,11 +428,11 @@ export class WorkspaceService {
       );
     if (query.stock === 'LOW')
       clauses.push(
-        Prisma.sql`EXISTS(SELECT 1 FROM "ProductVariant" v WHERE v."productId"=p."id" AND v."onHand"-v."reserved"<=5)`,
+        Prisma.sql`EXISTS(SELECT 1 FROM "ProductVariant" v WHERE v."productId"=p."id" AND v."onHand"-v."reserved"<=v."lowStockThreshold")`,
       );
     if (query.stock === 'READY')
       clauses.push(
-        Prisma.sql`EXISTS(SELECT 1 FROM "ProductVariant" v WHERE v."productId"=p."id") AND NOT EXISTS(SELECT 1 FROM "ProductVariant" v WHERE v."productId"=p."id" AND v."onHand"-v."reserved"<=5)`,
+        Prisma.sql`EXISTS(SELECT 1 FROM "ProductVariant" v WHERE v."productId"=p."id") AND NOT EXISTS(SELECT 1 FROM "ProductVariant" v WHERE v."productId"=p."id" AND v."onHand"-v."reserved"<=v."lowStockThreshold")`,
       );
     const from = Prisma.sql`FROM "Product" p JOIN "Category" c ON c."id"=p."categoryId" JOIN "Seller" s ON s."id"=p."sellerId" WHERE ${clauses.length ? Prisma.join(clauses, ' AND ') : Prisma.sql`TRUE`}`;
     return this.prisma.$transaction(async (tx) => {
@@ -529,9 +472,9 @@ export class WorkspaceService {
         Prisma.sql`(position(lower(${query.q}) in lower(v."sku"))>0 OR position(lower(${query.q}) in lower(p."title"))>0)`,
       );
     if (query.stock === 'LOW')
-      clauses.push(Prisma.sql`v."onHand"-v."reserved"<=5`);
+      clauses.push(Prisma.sql`v."onHand"-v."reserved"<=v."lowStockThreshold"`);
     if (query.stock === 'READY')
-      clauses.push(Prisma.sql`v."onHand"-v."reserved">5`);
+      clauses.push(Prisma.sql`v."onHand"-v."reserved">v."lowStockThreshold"`);
     if (query.status)
       clauses.push(Prisma.sql`p."status"=${query.status}::"ProductStatus"`);
     if (query.categoryId)
@@ -594,7 +537,7 @@ export class WorkspaceService {
           out: bigint;
           lowProducts: bigint;
         }[]
-      >`SELECT count(*) AS variants,sum("onHand") AS "onHand",sum("reserved") AS reserved,count(*) FILTER(WHERE "onHand"-"reserved"<=5) AS low,count(*) FILTER(WHERE "onHand"-"reserved"<=0) AS out,count(DISTINCT "productId") FILTER(WHERE "onHand"-"reserved"<=5) AS "lowProducts" FROM "ProductVariant" WHERE "sellerId"=${sellerId}::uuid`,
+      >`SELECT count(*) AS variants,sum("onHand") AS "onHand",sum("reserved") AS reserved,count(*) FILTER(WHERE "onHand"-"reserved"<="lowStockThreshold") AS low,count(*) FILTER(WHERE "onHand"-"reserved"<=0) AS out,count(DISTINCT "productId") FILTER(WHERE "onHand"-"reserved"<="lowStockThreshold") AS "lowProducts" FROM "ProductVariant" WHERE "sellerId"=${sellerId}::uuid`,
       this.prisma.category.findMany({
         where: { products: { some: { sellerId } } },
         select: { id: true, name: true, slug: true },

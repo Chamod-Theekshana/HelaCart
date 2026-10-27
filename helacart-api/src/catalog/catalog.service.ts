@@ -1,3 +1,4 @@
+import { priceProducts } from '../discovery/pricing.js';
 import {
   BadRequestException,
   ConflictException,
@@ -50,6 +51,15 @@ export const publicProduct = {
 
 export const privateProduct = {
   ...publicProduct,
+  variants: {
+    ...publicProduct.variants,
+    select: {
+      ...publicProduct.variants.select,
+      lowStockThreshold: true,
+      stockAlertsEnabled: true,
+      stockSettingsVersion: true,
+    },
+  },
   sku: true,
   categoryId: true,
   sellerId: true,
@@ -112,7 +122,9 @@ export class CatalogService {
       select: publicProduct,
     });
     return {
-      items: rows.slice(0, limit).map((row) => this.withAvailability(row)),
+      items: (await priceProducts(this.prisma, rows.slice(0, limit))).map(
+        (row) => this.withAvailability(row),
+      ),
       nextCursor: rows.length > limit ? rows[limit - 1].id : null,
     };
   }
@@ -128,7 +140,9 @@ export class CatalogService {
       select: publicProduct,
     });
     if (!product) throw new NotFoundException('Product not found');
-    return this.withAvailability(product);
+    return this.withAvailability(
+      (await priceProducts(this.prisma, [product]))[0],
+    );
   }
 
   async createProduct(

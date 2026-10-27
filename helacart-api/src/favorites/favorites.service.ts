@@ -1,3 +1,4 @@
+import { priceProducts } from '../discovery/pricing.js';
 import {
   ConflictException,
   Injectable,
@@ -22,6 +23,9 @@ const favoriteDetails = {
   sellerNameSnapshot: true,
   imageUrlSnapshot: true,
   createdAt: true,
+  priceAlerts: true,
+  restockAlerts: true,
+  alertVersion: true,
   product: {
     select: {
       ...publicProduct,
@@ -66,8 +70,17 @@ export class FavoritesService {
         take: limit,
       }),
     ]);
+    const priced = await priceProducts(
+      this.prisma,
+      rows.flatMap((row) => (row.product ? [row.product] : [])),
+    );
     return {
-      items: rows.map((row) => this.present(row)),
+      items: rows.map((row) =>
+        this.present({
+          ...row,
+          product: priced.find((p) => p.id === row.productId) ?? row.product,
+        }),
+      ),
       total,
       page,
       pageSize: limit,
@@ -152,6 +165,9 @@ export class FavoritesService {
     }
     return {
       id: row.id,
+      priceAlerts: row.priceAlerts,
+      restockAlerts: row.restockAlerts,
+      alertVersion: row.alertVersion,
       productId: row.productId,
       createdAt: row.createdAt,
       title: product?.title ?? row.titleSnapshot,

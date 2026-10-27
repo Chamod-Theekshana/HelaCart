@@ -79,6 +79,7 @@ describe('API HTTP behavior (database mocked)', () => {
     imageUrls: productDraft.imageUrls,
   };
   const database = {
+    promotion: { findMany: async () => [] },
     checkConnection: vi.fn(),
     user: { upsert: vi.fn() },
     seller: {

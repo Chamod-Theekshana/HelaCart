@@ -1,4 +1,5 @@
 "use client";
+import {variantNeedsStock} from "@/lib/seller";
 
 import { useState, type FormEvent } from "react";
 import Link from "next/link";
@@ -35,7 +36,7 @@ export default function SellerInventory() {
   const [notice, setNotice] = useState("");
   const sample = previewInventory.filter(
     ({ product, variant }) =>
-      (!lowOnly || variant.onHand - variant.reserved <= 5) &&
+      (!lowOnly || variantNeedsStock(variant)) &&
       (product.title + " " + variant.sku)
         .toLowerCase()
         .includes(query.toLowerCase()),
@@ -136,7 +137,7 @@ export default function SellerInventory() {
         </article>
         <article className="seller-stat">
           <span className="seller-stat-label">
-            Low stock (5 or fewer) <PackageCheck size={17} />
+            Low stock (configured levels) <PackageCheck size={17} />
           </span>
           <strong>{summary.data?.lowStock ?? "—"}</strong>
         </article>
@@ -240,7 +241,7 @@ export default function SellerInventory() {
                     <td>
                       <strong
                         className={
-                          variant.onHand - variant.reserved <= 5
+                          variantNeedsStock(variant)
                             ? "seller-low"
                             : ""
                         }
@@ -250,7 +251,7 @@ export default function SellerInventory() {
                       <small className="seller-cell-note">
                         {variant.onHand - variant.reserved <= 0
                           ? "Out of stock"
-                          : variant.onHand - variant.reserved <= 5
+                          : variantNeedsStock(variant)
                             ? "Low stock"
                             : "In stock"}
                       </small>

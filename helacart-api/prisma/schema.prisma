@@ -89,6 +89,9 @@ model User {
   productReviewReports CustomerProductReviewReport[] @relation("ProductReporter")
   productReviewDecisions CustomerProductReviewReport[] @relation("ProductModerator")
   teamChanges SellerTeamChange[]
+  bulkJobs BulkJob[]
+  promotionSubmissions Promotion[] @relation("PromotionSubmitter")
+  promotionDecisions PromotionEvent[]
 }
 
 model Seller {
@@ -130,6 +133,8 @@ model Seller {
   supportCases SupportCase[]
   refundRecords RefundRecord[]
   teamChanges SellerTeamChange[]
+  bulkJobs BulkJob[]
+  promotions Promotion[]
 
   @@index([status])
 }
@@ -252,6 +257,7 @@ model Product {
   warranty String? @db.VarChar(500)
   specifications Json @default("[]")
   customerReviews CustomerProductReview[]
+  promotions Promotion[]
 
   @@unique([sellerId, slug])
   @@unique([sellerId, sku])
@@ -267,12 +273,56 @@ model ProductFavorite {
   sellerNameSnapshot String
   imageUrlSnapshot String?
   createdAt DateTime @default(now()) @db.Timestamptz(3)
+  priceAlerts Boolean @default(false)
+  restockAlerts Boolean @default(false)
+  alertVersion Int @default(0)
+  observedPriceMinor Int?
+  observedAvailable Boolean?
+  lowestNotifiedMinor Int?
+  nextCheckAt DateTime @default(now()) @db.Timestamptz(3)
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   product Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
 
   @@unique([userId, productId])
   @@index([userId, createdAt, id])
   @@index([productId])
+  @@index([nextCheckAt])
+}
+
+model Promotion {
+  id String @id @default(uuid()) @db.Uuid
+  sellerId String @db.Uuid
+  productId String @db.Uuid
+  submitterId String @db.Uuid
+  requestKey String @db.Uuid
+  name String @db.VarChar(100)
+  discountBps Int
+  startsAt DateTime @db.Timestamptz(3)
+  endsAt DateTime @db.Timestamptz(3)
+  status String @default("PENDING") @db.VarChar(20)
+  version Int @default(0)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  seller Seller @relation(fields:[sellerId],references:[id],onDelete:Restrict)
+  product Product @relation(fields:[productId],references:[id],onDelete:Restrict)
+  submitter User @relation("PromotionSubmitter",fields:[submitterId],references:[id],onDelete:Restrict)
+  events PromotionEvent[]
+  orderItems OrderItem[]
+  @@unique([submitterId,requestKey])
+  @@index([productId,status,startsAt,endsAt])
+  @@index([sellerId,createdAt])
+}
+
+model PromotionEvent {
+  id String @id @default(uuid()) @db.Uuid
+  promotionId String @db.Uuid
+  actorId String @db.Uuid
+  version Int
+  status String @db.VarChar(20)
+  reason String @db.VarChar(500)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  promotion Promotion @relation(fields:[promotionId],references:[id],onDelete:Restrict)
+  actor User @relation(fields:[actorId],references:[id],onDelete:Restrict)
+  @@unique([promotionId,version])
 }
 
 enum AccountAccessStatus {
@@ -369,6 +419,10 @@ model ProductVariant {
   reservations  InventoryReservation[]
   cartItems     CartItem[]
   orderItems    OrderItem[]
+  lowStockThreshold Int @default(5)
+  stockAlertsEnabled Boolean @default(true)
+  stockSettingsVersion Int @default(0)
+  stockWatch StockWatch?
 
   @@unique([sellerId, sku])
   @@unique([productId, position])
@@ -538,6 +592,10 @@ model OrderItem {
   sku            String
   optionValues   Json
   unitLkrMinor   Int
+  originalUnitLkrMinor Int?
+  promotionId String? @db.Uuid
+  promotionDiscountBps Int?
+  promotion Promotion? @relation(fields:[promotionId],references:[id],onDelete:Restrict)
   quantity       Int
   lineLkrMinor   Int
   commissionRateBps Int?
@@ -594,6 +652,10 @@ model SellerOrderEvent {
 }
 
 enum NotificationType {
+  FAVORITE_PRICE_DROP
+  FAVORITE_RESTOCK
+  PROMOTION_UPDATED
+  STOCK_LOW
   ORDER_PLACED
   ORDER_UPDATED
   ORDER_TRACKING_UPDATED
@@ -605,6 +667,35 @@ enum NotificationType {
   COMMISSION_REMINDER
   SUPPORT_UPDATED
   REFUND_UPDATED
+}
+
+model StockWatch {
+  variantId String @id @db.Uuid
+  dirty Boolean @default(true)
+  level String @default("CLEAR") @db.VarChar(10)
+  changedAt DateTime @default(now()) @db.Timestamptz(3)
+  checkedAt DateTime? @db.Timestamptz(3)
+  variant ProductVariant @relation(fields:[variantId],references:[id],onDelete:Restrict)
+  @@index([dirty,variantId])
+}
+
+model BulkJob {
+  id String @id @default(uuid()) @db.Uuid
+  actorId String @db.Uuid
+  sellerId String? @db.Uuid
+  requestKey String @db.Uuid
+  kind String @db.VarChar(30)
+  inputHash String @db.VarChar(64)
+  reason String @db.VarChar(500)
+  preview Json
+  status String @default("PREVIEW") @db.VarChar(10)
+  createdAt DateTime @default(now()) @db.Timestamptz(3)
+  expiresAt DateTime @db.Timestamptz(3)
+  appliedAt DateTime? @db.Timestamptz(3)
+  actor User @relation(fields:[actorId],references:[id],onDelete:Restrict)
+  seller Seller? @relation(fields:[sellerId],references:[id],onDelete:Restrict)
+  @@unique([actorId,requestKey])
+  @@index([sellerId,createdAt])
 }
 
 model Notification {

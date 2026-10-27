@@ -16,6 +16,7 @@ describe('Package 1 read APIs and buyer cancellation', () => {
     partId = '44a84ea8-e101-467f-b6ec-3c54cf953348',
     variantId = '0daa6d81-a735-436d-afad-1a999c283a9e';
   const db = {
+    promotion: { findMany: async () => [] },
     user: { upsert: vi.fn() },
     seller: { count: vi.fn(), findMany: vi.fn() },
     sellerMember: { findUnique: vi.fn(), findMany: vi.fn() },
@@ -308,10 +309,11 @@ describe('Package 1 read APIs and buyer cancellation', () => {
       .expect(200);
     const query = db.$queryRaw.mock.calls[0][0] as Prisma.Sql;
     expect(query.sql).toContain('LATERAL');
-    expect(query.sql).toContain('offer.available=TRUE');
-    expect(query.sql).toContain('"status"=\'APPROVED\'');
+    expect(query.sql).toContain('offer.available');
+    expect(query.sql).toContain("p.status='APPROVED'");
     expect(query.sql).not.toContain('drop table');
-    expect(query.values).toContain('drop table');
+    expect(query.values).toContain('drop');
+    expect(query.values).toContain('table');
     expect(query.values.slice(-2)).toEqual([20, 60]);
   });
   it('rejects invalid public filters and inverted prices', async () => {

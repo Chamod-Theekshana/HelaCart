@@ -47,7 +47,7 @@ type SellerContext = {
 const sellerContext = createContext<SellerContext | null>(null);
 
 export function SellerProvider({ children }: { children: React.ReactNode }) {
-  const financeRoute = ['/seller/commission','/seller/returns','/seller/support','/seller/team'].includes(usePathname());
+  const financeRoute = ['/seller/commission','/seller/returns','/seller/support','/seller/team','/seller/reports','/seller/stock-alerts','/seller/promotions'].includes(usePathname());
   const { user, authReady, isPreview } = useShop();
   const [profile, setProfile] = useState<SellerProfile | null>(null);
   const [applications, setApplications] = useState<SellerApplication[]>([]);

@@ -1,4 +1,5 @@
 "use client";
+import {variantNeedsStock} from "@/lib/seller";
 
 import Link from "next/link";
 import {
@@ -39,7 +40,7 @@ export default function SellerOverview() {
     "inventory?stock=LOW&limit=4",
     pageOf(
       previewInventory.filter(
-        (row) => row.variant.onHand - row.variant.reserved <= 5,
+        (row) => variantNeedsStock(row.variant),
       ),
       1,
       4,
@@ -119,7 +120,7 @@ export default function SellerOverview() {
             </strong>
             <small>
               {lowCount
-                ? "5 or fewer units available"
+                ? "At or below the configured stock level"
                 : "Inventory is looking healthy"}
             </small>
           </span>

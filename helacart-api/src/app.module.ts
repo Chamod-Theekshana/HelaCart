@@ -22,6 +22,8 @@ import { CommissionModule } from './commission/commission.module.js';
 import { AfterSalesModule } from './after-sales/after-sales.module.js';
 import { ProductFeedbackModule } from './product-feedback/product-feedback.module.js';
 import { AccountPermissionsModule } from './account-permissions/account-permissions.module.js';
+import { BusinessToolsModule } from './business-tools/business-tools.module.js';
+import { DiscoveryModule } from './discovery/discovery.module.js';
 
 @Module({
   imports: [
@@ -42,6 +44,8 @@ import { AccountPermissionsModule } from './account-permissions/account-permissi
     AfterSalesModule,
     ProductFeedbackModule,
     AccountPermissionsModule,
+    BusinessToolsModule,
+    DiscoveryModule,
   ],
   controllers: [AppController, HealthController],
   providers: [AppService, { provide: APP_GUARD, useClass: RequestLimitGuard }],
