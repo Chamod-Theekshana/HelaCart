@@ -1,0 +1,10 @@
+{
+  "APP_ENV": "dev",
+  "API_URL": "http://10.0.2.2:4000/api/v1",
+  "FIREBASE_API_KEY": "",
+  "FIREBASE_APP_ID": "",
+  "FIREBASE_MESSAGING_SENDER_ID": "",
+  "FIREBASE_PROJECT_ID": "",
+  "FIREBASE_AUTH_DOMAIN": "",
+  "FIREBASE_IOS_BUNDLE_ID": "com.helacart.buyer"
+}

@@ -1,0 +1,46 @@
+name: Buyer mobile
+
+on:
+  workflow_dispatch:
+  push:
+    paths: ['helacart_buyer_mobile_app/**', '.github/workflows/buyer-mobile.yml']
+  pull_request:
+    paths: ['helacart_buyer_mobile_app/**', '.github/workflows/buyer-mobile.yml']
+
+permissions:
+  contents: read
+
+concurrency:
+  group: buyer-mobile-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify-android:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: helacart_buyer_mobile_app
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-java@v6.1.0
+        with:
+          distribution: temurin
+          java-version: '17'
+      - uses: subosito/flutter-action@v2.23.0
+        with:
+          flutter-version: '3.47.8'
+          channel: stable
+          cache: true
+      - run: flutter pub get --enforce-lockfile
+      - run: dart run build_runner build
+      - run: git diff --exit-code -- lib/core/data/models.freezed.dart lib/core/data/models.g.dart
+      - run: dart format --output=none --set-exit-if-changed lib test tool
+      - run: flutter analyze
+      - run: flutter test
+      - run: flutter build apk --debug --target-platform android-arm64 --split-per-abi
+      - uses: actions/upload-artifact@v7.0.2
+        with:
+          name: helacart-buyer-debug-arm64
+          path: helacart_buyer_mobile_app/build/app/outputs/flutter-apk/app-arm64-v8a-debug.apk
+          retention-days: 7

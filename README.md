@@ -4,7 +4,7 @@
 
 **Good finds. Local roots.**
 
-A multi-vendor marketplace for independent shops across Sri Lanka, with a buyer storefront, Seller Center, and admin workspace.
+A multi-vendor marketplace for independent shops across Sri Lanka, with a buyer storefront, native Flutter buyer app, Seller Center, and admin workspace.
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-0F172A?logo=nextdotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-0F172A?logo=react&logoColor=61DAFB)
@@ -88,6 +88,7 @@ These screenshots show the storefront's **labelled design-preview catalog**, usi
 | Layer | Technology |
 | --- | --- |
 | Web application | Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4, Lucide icons |
+| Buyer mobile | Flutter 3.47.8, Dart 3.13.7, Riverpod, GoRouter, Dio, Firebase Auth |
 | REST API | NestJS 12, TypeScript, validated request DTOs |
 | Database | PostgreSQL on Neon, Prisma 7, versioned migrations |
 | Authentication | Firebase Authentication and Firebase Admin token verification |
@@ -121,6 +122,10 @@ HelaCart/
 │   ├── prisma/       # Schema and database migrations
 │   ├── test/         # HTTP tests and test helpers
 │   └── scripts/      # Database and workflow verification utilities
+├── helacart_buyer_mobile_app/
+│   ├── lib/          # Flutter buyer features, application state and API integration
+│   ├── test/         # Purchase recovery, account isolation and UI checks
+│   └── docs/         # Stitch screen coverage
 └── docs/images/      # README screenshots
 ```
 
@@ -246,6 +251,7 @@ Deployment configuration and real operational processes still need environment-s
 
 ## Documentation
 
+- [Buyer mobile setup, architecture and verification](helacart_buyer_mobile_app/README.md) and [Stitch screen coverage](helacart_buyer_mobile_app/docs/screen-coverage.md)
 - [API setup and endpoint guide](helacart-api/README.md)
 - [Web application notes](helacart-storefront/README.md) and [screen file index](helacart-storefront/screens/README.md)
 - [Favorites and save-after-sign-in behavior](helacart-storefront/docs/product-favorites.md)
