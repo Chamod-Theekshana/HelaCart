@@ -19,6 +19,7 @@ import {
 import { SellerPageHeading, SellerStatusBadge } from "@/components/seller-ui";
 import { ShipmentTracking } from "@/components/shipment-tracking";
 import { ShipmentEditor } from "@/components/shipment-editor";
+import { OrderReasonDialog } from "@/components/order-reason-dialog";
 import Link from "next/link";
 
 const nextStatus: Partial<Record<OrderStatus, OrderStatus>> = {
@@ -33,6 +34,47 @@ const actionName: Partial<Record<OrderStatus, string>> = {
   SHIPPED: "Mark shipped",
   DELIVERED: "Confirm delivered",
 };
+/** Status changes that require a reason (API §1.2). */
+type ReasonAction = "CANCELLED" | "DELIVERY_FAILED" | "RETURNED_TO_SELLER";
+const reasonCopy: Record<
+  ReasonAction,
+  { title: string; description: string; submit: string; placeholder: string }
+> = {
+  CANCELLED: {
+    title: "Cancel this order?",
+    description:
+      "The buyer is notified with your reason and reserved stock is released. This cannot be undone.",
+    submit: "Cancel order",
+    placeholder: "For example: item is out of stock",
+  },
+  DELIVERY_FAILED: {
+    title: "Delivery failed",
+    description:
+      "Record why the courier could not deliver. You can re-attempt delivery or mark the parcel returned afterwards.",
+    submit: "Mark delivery failed",
+    placeholder: "For example: customer unreachable by phone",
+  },
+  RETURNED_TO_SELLER: {
+    title: "Parcel returned to you",
+    description:
+      "Confirm the parcel is back with you. The order closes without payment, stock is restored and no commission is charged.",
+    submit: "Mark returned",
+    placeholder: "For example: customer refused the parcel",
+  },
+};
+const statusFilters = [
+  "ALL",
+  "PLACED",
+  "ACCEPTED",
+  "PACKED",
+  "SHIPPED",
+  "DELIVERY_FAILED",
+  "DELIVERED",
+  "RETURNED_TO_SELLER",
+  "CANCELLED",
+];
+
+const statusText = (value: string) => value.toLowerCase().replaceAll("_", " ");
 
 export default function SellerOrders() {
   const { seller, isPreview, request, refreshOrders } = useSeller();
@@ -47,6 +89,10 @@ export default function SellerOrders() {
   const [shipmentOrder, setShipmentOrder] = useState<SellerOrderRecord | null>(
     null,
   );
+  const [reasonAction, setReasonAction] = useState<{
+    order: SellerOrderRecord;
+    status: ReasonAction;
+  } | null>(null);
   const applyQuery = useCallback((params: URLSearchParams) => {
     const target = params.get("order");
     if (target) {
@@ -90,17 +136,20 @@ export default function SellerOrders() {
       setShipmentOrder(row);
       return;
     }
+    if (
+      newStatus === "CANCELLED" ||
+      newStatus === "DELIVERY_FAILED" ||
+      newStatus === "RETURNED_TO_SELLER"
+    ) {
+      setReasonAction({ order: row, status: newStatus });
+      return;
+    }
     if (newStatus === "DELIVERED" && paymentCollectedFor !== row.id) {
       setNotice(
         "Confirm COD payment collection before marking this order delivered.",
       );
       return;
     }
-    if (
-      newStatus === "CANCELLED" &&
-      !window.confirm("Cancel this seller order? This action cannot be undone.")
-    )
-      return;
     setBusy(true);
     setNotice("");
     try {
@@ -110,12 +159,25 @@ export default function SellerOrders() {
       });
       await refreshOrders();
       setPaymentCollectedFor(null);
-      setNotice(`Order status updated to ${newStatus.toLowerCase()}.`);
+      setNotice(`Order status updated to ${statusText(newStatus)}.`);
     } catch (cause) {
       setNotice(errorMessage(cause));
     } finally {
       setBusy(false);
     }
+  }
+  async function updateWithReason(
+    row: SellerOrderRecord,
+    newStatus: ReasonAction,
+    reason: string,
+  ) {
+    if (!seller || isPreview) return;
+    await request(`/sellers/${seller.id}/orders/${row.id}/status`, "PATCH", {
+      status: newStatus,
+      reason,
+    });
+    await refreshOrders();
+    setNotice(`Order status updated to ${statusText(newStatus)}.`);
   }
   return (
     <>
@@ -142,6 +204,14 @@ export default function SellerOrders() {
           In delivery{" "}
           <strong>
             {summary.data ? (summary.data.orderCounts.SHIPPED ?? 0) : "—"}
+          </strong>
+        </span>
+        <span>
+          Delivery failed{" "}
+          <strong>
+            {summary.data
+              ? (summary.data.orderCounts.DELIVERY_FAILED ?? 0)
+              : "—"}
           </strong>
         </span>
         <span>
@@ -184,22 +254,14 @@ export default function SellerOrders() {
           role="group"
           aria-label="Order status"
         >
-          {[
-            "ALL",
-            "PLACED",
-            "ACCEPTED",
-            "PACKED",
-            "SHIPPED",
-            "DELIVERED",
-            "CANCELLED",
-          ].map((value) => (
+          {statusFilters.map((value) => (
             <button
               key={value}
               type="button"
               className={status === value ? "active" : ""}
               onClick={() => setStatus(value)}
             >
-              {value === "ALL" ? "All" : value.toLowerCase()}
+              {value === "ALL" ? "All" : statusText(value)}
             </button>
           ))}
         </div>
@@ -257,7 +319,9 @@ export default function SellerOrders() {
                 Placed {formatSellerDate(selected.createdAt, true)} · Cash on
                 delivery
               </p>
-              {selected.status !== "CANCELLED" && (
+              {!["CANCELLED", "RETURNED_TO_SELLER"].includes(
+                selected.status,
+              ) && (
                 <div
                   className="seller-order-timeline"
                   aria-label="Fulfilment progress"
@@ -266,7 +330,12 @@ export default function SellerOrders() {
                     <span
                       key={step}
                       className={
-                        index <= orderSteps.indexOf(selected.status)
+                        index <=
+                        orderSteps.indexOf(
+                          selected.status === "DELIVERY_FAILED"
+                            ? "SHIPPED"
+                            : selected.status,
+                        )
                           ? "done"
                           : ""
                       }
@@ -276,6 +345,18 @@ export default function SellerOrders() {
                     </span>
                   ))}
                 </div>
+              )}
+              {selected.statusReason && (
+                <p className="status-reason">
+                  <strong>{statusText(selected.status)}:</strong>{" "}
+                  {selected.statusReason}
+                </p>
+              )}
+              {selected.status === "DELIVERY_FAILED" && (
+                <p className="seller-muted">
+                  The parcel is still out. Re-attempt delivery with the courier
+                  details, or mark it returned when it is back with you.
+                </p>
               )}
               <div className="seller-detail-section">
                 <h3>Items</h3>
@@ -373,6 +454,35 @@ export default function SellerOrders() {
                     {actionName[nextStatus[selected.status]!]}
                   </button>
                 )}
+                {selected.status === "SHIPPED" && (
+                  <button
+                    className="outline-btn"
+                    disabled={busy || isPreview}
+                    onClick={() => void update(selected, "DELIVERY_FAILED")}
+                  >
+                    Delivery failed
+                  </button>
+                )}
+                {selected.status === "DELIVERY_FAILED" && (
+                  <>
+                    <button
+                      className="primary-btn"
+                      disabled={busy || isPreview}
+                      onClick={() => setShipmentOrder(selected)}
+                    >
+                      <Truck size={16} /> Re-attempt delivery
+                    </button>
+                    <button
+                      className="outline-btn"
+                      disabled={busy || isPreview}
+                      onClick={() =>
+                        void update(selected, "RETURNED_TO_SELLER")
+                      }
+                    >
+                      Returned to me
+                    </button>
+                  </>
+                )}
                 {["PLACED", "ACCEPTED", "PACKED"].includes(selected.status) && (
                   <button
                     className="outline-btn seller-danger-button"
@@ -388,8 +498,11 @@ export default function SellerOrders() {
                   <h3>History</h3>
                   {selected.events.map((row) => (
                     <p key={row.id} className="seller-muted">
-                      {row.fromStatus} → {row.toStatus} ·{" "}
+                      {statusText(row.fromStatus ?? "")} →{" "}
+                      {statusText(row.toStatus)} ·{" "}
                       {formatSellerDate(row.createdAt, true)}
+                      {row.actorUserId === null ? " · by HelaCart" : ""}
+                      {row.reason ? ` · ${row.reason}` : ""}
                     </p>
                   ))}
                 </div>
@@ -417,6 +530,20 @@ export default function SellerOrders() {
             await refreshOrders();
             setNotice("Shipment updated. Buyer notification created.");
           }}
+        />
+      )}
+      {reasonAction && seller && (
+        <OrderReasonDialog
+          key={`${reasonAction.order.id}:${reasonAction.status}`}
+          title={reasonCopy[reasonAction.status].title}
+          description={`Order #${reasonAction.order.order.id.slice(0, 8)} · ${reasonAction.order.order.recipient}. ${reasonCopy[reasonAction.status].description}`}
+          submitLabel={reasonCopy[reasonAction.status].submit}
+          placeholder={reasonCopy[reasonAction.status].placeholder}
+          danger={reasonAction.status === "CANCELLED"}
+          onClose={() => setReasonAction(null)}
+          onConfirm={(reason) =>
+            updateWithReason(reasonAction.order, reasonAction.status, reason)
+          }
         />
       )}
     </>

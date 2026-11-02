@@ -9,6 +9,7 @@ import 'package:material_ui/material_ui.dart';
 import '../../app/providers.dart';
 import '../../app/theme/helacart_theme.dart';
 import '../../features/auth/data/auth_service.dart';
+import '../../l10n/app_strings.dart';
 import '../data/json.dart';
 import '../data/format.dart';
 
@@ -188,7 +189,7 @@ class LoadingBlocks extends StatelessWidget {
   const LoadingBlocks({super.key});
   @override
   Widget build(BuildContext context) => Semantics(
-    label: 'Loading',
+    label: context.tr('common.loading'),
     child: Padding(
       padding: const EdgeInsets.all(20),
       child: Column(
@@ -214,13 +215,13 @@ class ErrorState extends StatelessWidget {
   final VoidCallback retry;
   @override
   Widget build(BuildContext context) => EmptyState(
-    title: 'Let’s try that again',
+    title: context.tr('common.tryAgainTitle'),
     message: friendlyError(error),
     icon: Icons.wifi_off_rounded,
     action: OutlinedButton.icon(
       onPressed: retry,
       icon: const Icon(Icons.refresh),
-      label: const Text('Try again'),
+      label: Text(context.tr('common.tryAgain')),
     ),
   );
 }
@@ -241,7 +242,9 @@ class RemoteView extends ConsumerWidget {
     return ref
         .watch(resourceProvider(key))
         .when(
-          skipLoadingOnRefresh: false,
+          // Pull-to-refresh keeps the current data instead of flashing the
+          // skeleton. A changed account/key is a reload and still shows it.
+          skipLoadingOnRefresh: true,
           skipLoadingOnReload: false,
           loading: () => const LoadingBlocks(),
           error: (e, _) =>
@@ -250,6 +253,26 @@ class RemoteView extends ConsumerWidget {
         );
   }
 }
+
+/// Awaits a refreshed provider [future] for a [RefreshIndicator] without
+/// rethrowing failures already rendered by the view's error state.
+Future<void> refreshFuture(Future<Object?> future) async {
+  try {
+    await future;
+  } catch (_) {
+    /* RemoteView / AsyncValue UI renders the failure with a retry action. */
+  }
+}
+
+/// Re-fetches one [RemoteView] resource for a [RefreshIndicator]. Errors are
+/// shown by the view itself, so they are not rethrown to the indicator.
+Future<void> refreshResource(
+  WidgetRef ref,
+  String path, {
+  bool private = false,
+}) => refreshFuture(
+  ref.refresh(resourceProvider((path: path, private: private)).future),
+);
 
 class Protected extends ConsumerWidget {
   const Protected({super.key, required this.child, this.verified = true});
@@ -266,27 +289,27 @@ class Protected extends ConsumerWidget {
       data: (user) {
         if (user == null) {
           return EmptyState(
-            title: 'Your HelaCart, in one place',
-            message: 'Sign in to see your orders, saved finds and account.',
+            title: context.tr('common.protectedTitle'),
+            message: context.tr('common.protectedMessage'),
             icon: Icons.person_outline,
             action: FilledButton(
               onPressed: () => context.push(
                 '/auth?next=${Uri.encodeQueryComponent(GoRouterState.of(context).uri.toString())}',
               ),
-              child: const Text('Sign in'),
+              child: Text(context.tr('common.signIn')),
             ),
           );
         }
         if (verified && !user.verified) {
           return EmptyState(
-            title: 'Verify your email',
-            message: 'Open the link in your email before using this account feature.',
+            title: context.tr('common.verifyTitle'),
+            message: context.tr('common.verifyMessage'),
             icon: Icons.mark_email_unread_outlined,
             action: FilledButton(
               onPressed: () => context.push(
                 '/verify?next=${Uri.encodeQueryComponent(GoRouterState.of(context).uri.toString())}',
               ),
-              child: const Text('Verify email'),
+              child: Text(context.tr('common.verifyEmail')),
             ),
           );
         }
@@ -296,9 +319,19 @@ class Protected extends ConsumerWidget {
   }
 }
 
+class _ActionButtonKey extends LocalKey {
+  const _ActionButtonKey(this.inner);
+  final Key inner;
+  @override
+  bool operator ==(Object other) =>
+      other is _ActionButtonKey && other.inner == inner;
+  @override
+  int get hashCode => Object.hash(_ActionButtonKey, inner);
+}
+
 class ActionButton extends ConsumerStatefulWidget {
-  const ActionButton({
-    super.key,
+  ActionButton({
+    Key? key,
     required this.label,
     required this.action,
     this.enabled = true,
@@ -306,7 +339,9 @@ class ActionButton extends ConsumerStatefulWidget {
     this.outlined = false,
     this.compact = false,
     this.textOnly = false,
-  });
+  }) : buttonKey = key,
+       super(key: key == null ? null : _ActionButtonKey(key));
+  final Key? buttonKey;
   final String label;
   final Future<void> Function() action;
   final bool enabled, outlined, compact, textOnly;
@@ -317,30 +352,48 @@ class ActionButton extends ConsumerStatefulWidget {
 
 class _ActionButtonState extends ConsumerState<ActionButton> {
   bool busy = false;
+  bool prompting = false;
   String? error;
   Future<void> run() async {
     if (busy) return;
+    void setPrompting(bool value) {
+      if (mounted && prompting != value) setState(() => prompting = value);
+    }
+
     setState(() {
       busy = true;
+      prompting = false;
       error = null;
     });
     try {
       final owner = ref.read(authServiceProvider).session?.uid;
-      await runZoned(widget.action, zoneValues: {#helacartActionOwner: owner});
+      await runZoned(
+        widget.action,
+        zoneValues: {
+          #helacartActionOwner: owner,
+          #helacartActionPrompting: setPrompting,
+        },
+      );
     } catch (e) {
       if (mounted) setState(() => error = friendlyError(e));
     } finally {
-      if (mounted) setState(() => busy = false);
+      if (mounted) {
+        setState(() {
+          busy = false;
+          prompting = false;
+        });
+      }
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final loading = busy && !prompting;
     final content = Row(
       mainAxisAlignment: MainAxisAlignment.center,
       mainAxisSize: MainAxisSize.min,
       children: [
-        if (busy) ...[
+        if (loading) ...[
           const SizedBox(
             width: 18,
             height: 18,
@@ -353,7 +406,7 @@ class _ActionButtonState extends ConsumerState<ActionButton> {
         ],
         Flexible(
           child: Text(
-            busy ? 'Please wait…' : widget.label,
+            loading ? context.tr('common.pleaseWait') : widget.label,
             textAlign: TextAlign.center,
           ),
         ),
@@ -365,6 +418,7 @@ class _ActionButtonState extends ConsumerState<ActionButton> {
       children: [
         widget.textOnly
             ? TextButton(
+                key: widget.buttonKey,
                 style: TextButton.styleFrom(
                   alignment: Alignment.centerLeft,
                   padding: EdgeInsets.zero,
@@ -375,6 +429,7 @@ class _ActionButtonState extends ConsumerState<ActionButton> {
               )
             : widget.compact
             ? TextButton(
+                key: widget.buttonKey,
                 style: TextButton.styleFrom(
                   padding: EdgeInsets.zero,
                   alignment: Alignment.centerLeft,
@@ -384,7 +439,9 @@ class _ActionButtonState extends ConsumerState<ActionButton> {
                   children: [
                     Expanded(
                       child: Text(
-                        busy ? 'Please wait…' : widget.label,
+                        loading
+                            ? context.tr('common.pleaseWait')
+                            : widget.label,
                         style: const TextStyle(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
@@ -399,7 +456,7 @@ class _ActionButtonState extends ConsumerState<ActionButton> {
                         border: Border.all(color: HelaColors.border),
                         borderRadius: BorderRadius.circular(8),
                       ),
-                      child: busy
+                      child: loading
                           ? const Padding(
                               padding: EdgeInsets.all(6),
                               child: CircularProgressIndicator(strokeWidth: 2),
@@ -411,10 +468,12 @@ class _ActionButtonState extends ConsumerState<ActionButton> {
               )
             : widget.outlined
             ? OutlinedButton(
+                key: widget.buttonKey,
                 onPressed: busy || !widget.enabled ? null : run,
                 child: content,
               )
             : FilledButton(
+                key: widget.buttonKey,
                 onPressed: busy || !widget.enabled ? null : run,
                 child: content,
               ),
@@ -568,30 +627,37 @@ class SectionTitle extends StatelessWidget {
 class StatusPill extends StatelessWidget {
   const StatusPill(this.status, {super.key});
   final String status;
+
+  /// Statuses that end or interrupt delivery use the warning palette.
+  static const attention = {
+    'REJECTED',
+    'CANCELLED',
+    'DELIVERY_FAILED',
+    'RETURNED_TO_SELLER',
+  };
   @override
-  Widget build(BuildContext context) => Align(
-    alignment: Alignment.centerLeft,
-    widthFactor: 1,
-    child: Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: status == 'REJECTED' || status == 'CANCELLED'
-            ? const Color(0xFFFFF0ED)
-            : HelaColors.mint,
-        borderRadius: BorderRadius.circular(20),
-      ),
-      child: Text(
-        label(status),
-        style: TextStyle(
-          fontSize: 12,
-          fontWeight: FontWeight.w600,
-          color: status == 'REJECTED' || status == 'CANCELLED'
-              ? HelaColors.danger
-              : HelaColors.teal,
+  Widget build(BuildContext context) {
+    final warn = attention.contains(status);
+    return Align(
+      alignment: Alignment.centerLeft,
+      widthFactor: 1,
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+        decoration: BoxDecoration(
+          color: warn ? const Color(0xFFFFF0ED) : HelaColors.mint,
+          borderRadius: BorderRadius.circular(20),
+        ),
+        child: Text(
+          context.tr('status.$status', const {}, label(status)),
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+            color: warn ? HelaColors.danger : HelaColors.teal,
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }
 
 class Pager extends StatelessWidget {
@@ -612,13 +678,13 @@ class Pager extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               IconButton(
-                tooltip: 'Previous page',
+                tooltip: context.tr('common.previousPage'),
                 onPressed: page > 1 ? () => change(page - 1) : null,
                 icon: const Icon(Icons.chevron_left),
               ),
-              Text('Page $page of $pages'),
+              Text(context.tr('common.pageOf', {'page': page, 'pages': pages})),
               IconButton(
-                tooltip: 'Next page',
+                tooltip: context.tr('common.nextPage'),
                 onPressed: page < pages ? () => change(page + 1) : null,
                 icon: const Icon(Icons.chevron_right),
               ),
@@ -627,13 +693,29 @@ class Pager extends StatelessWidget {
         );
 }
 
+/// Shows a modal dialog while pausing any enclosing [ActionButton] spinner so
+/// background buttons stay disabled without spinning behind the dialog.
+Future<T?> promptDialog<T>({
+  required BuildContext context,
+  required WidgetBuilder builder,
+}) async {
+  final setPrompting =
+      Zone.current[#helacartActionPrompting] as void Function(bool)?;
+  setPrompting?.call(true);
+  try {
+    return await showDialog<T>(context: context, builder: builder);
+  } finally {
+    setPrompting?.call(false);
+  }
+}
+
 Future<bool> confirm(
   BuildContext context, {
   required String title,
   required String message,
-  String action = 'Confirm',
+  String? action,
 }) async =>
-    await showDialog<bool>(
+    await promptDialog<bool>(
       context: context,
       builder: (c) => AlertDialog(
         scrollable: true,
@@ -642,11 +724,11 @@ Future<bool> confirm(
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(c, false),
-            child: const Text('Go back'),
+            child: Text(c.tr('common.goBack')),
           ),
           FilledButton(
             onPressed: () => Navigator.pop(c, true),
-            child: Text(action),
+            child: Text(action ?? c.tr('common.confirm')),
           ),
         ],
       ),
@@ -658,7 +740,7 @@ void toast(BuildContext context, String message) =>
 Widget verticalGap([double size = HelaSpacing.item]) => SizedBox(height: size);
 String? requiredText(String? value, {int min = 1, int max = 4000}) =>
     value == null || value.trim().length < min
-    ? 'Enter at least $min characters.'
+    ? AppStrings.current.t('validation.minChars', {'min': min})
     : value.trim().length > max
-    ? 'Use $max characters or fewer.'
+    ? AppStrings.current.t('validation.maxChars', {'max': max})
     : null;

@@ -16,7 +16,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 # https://developer.apple.com/library/archive/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html
 # In Windows, build-name is used as the major, minor, and patch parts
 # of the product and file versions while build-number is used as the build suffix.
-version: 1.0.0+1
+version: 1.1.0+2
 
 environment:
   sdk: ^3.13.4
@@ -29,6 +29,8 @@ environment:
 # versions available, run `flutter pub outdated`.
 dependencies:
   flutter:
+    sdk: flutter
+  flutter_localizations:
     sdk: flutter
 
   # The following adds the Cupertino Icons font to your application.
@@ -49,6 +51,16 @@ dependencies:
   timezone: 0.11.2
   uuid: 4.6.0
   material_symbols_icons: 4.2960.0
+  # November 2026 hardening release. Caret ranges: run `flutter pub get` once
+  # and commit the regenerated pubspec.lock (CI uses --enforce-lockfile).
+  # FlutterFire majors must match firebase_core 5.x / firebase_auth 7.x. The
+  # ranges let `pub get` pick the newest release built for firebase_core 5.
+  firebase_messaging: '>=16.0.0 <19.0.0'
+  firebase_crashlytics: '>=5.0.0 <7.0.0'
+  share_plus: ^13.2.0
+  package_info_plus: ^10.2.0
+  url_launcher: ^6.3.2
+  path_provider: ^2.1.5
 
 dev_dependencies:
   flutter_test:

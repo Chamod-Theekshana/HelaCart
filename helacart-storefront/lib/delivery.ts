@@ -52,11 +52,15 @@ export type DeliveryTracking = {
   shipment?: Shipment | null;
   deliveryMinDays?: number | null;
   deliveryMaxDays?: number | null;
+  statusReason?: string | null;
+  statusChangedAt?: string;
   events?: {
     id: string;
     fromStatus?: string;
     toStatus: string;
     createdAt: string;
+    reason?: string | null;
+    actorUserId?: string | null;
   }[];
 };
 export type DeliveryQuote = {

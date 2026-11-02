@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- HelaCart brand colours (lib/app/theme/helacart_theme.dart). -->
+    <color name="ic_launcher_background">#FFFFFF</color>
+    <color name="splash_background">#FFFFFF</color>
+    <!-- Brand teal sampled from assets/brand/helacart-icon.png. -->
+    <color name="notification_color">#0A958E</color>
+</resources>

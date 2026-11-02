@@ -11,6 +11,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { sanitizeUploadedImage } from '../media/strip-metadata.js';
 import type { AuthenticatedRequest } from '../auth/firebase-auth.guard.js';
 
 const formats = {
@@ -82,6 +83,7 @@ export class ContentImageStorageService {
             bytes.toString('ascii', 8, 12) === 'WEBP';
     if (!matches)
       throw new BadRequestException('Image bytes do not match Content-Type');
+    const body = sanitizeUploadedImage(bytes, mime);
     const { client, bucket, publicBase } = this.client();
     const storageKey = `storefront/${prefix}/${randomUUID()}.${formats[mime]}`;
     try {
@@ -89,7 +91,7 @@ export class ContentImageStorageService {
         new PutObjectCommand({
           Bucket: bucket,
           Key: storageKey,
-          Body: bytes,
+          Body: body,
           ContentType: mime,
           CacheControl: 'public, max-age=31536000, immutable',
         }),

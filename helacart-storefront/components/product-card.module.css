@@ -74,7 +74,9 @@
   display: none;
 }
 .card .title {
-  font-family: Inter, Arial, sans-serif;
+  font-family:
+    Inter, "Noto Sans Sinhala", "Noto Sans Tamil", "Nirmala UI", Arial,
+    sans-serif;
   color: var(--navy);
   font-size: 13px;
   font-weight: 650;
@@ -96,7 +98,9 @@
   min-height: 52px;
 }
 .price {
-  font-family: "Plus Jakarta Sans", Inter, Arial, sans-serif;
+  font-family:
+    "Plus Jakarta Sans", Inter, "Noto Sans Sinhala", "Noto Sans Tamil",
+    "Nirmala UI", Arial, sans-serif;
   font-size: 18px;
   letter-spacing: -0.035em;
   line-height: 1.5;

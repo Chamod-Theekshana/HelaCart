@@ -2,7 +2,10 @@
 import { Truck } from "lucide-react";
 import { deliveryDate, type DeliveryTracking } from "@/lib/delivery";
 import styles from "./delivery-workspace.module.css";
+import { useLanguage } from "./language-provider";
+import { orderStatusLabel } from "@/lib/order-status";
 export function ShipmentTracking({ order }: { order: DeliveryTracking }) {
+  const { t, dateLocale } = useLanguage();
   const shipment = order.shipment;
   const range =
     shipment && order.deliveryMinDays && order.deliveryMaxDays
@@ -18,12 +21,14 @@ export function ShipmentTracking({ order }: { order: DeliveryTracking }) {
         }
       : null;
   if (order.status === "CANCELLED")
-    return <p className={styles.muted}>Delivery cancelled.</p>;
+    return <p className={styles.muted}>{t("tracking.cancelled")}</p>;
+  if (order.status === "RETURNED_TO_SELLER")
+    return <p className={styles.muted}>{t("tracking.returned")}</p>;
   return (
-    <section className={styles.tracking} aria-label="Delivery tracking">
+    <section className={styles.tracking} aria-label={t("tracking.title")}>
       <div className={styles.heading}>
         <Truck size={18} />
-        <strong>Delivery tracking</strong>
+        <strong>{t("tracking.title")}</strong>
       </div>
       {shipment ? (
         <>
@@ -32,60 +37,70 @@ export function ShipmentTracking({ order }: { order: DeliveryTracking }) {
             <br />
             {shipment.trackingNumber ? (
               <span>
-                Tracking reference:{" "}
+                {t("tracking.reference")}{" "}
                 <b className={styles.reference}>{shipment.trackingNumber}</b>
               </span>
             ) : (
-              <span>Delivery status is updated by your shop.</span>
+              <span>{t("tracking.byShop")}</span>
             )}
           </p>
           <p className={styles.muted}>
-            Dispatched {deliveryDate(shipment.shippedAt)}
-            {range && order.status !== "DELIVERED" && (
+            {t("tracking.dispatched", {
+              date: deliveryDate(shipment.shippedAt),
+            })}
+            {range && order.status === "SHIPPED" && (
               <>
                 {" "}
-                · Estimated arrival {deliveryDate(range.from)}–
-                {deliveryDate(range.to)}
+                ·{" "}
+                {t("tracking.estimated", {
+                  from: deliveryDate(range.from),
+                  to: deliveryDate(range.to),
+                })}
               </>
             )}
-            {order.status === "DELIVERED" && " · Delivered"}
+            {order.status === "DELIVERED" && ` · ${t("status.DELIVERED")}`}
+            {order.status === "DELIVERY_FAILED" &&
+              ` · ${t("status.DELIVERY_FAILED")}`}
           </p>
         </>
       ) : (
         <p className={styles.muted}>
           {order.status === "SHIPPED"
-            ? "Your order has shipped. The shop has not added a tracking reference yet."
+            ? t("tracking.shippedNoRef")
             : order.status === "DELIVERED"
-              ? "The shop marked this delivery complete."
-              : "Tracking details appear when your shop dispatches the order."}
+              ? t("tracking.delivered")
+              : order.status === "DELIVERY_FAILED"
+                ? t("orders.deliveryFailed")
+                : t("tracking.pending")}
           {order.deliveryMinDays &&
             order.deliveryMaxDays &&
-            order.status !== "DELIVERED" && (
+            !["DELIVERED", "DELIVERY_FAILED"].includes(order.status) && (
               <>
                 {" "}
-                Estimated {order.deliveryMinDays}–{order.deliveryMaxDays}{" "}
-                calendar days after dispatch.
+                {t("checkout.estimateDays", {
+                  min: order.deliveryMinDays,
+                  max: order.deliveryMaxDays,
+                })}
               </>
             )}
         </p>
       )}
       {!!order.events?.length && (
         <details>
-          <summary>View delivery progress</summary>
+          <summary>{t("tracking.progress")}</summary>
           <ol className={styles.timeline}>
             {order.events.map((event) => (
               <li key={event.id}>
-                <strong>
-                  {event.toStatus.toLowerCase().replaceAll("_", " ")}
-                </strong>
+                <strong>{orderStatusLabel(t, event.toStatus)}</strong>
                 <span>
                   {deliveryDate(event.createdAt)} ·{" "}
-                  {new Intl.DateTimeFormat("en-LK", {
+                  {new Intl.DateTimeFormat(dateLocale, {
                     timeZone: "Asia/Colombo",
                     hour: "2-digit",
                     minute: "2-digit",
                   }).format(new Date(event.createdAt))}
                 </span>
+                {event.reason && <small>{event.reason}</small>}
               </li>
             ))}
           </ol>

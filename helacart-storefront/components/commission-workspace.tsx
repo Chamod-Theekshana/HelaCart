@@ -200,10 +200,14 @@ async function privateFile(path: string) {
   const user = clientAuth()?.currentUser;
   if (!user) throw Error("Sign in again to continue");
   const uid = user.uid;
-  const response = await fetch(`${apiBase}${path}`, {
-    headers: { Authorization: `Bearer ${await user.getIdToken(true)}` },
-    cache: "no-store",
-  });
+  const load = async (force: boolean) =>
+    fetch(`${apiBase}${path}`, {
+      headers: { Authorization: `Bearer ${await user.getIdToken(force)}` },
+      cache: "no-store",
+    });
+  // Cached token first; refresh once only if the API rejects it.
+  let response = await load(false);
+  if (response.status === 401) response = await load(true);
   if (!response.ok) {
     const body = await response.json().catch(() => null);
     throw Error(body?.message || "Could not download this file");
@@ -280,11 +284,17 @@ export function CommissionAccount({
   request,
   isPreview,
   admin = false,
+  canSubmitPayments = true,
+  canViewReceipts = true,
 }: {
   sellerId: string;
   request: FinanceRequest;
   isPreview: boolean;
   admin?: boolean;
+  /** Commission payment submissions are owner-only (API §6). */
+  canSubmitPayments?: boolean;
+  /** Commission receipt viewing is owner-only for sellers (API notes §9). */
+  canViewReceipts?: boolean;
 }) {
   const [revision, setRevision] = useState(0);
   const [tab, setTab] = useState("charges");
@@ -470,12 +480,19 @@ export function CommissionAccount({
             {policy.data?.instructions && (
               <p className={styles.muted}>{policy.data.instructions}</p>
             )}
+            {!canSubmitPayments && (
+              <p className={styles.muted}>
+                Only the shop owner can submit commission payments.
+              </p>
+            )}
             {balance && (
               <PaymentSubmission
                 key={sellerId}
                 root={root}
                 available={balance.availableToSubmitMinor}
-                disabled={isPreview || !policy.data?.accountNumber}
+                disabled={
+                  isPreview || !policy.data?.accountNumber || !canSubmitPayments
+                }
                 request={request}
                 onSaved={() => {
                   setTab("payments");
@@ -664,6 +681,7 @@ export function CommissionAccount({
                 loading={payments.loading}
                 isPreview={isPreview}
                 onReceipt={setReceiptId}
+                receiptsAllowed={canViewReceipts}
                 onCorrect={
                   admin
                     ? (row) =>
@@ -817,6 +835,7 @@ export function PaymentTable({
   loading,
   isPreview,
   onReceipt,
+  receiptsAllowed = true,
   onReview,
   onCorrect,
 }: {
@@ -824,6 +843,7 @@ export function PaymentTable({
   loading: boolean;
   isPreview: boolean;
   onReceipt: (id: string) => void;
+  receiptsAllowed?: boolean;
   onReview?: (payment: CommissionPayment) => void;
   onCorrect?: (payment: CommissionPayment) => void;
 }) {
@@ -867,7 +887,12 @@ export function PaymentTable({
             <div className={styles.rowActions}>
               <button
                 className="outline-btn"
-                disabled={isPreview}
+                disabled={isPreview || !receiptsAllowed}
+                title={
+                  receiptsAllowed
+                    ? undefined
+                    : "Only the shop owner can view payment receipts"
+                }
                 onClick={() => onReceipt(row.id)}
               >
                 <Receipt size={14} /> Receipt

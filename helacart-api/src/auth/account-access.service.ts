@@ -12,5 +12,7 @@ export class AccountAccessService {
       throw new ForbiddenException(
         'Your HelaCart account is suspended. Contact HelaCart support for help',
       );
+    if (user?.accessStatus === 'DELETED')
+      throw new ForbiddenException('This HelaCart account was deleted');
   }
 }

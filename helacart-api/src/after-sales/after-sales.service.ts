@@ -273,7 +273,17 @@ export class AfterSalesService {
     identity: DecodedIdToken,
     dto: RefundRecordDto,
   ) {
-    const actor = await this.actor(identity, { role: 'SELLER', sellerId });
+    if (!identity.email_verified)
+      throw new ForbiddenException(
+        'Verify your email before accessing support or refunds',
+      );
+    // Refund submissions are an owner decision and a write (blocked if suspended).
+    const actor = await this.catalog.requireSellerMember(
+      sellerId,
+      identity,
+      true,
+      { ownerOnly: true },
+    );
     const amount = dto.merchandiseMinor + dto.shippingMinor,
       reference = normalize(dto.reference);
     if (amount < 1 || amount > 1000000000)
@@ -742,15 +752,16 @@ export class AfterSalesService {
       recipients.set(admin.id, `/admin/support?case=${row.id}`);
     recipients.delete(actorId);
     if (recipients.size)
-      await tx.notification.createMany({
-        data: [...recipients].map(([userId, href]) => ({
+      await this.notifications.createMany(
+        tx,
+        [...recipients].map(([userId, href]) => ({
           userId,
           href,
           type: 'SUPPORT_UPDATED' as const,
           subjectId: row.id,
           message,
         })),
-      });
+      );
   }
   async createCase(identity: DecodedIdToken, scope: Scope, dto: CreateCaseDto) {
     const actor = await this.actor(identity, scope);

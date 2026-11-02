@@ -25,6 +25,8 @@ class _ReviewsScreenState extends ConsumerState<ReviewsScreen> {
   String get accessPath => widget.shop
       ? '/shops/${Uri.encodeComponent(widget.id)}/review-access'
       : '$base/access';
+  String get listPath =>
+      '$base?page=$page&sort=$sort${rating.isEmpty ? '' : '&rating=$rating'}';
   @override
   Widget build(BuildContext context) {
     final user = ref.watch(sessionProvider).value;
@@ -43,135 +45,143 @@ class _ReviewsScreenState extends ConsumerState<ReviewsScreen> {
     };
     return PageFrame(
       title: widget.shop ? 'Shop reviews' : 'Product reviews',
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          RemoteView(
-            path:
-                '$base?page=$page&sort=$sort${rating.isEmpty ? '' : '&rating=$rating'}',
-            builder: (c, data) {
-              final summary = object(data['summary']);
-              final rows = objects(data['items']);
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Panel(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          integer(summary['total']) == 0
-                              ? 'No reviews yet'
-                              : '${summary['average']} ★',
-                          style: Theme.of(c).textTheme.headlineSmall,
-                        ),
-                        Text(
-                          '${integer(summary['total'])} verified-purchase reviews',
-                        ),
-                        verticalGap(12),
-                        for (final row in objects(summary['breakdown']))
-                          Row(
-                            children: [
-                              Text('${row['rating']} ★'),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: LinearProgressIndicator(
-                                  value: integer(summary['total']) == 0
-                                      ? 0
-                                      : integer(row['count']) /
-                                            integer(summary['total']),
-                                  backgroundColor: HelaColors.wash,
+      child: RefreshIndicator(
+        onRefresh: () => refreshResource(ref, listPath),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          children: [
+            RemoteView(
+              path: listPath,
+              builder: (c, data) {
+                final summary = object(data['summary']);
+                final rows = objects(data['items']);
+                return Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Panel(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            integer(summary['total']) == 0
+                                ? 'No reviews yet'
+                                : '${summary['average']} ★',
+                            style: Theme.of(c).textTheme.headlineSmall,
+                          ),
+                          Text(
+                            '${integer(summary['total'])} verified-purchase reviews',
+                          ),
+                          verticalGap(12),
+                          for (final row in objects(summary['breakdown']))
+                            Row(
+                              children: [
+                                Text('${row['rating']} ★'),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                  child: LinearProgressIndicator(
+                                    value: integer(summary['total']) == 0
+                                        ? 0
+                                        : integer(row['count']) /
+                                              integer(summary['total']),
+                                    backgroundColor: HelaColors.wash,
+                                  ),
                                 ),
-                              ),
-                              const SizedBox(width: 12),
-                              Text('${row['count']}'),
-                            ],
+                                const SizedBox(width: 12),
+                                Text('${row['count']}'),
+                              ],
+                            ),
+                        ],
+                      ),
+                    ),
+                    verticalGap(),
+                    Wrap(
+                      spacing: 6,
+                      children: [
+                        for (final value in ['', '5', '4', '3', '2', '1'])
+                          ChoiceChip(
+                            label: Text(
+                              value.isEmpty ? 'All stars' : '$value ★',
+                            ),
+                            selected: rating == value,
+                            onSelected: (_) => setState(() {
+                              rating = value;
+                              page = 1;
+                            }),
                           ),
                       ],
                     ),
-                  ),
-                  verticalGap(),
-                  Wrap(
-                    spacing: 6,
-                    children: [
-                      for (final value in ['', '5', '4', '3', '2', '1'])
-                        ChoiceChip(
-                          label: Text(value.isEmpty ? 'All stars' : '$value ★'),
-                          selected: rating == value,
-                          onSelected: (_) => setState(() {
-                            rating = value;
-                            page = 1;
-                          }),
+                    DropdownButton<String>(
+                      value: sort,
+                      isExpanded: true,
+                      items: const [
+                        DropdownMenuItem(
+                          value: 'newest',
+                          child: Text('Newest'),
                         ),
-                    ],
-                  ),
-                  DropdownButton<String>(
-                    value: sort,
-                    isExpanded: true,
-                    items: const [
-                      DropdownMenuItem(value: 'newest', child: Text('Newest')),
-                      DropdownMenuItem(
-                        value: 'highest',
-                        child: Text('Highest rating'),
-                      ),
-                      DropdownMenuItem(
-                        value: 'lowest',
-                        child: Text('Lowest rating'),
-                      ),
-                    ],
-                    onChanged: (v) => setState(() {
-                      sort = v!;
-                      page = 1;
-                    }),
-                  ),
-                  if (rows.isEmpty)
-                    const EmptyState(
-                      title: 'Be the first to share your experience',
-                      message:
-                          'Reviews are available after a delivered purchase.',
-                      icon: Icons.rate_review_outlined,
+                        DropdownMenuItem(
+                          value: 'highest',
+                          child: Text('Highest rating'),
+                        ),
+                        DropdownMenuItem(
+                          value: 'lowest',
+                          child: Text('Lowest rating'),
+                        ),
+                      ],
+                      onChanged: (v) => setState(() {
+                        sort = v!;
+                        page = 1;
+                      }),
                     ),
-                  for (final row in rows)
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
-                      child: ReviewCard(
-                        review: row,
-                        photoBase: widget.shop
-                            ? '$base/${row['id']}/photos'
-                            : null,
-                        report: ownIds.contains(row['id'])
-                            ? null
-                            : () => reportReview(
-                                context,
-                                ref,
-                                widget.shop
-                                    ? '$base/${row['id']}/report'
-                                    : '$base/${row['id']}/reports',
-                              ),
+                    if (rows.isEmpty)
+                      const EmptyState(
+                        title: 'Be the first to share your experience',
+                        message:
+                            'Reviews are available after a delivered purchase.',
+                        icon: Icons.rate_review_outlined,
                       ),
+                    for (final row in rows)
+                      Padding(
+                        padding: const EdgeInsets.only(bottom: 12),
+                        child: ReviewCard(
+                          review: row,
+                          photoBase: widget.shop
+                              ? '$base/${row['id']}/photos'
+                              : null,
+                          report: ownIds.contains(row['id'])
+                              ? null
+                              : () => reportReview(
+                                  context,
+                                  ref,
+                                  widget.shop
+                                      ? '$base/${row['id']}/report'
+                                      : '$base/${row['id']}/reports',
+                                ),
+                        ),
+                      ),
+                    Pager(
+                      page: page,
+                      pages: integer(data['pages'], 1),
+                      change: (p) => setState(() => page = p),
                     ),
-                  Pager(
-                    page: page,
-                    pages: integer(data['pages'], 1),
-                    change: (p) => setState(() => page = p),
-                  ),
-                ],
-              );
-            },
-          ),
-          if (widget.shop) ShopTabs(slug: widget.id, selected: 'reviews'),
-          const SectionTitle('Your experience'),
-          if (user == null || !user.verified)
-            Protected(child: const SizedBox.shrink())
-          else
-            RemoteView(
-              path: accessPath,
-              private: true,
-              builder: (c, access) => widget.shop
-                  ? ShopReviewEditor(slug: widget.id, access: access)
-                  : ProductReviewEditor(productId: widget.id, access: access),
+                  ],
+                );
+              },
             ),
-        ],
+            if (widget.shop) ShopTabs(slug: widget.id, selected: 'reviews'),
+            const SectionTitle('Your experience'),
+            if (user == null || !user.verified)
+              Protected(child: const SizedBox.shrink())
+            else
+              RemoteView(
+                path: accessPath,
+                private: true,
+                builder: (c, access) => widget.shop
+                    ? ShopReviewEditor(slug: widget.id, access: access)
+                    : ProductReviewEditor(productId: widget.id, access: access),
+              ),
+          ],
+        ),
       ),
     );
   }

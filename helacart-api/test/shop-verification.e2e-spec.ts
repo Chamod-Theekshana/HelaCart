@@ -19,7 +19,7 @@ describe('Admin shop verification boundaries', () => {
     reason: 'Reviewed front and back identity photos.',
   };
   const database = {
-    user: { upsert: vi.fn() },
+    user: { upsert: vi.fn(), findUnique: vi.fn() },
     seller: {
       updateMany: vi.fn(),
       findUnique: vi.fn(),

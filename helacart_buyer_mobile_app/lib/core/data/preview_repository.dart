@@ -1,5 +1,6 @@
 import '../network/api_client.dart';
 import 'buyer_repository.dart';
+import 'contract_models.dart';
 import 'json.dart';
 import 'models.dart';
 
@@ -305,5 +306,11 @@ class PreviewRepository implements BuyerRepository {
       throw const AppFailure('Sign in to view your live cart.');
   @override
   Future<List<BuyerAddress>> addresses() async =>
+      throw const AppFailure('Sign in to view addresses.');
+  @override
+  Future<CartQuote> cartQuote([String? addressId]) async =>
+      throw const AppFailure('Sign in to view your live cart.');
+  @override
+  Future<List<SavedAddress>> savedAddresses() async =>
       throw const AppFailure('Sign in to view addresses.');
 }

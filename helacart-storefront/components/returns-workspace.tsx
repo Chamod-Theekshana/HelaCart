@@ -24,12 +24,15 @@ export function ReturnsWorkspace({
   request,
   isPreview,
   revision: externalRevision = 0,
+  canRecordRefunds = true,
 }: {
   root: string;
   role: "BUYER" | "SELLER";
   request: FinanceRequest;
   isPreview: boolean;
   revision?: number;
+  /** Refund submissions are owner-only for sellers (API §6). */
+  canRecordRefunds?: boolean;
 }) {
   const [status, setStatus] = useState("ALL"),
     [page, setPage] = useState(1),
@@ -117,11 +120,17 @@ export function ReturnsWorkspace({
                           className="outline-btn"
                           disabled={
                             isPreview ||
+                            !canRecordRefunds ||
                             (used >= item.baseMinor &&
                               (row.remainingShippingMinor ??
                                 row.sellerOrder.shippingLkrMinor) <= 0)
                           }
                           onClick={() => setTarget({ row, item })}
+                          title={
+                            canRecordRefunds
+                              ? undefined
+                              : "Only the shop owner can record refunds"
+                          }
                         >
                           Record actual refund
                         </button>

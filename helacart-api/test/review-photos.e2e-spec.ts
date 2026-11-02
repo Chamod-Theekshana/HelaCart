@@ -24,7 +24,7 @@ describe('Review photos HTTP flow', () => {
     byteSize: png.length,
   };
   const db = {
-    user: { upsert: vi.fn() },
+    user: { upsert: vi.fn(), findUnique: vi.fn() },
     seller: { findFirst: vi.fn() },
     sellerMember: { findUnique: vi.fn() },
     sellerOrder: { findFirst: vi.fn() },

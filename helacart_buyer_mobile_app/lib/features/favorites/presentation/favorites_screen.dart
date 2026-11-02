@@ -9,98 +9,111 @@ class FavoritesScreen extends ConsumerStatefulWidget {
 
 class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
   int page = 1;
+  String get path => '/me/favorites?page=$page&limit=12';
   @override
   Widget build(BuildContext context) => PageFrame(
-    title: 'Your saved finds',
+    title: context.tr('favorites.title'),
     child: Protected(
       verified: false,
-      child: RemoteView(
-        path: '/me/favorites?page=$page&limit=12',
-        private: true,
-        builder: (c, data) => ListView(
-          padding: const EdgeInsets.all(20),
-          children: [
-            Text(
-              'Keep the good finds.',
-              style: Theme.of(context).textTheme.headlineSmall,
-            ),
-            verticalGap(8),
-            Text('${integer(data['total'])} saved products'),
-            verticalGap(20),
-            if (objects(data['items']).isEmpty)
-              EmptyState(
-                title: 'A place for your favourites',
-                message: 'Tap the heart on a product to save it for later.',
-                icon: Icons.favorite_border,
-                action: FilledButton(
-                  onPressed: () => context.push('/products'),
-                  child: const Text('Explore products'),
-                ),
+      child: RefreshIndicator(
+        onRefresh: () async {
+          ref.invalidate(favoriteIndexProvider);
+          await refreshResource(ref, path, private: true);
+        },
+        child: RemoteView(
+          path: path,
+          private: true,
+          builder: (c, data) => ListView(
+            physics: const AlwaysScrollableScrollPhysics(),
+            padding: const EdgeInsets.all(20),
+            children: [
+              Text(
+                context.tr('favorites.headline'),
+                style: Theme.of(context).textTheme.headlineSmall,
               ),
-            for (final item in objects(data['items']))
-              Padding(
-                padding: const EdgeInsets.only(bottom: 16),
-                child: Panel(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      if (item['product'] != null)
-                        FavoriteProductRow(item: item)
-                      else
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              string(item['title'], 'Unavailable product'),
-                              style: const TextStyle(
-                                fontWeight: FontWeight.w700,
+              verticalGap(8),
+              Text(
+                context.tr('favorites.count', {
+                  'count': integer(data['total']),
+                }),
+              ),
+              verticalGap(20),
+              if (objects(data['items']).isEmpty)
+                EmptyState(
+                  title: context.tr('favorites.emptyTitle'),
+                  message: context.tr('favorites.emptyMessage'),
+                  icon: Icons.favorite_border,
+                  action: FilledButton(
+                    onPressed: () => context.push('/products'),
+                    child: Text(context.tr('common.exploreProducts')),
+                  ),
+                ),
+              for (final item in objects(data['items']))
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 16),
+                  child: Panel(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        if (item['product'] != null)
+                          FavoriteProductRow(item: item)
+                        else
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                string(item['title'], 'Unavailable product'),
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                ),
                               ),
-                            ),
-                            Text(string(item['sellerName'])),
-                            const Notice(
-                              'This product is currently unavailable. You can keep it saved or remove it.',
+                              Text(string(item['sellerName'])),
+                              const Notice(
+                                'This product is currently unavailable. You can keep it saved or remove it.',
+                              ),
+                            ],
+                          ),
+                        ResponsiveActions(
+                          children: [
+                            if (item['product'] != null)
+                              OutlinedButton.icon(
+                                onPressed: () => showModalBottomSheet<void>(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  builder: (c) =>
+                                      FavoriteAlertsSheet(item: item),
+                                ),
+                                icon: const Icon(Icons.notifications_none),
+                                label: const Text('Alert settings'),
+                              ),
+                            ActionButton(
+                              label: 'Remove',
+                              icon: Icons.delete_outline,
+                              outlined: true,
+                              action: () async {
+                                await ref
+                                    .read(repositoryProvider)
+                                    .write(
+                                      '/me/favorites/${item['id']}',
+                                      'DELETE',
+                                    );
+                                ref.invalidate(resourceProvider);
+                                ref.invalidate(favoriteIndexProvider);
+                              },
                             ),
                           ],
                         ),
-                      ResponsiveActions(
-                        children: [
-                          if (item['product'] != null)
-                            OutlinedButton.icon(
-                              onPressed: () => showModalBottomSheet<void>(
-                                context: context,
-                                isScrollControlled: true,
-                                builder: (c) => FavoriteAlertsSheet(item: item),
-                              ),
-                              icon: const Icon(Icons.notifications_none),
-                              label: const Text('Alert settings'),
-                            ),
-                          ActionButton(
-                            label: 'Remove',
-                            icon: Icons.delete_outline,
-                            outlined: true,
-                            action: () async {
-                              await ref
-                                  .read(repositoryProvider)
-                                  .write(
-                                    '/me/favorites/${item['id']}',
-                                    'DELETE',
-                                  );
-                              ref.invalidate(resourceProvider);
-                              ref.invalidate(favoriteIndexProvider);
-                            },
-                          ),
-                        ],
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
+              Pager(
+                page: page,
+                pages: integer(data['pages'], 1),
+                change: (v) => setState(() => page = v),
               ),
-            Pager(
-              page: page,
-              pages: integer(data['pages'], 1),
-              change: (v) => setState(() => page = v),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     ),

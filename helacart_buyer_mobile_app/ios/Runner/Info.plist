@@ -15,7 +15,7 @@
 	<key>CFBundleInfoDictionaryVersion</key>
 	<string>6.0</string>
 	<key>CFBundleName</key>
-	<string>helacart_buyer_mobile_app</string>
+	<string>HelaCart</string>
 	<key>NSPhotoLibraryUsageDescription</key>
 	<string>Select a photo for your profile or a verified shop review.</string>
 	<key>CFBundleURLTypes</key>
@@ -24,6 +24,14 @@
 			<key>CFBundleURLSchemes</key>
 			<array><string>helacart</string></array>
 		</dict>
+	</array>
+	<key>FlutterDeepLinkingEnabled</key>
+	<true/>
+	<key>FirebaseCrashlyticsCollectionEnabled</key>
+	<false/>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
 	</array>
 	<key>CFBundlePackageType</key>
 	<string>APPL</string>

@@ -162,4 +162,143 @@ describe('Environment configuration', () => {
       }),
     ).toThrow('must differ');
   });
+
+  const production = {
+    ...local,
+    NODE_ENV: 'production',
+    DATABASE_URL: 'postgresql://u:p@ep-demo.aws.neon.tech/db?sslmode=require',
+    ADMIN_FIREBASE_UIDS: 'admin-1',
+    CORS_ORIGINS: 'https://helacart.lk',
+  };
+
+  it('accepts a minimal production configuration and requires https origins', () => {
+    expect(() => validateEnvironment(production)).not.toThrow();
+    expect(() =>
+      validateEnvironment({
+        ...production,
+        CORS_ORIGINS: 'https://helacart.lk,http://admin.helacart.lk',
+      }),
+    ).toThrow('https origins in production');
+  });
+
+  it('applies defaults for the hardening release settings', () => {
+    const result = validateEnvironment(local);
+    expect(result).toMatchObject({
+      DATABASE_POOL_SIZE: 10,
+      SELLER_ACCEPT_HOURS: 48,
+      MAX_OPEN_COD_ORDERS: 5,
+      MAX_COD_ORDER_LKR_MINOR: 50_000_000,
+      REQUIRE_PHONE_VERIFICATION: false,
+      RESERVATIONS_ENABLED: false,
+      RATE_LIMIT_GENERAL_PER_MINUTE: 180,
+      RATE_LIMIT_WRITE_PER_MINUTE: 20,
+      RATE_LIMIT_AUTHENTICATED_IP_MULTIPLIER: 5,
+      AUTH_TOKEN_CACHE_SECONDS: 60,
+      SMS_ENABLED: false,
+      EMAIL_ENABLED: false,
+      APP_ANDROID_MIN_VERSION: '1.0.0',
+      LEGAL_PRIVACY_URL: 'https://helacart.lk/legal/privacy',
+      SUPPORT_EMAIL: 'support@helacart.lk',
+    });
+    expect(
+      validateEnvironment({ ...local, NODE_ENV: 'test' })
+        .AUTH_TOKEN_CACHE_SECONDS,
+    ).toBe(0);
+  });
+
+  it.each([
+    ['SELLER_ACCEPT_HOURS', '6'],
+    ['MAX_OPEN_COD_ORDERS', '0'],
+    ['MAX_COD_ORDER_LKR_MINOR', 'lots'],
+    ['DATABASE_POOL_SIZE', '500'],
+    ['RATE_LIMIT_WRITE_PER_MINUTE', '-1'],
+    ['REQUIRE_PHONE_VERIFICATION', 'maybe'],
+    ['AUTH_TOKEN_CACHE_SECONDS', '120'],
+  ])('rejects invalid %s', (key, value) => {
+    expect(() => validateEnvironment({ ...local, [key]: value })).toThrow(key);
+  });
+
+  it('requires a long internal API token in production', () => {
+    expect(() =>
+      validateEnvironment({
+        ...production,
+        INTERNAL_API_TOKEN: 'x'.repeat(20),
+      }),
+    ).toThrow('INTERNAL_API_TOKEN must be at least 32');
+    expect(() =>
+      validateEnvironment({
+        ...production,
+        INTERNAL_API_TOKEN: 'x'.repeat(32),
+      }),
+    ).not.toThrow();
+    expect(() =>
+      validateEnvironment({ ...local, INTERNAL_API_TOKEN: 'x'.repeat(16) }),
+    ).not.toThrow();
+  });
+
+  it('treats optional providers as all-or-nothing and requires an OTP secret for SMS', () => {
+    const sms = {
+      NOTIFY_LK_USER_ID: '12345',
+      NOTIFY_LK_API_KEY: 'abcdefghijklmnop',
+      NOTIFY_LK_SENDER_ID: 'HelaCart',
+    };
+    expect(() =>
+      validateEnvironment({ ...local, NOTIFY_LK_USER_ID: '12345' }),
+    ).toThrow('Notify.lk SMS settings must be provided together');
+    expect(() => validateEnvironment({ ...local, ...sms })).toThrow(
+      'OTP_SECRET is required',
+    );
+    expect(
+      validateEnvironment({ ...local, ...sms, OTP_SECRET: 's'.repeat(32) })
+        .SMS_ENABLED,
+    ).toBe(true);
+    expect(() =>
+      validateEnvironment({ ...local, RESEND_API_KEY: 're_1234567890' }),
+    ).toThrow('Resend email settings must be provided together');
+    expect(
+      validateEnvironment({
+        ...local,
+        RESEND_API_KEY: 're_1234567890',
+        RESEND_FROM: 'HelaCart <orders@helacart.lk>',
+      }).EMAIL_ENABLED,
+    ).toBe(true);
+    expect(() =>
+      validateEnvironment({
+        ...local,
+        RESEND_API_KEY: 're_1234567890',
+        RESEND_FROM: 'not an address',
+      }),
+    ).toThrow('RESEND_FROM');
+  });
+
+  it('requires SMS in production when phone verification is mandatory', () => {
+    expect(() =>
+      validateEnvironment({
+        ...production,
+        REQUIRE_PHONE_VERIFICATION: 'true',
+      }),
+    ).toThrow('REQUIRE_PHONE_VERIFICATION');
+  });
+
+  it('validates app configuration versions and links', () => {
+    expect(() =>
+      validateEnvironment({ ...local, APP_ANDROID_MIN_VERSION: '1.0' }),
+    ).toThrow('APP_ANDROID_MIN_VERSION');
+    expect(() =>
+      validateEnvironment({
+        ...local,
+        APP_IOS_MIN_VERSION: '2.0.0',
+        APP_IOS_LATEST_VERSION: '1.9.9',
+      }),
+    ).toThrow('must not exceed');
+    expect(() =>
+      validateEnvironment({
+        ...production,
+        LEGAL_TERMS_URL: 'http://helacart.lk/legal/terms',
+      }),
+    ).toThrow('LEGAL_TERMS_URL');
+    expect(() =>
+      validateEnvironment({ ...local, SUPPORT_PHONE: '0771234567' }),
+    ).toThrow('SUPPORT_PHONE');
+  });
 });

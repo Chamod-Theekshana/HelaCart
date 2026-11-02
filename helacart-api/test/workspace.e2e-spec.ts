@@ -17,7 +17,7 @@ describe('Package 1 read APIs and buyer cancellation', () => {
     variantId = '0daa6d81-a735-436d-afad-1a999c283a9e';
   const db = {
     promotion: { findMany: async () => [] },
-    user: { upsert: vi.fn() },
+    user: { upsert: vi.fn(), findUnique: vi.fn() },
     seller: { count: vi.fn(), findMany: vi.fn() },
     sellerMember: { findUnique: vi.fn(), findMany: vi.fn() },
     product: { count: vi.fn(), findMany: vi.fn(), groupBy: vi.fn() },

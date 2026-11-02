@@ -21,6 +21,7 @@ import { AdminGuard } from '../sellers/admin.guard.js';
 import { CatalogService } from './catalog.service.js';
 import { CreateCategoryDto } from './dto/create-category.dto.js';
 import {
+  ApproveProductDto,
   CreateProductDto,
   ListPublicProductsDto,
   ListSellerProductsDto,
@@ -125,8 +126,11 @@ export class AdminCatalogController {
 
   @Post('categories')
   @Header('Cache-Control', 'no-store')
-  createCategory(@Body() dto: CreateCategoryDto) {
-    return this.catalog.createCategory(dto);
+  createCategory(
+    @Body() dto: CreateCategoryDto,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.catalog.createCategory(dto, request.user);
   }
 
   @Get('products')
@@ -140,11 +144,14 @@ export class AdminCatalogController {
   approve(
     @Param('productId', uuid) productId: string,
     @Req() request: AuthenticatedRequest,
+    @Body() dto: ApproveProductDto,
   ) {
     return this.catalog.reviewProduct(
       productId,
       request.user,
       ProductReviewDecision.APPROVED,
+      undefined,
+      dto?.commissionRateBps,
     );
   }
 

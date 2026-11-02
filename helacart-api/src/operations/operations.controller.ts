@@ -94,6 +94,7 @@ export class AdminOperationsController {
       request.user,
       dto.note,
       dto.outcome,
+      dto.restock === true,
     );
   }
   @Get('cod/reconciliation-queue')

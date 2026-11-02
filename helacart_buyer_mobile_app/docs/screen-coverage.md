@@ -6,7 +6,7 @@ The later [web-reference implementation](ui-reference-implementation.md) updates
 
 | Designs | Implementation / destination |
 | --- | --- |
-| 01 Launch/session restore | Native launch icon, `main.dart` bootstrap, Firebase session provider and protected loading states |
+| 01 Launch/session restore | Generated launcher/adaptive icons and brand splash (Android 12+ and legacy, iOS launch screen), `main.dart` bootstrap, Firebase session provider, protected loading states, force-update gate (`app/app_update.dart`) |
 | 02 Welcome | `app/router.dart` → `/welcome`, optional first-visit content |
 | 03–04 Sign in/register | `features/auth/presentation/auth_screen.dart` → `/auth`, `/auth/register` |
 | 05 Verification | `/verify`, resend/check, preserved buyer destination |
@@ -28,17 +28,17 @@ The later [web-reference implementation](ui-reference-implementation.md) updates
 | 29–30 Favorites/alert settings | `features/favorites/presentation/favorites_screen.dart` → `/favorites`, opt-in sheet |
 | 31 Cart | `features/cart/presentation/cart_screen.dart` → `/cart`, shop groups and stock recovery |
 | 32 Added confirmation | Shared product action bottom sheet, confirmed API write only |
-| 33 Address selection, 36 Order review | `features/checkout/presentation/checkout_screen.dart` → `/checkout`, two-step destination-quoted COD flow |
-| 34–35 Add address/district | `features/account/presentation/addresses_screen.dart` → `/account/addresses/new`, searchable 25-district sheet |
+| 33 Address selection, 36 Order review | `features/checkout/presentation/checkout_screen.dart` → `/checkout`, two-step destination-quoted COD flow, verified-phone badges, `checkoutBlockers` and §3.2 error codes, **Start over** for a stuck attempt |
+| 34–35 Add/edit address, district | `features/account/presentation/addresses_screen.dart` → `/account/addresses/new`, `/account/addresses/:id/edit`, searchable 25-district sheet, default flag |
 | 37 Order confirmation | `/order-success/:id`, fetches the confirmed buyer-owned order |
-| 38–39 Orders/details | `features/orders/presentation/orders_screen.dart` → `/orders`, `/orders/:id` |
+| 38–39 Orders/details | `features/orders/presentation/orders_screen.dart` → `/orders`, `/orders/:id`, `DELIVERY_FAILED`/`RETURNED_TO_SELLER` with `statusReason`, **I received this order** for shipped packages |
 | 40 Tracking | `/orders/:id/tracking/:package`, seller-entered courier/reference/event history |
-| 41 Cancellation | Confirm dialog and shop-package cancellation action before acceptance |
+| 41 Cancellation | Dialog with optional 5–500 character reason; shop-package cancellation only while PLACED |
 | 42–47 Returns/refunds | `features/after_sales/presentation/returns_screen.dart` → `/returns`, `/refunds`, `/returns/new/:package`; item steps and owner-checked detail sheets |
 | 48–50 Support | `features/support/presentation/support_screen.dart` → `/support`, `/support/new`, `/support/:id`; case history and text replies |
-| 51–53 Account/profile/photo | `features/account/presentation/account_screen.dart` → `/account`, `/account/profile`, native photo-picker sheet |
-| 54 Addresses | `/account/addresses`, add/remove with confirmation; no unsupported update/default action |
-| 55 Notifications | `features/notifications/presentation/notifications_screen.dart` → `/notifications`, read/read-all, refresh and buyer-safe navigation |
+| 51–53 Account/profile/photo | `features/account/presentation/account_screen.dart` → `/account`, `/account/profile`, native photo-picker sheet, language picker, notification preferences, data & account, legal links, "Sell on HelaCart" |
+| 54 Addresses | `/account/addresses`, add/edit/remove, set default, phone-verified badge and **Verify phone** (`/account/phone`, SMS OTP with resend countdown) |
+| 55 Notifications | `features/notifications/presentation/notifications_screen.dart` → `/notifications`, read/read-all, pull-to-refresh and buyer-safe navigation shared with push taps |
 | 56–58 Security | `/account/security`, `/account/security/password`, `/account/security/email` |
 | 59 Sign out | Confirm dialog, Firebase sign-out and account-scoped invalidation |
 | 60 Verified shop | Shared badge explanation sheet |
@@ -50,4 +50,12 @@ S01–S08 are implemented as reusable loading, empty, offline, authorization, ch
 
 Some exported labels were corrected: no universal “7-Day Free Returns”, fake pinned address, universal verified status, online payment, or unconfigured guarantee. HelaCart theme tokens take precedence over font/color drift between individual exported frames.
 
-F01 push delivery/preferences, F02 account deletion and F03 published legal readers require additional backend/platform/policy scope. They are not live features in this buyer app. The existing in-app inbox is implemented.
+## Future-feature designs (November 2026 release)
+
+| Design | Status | Implementation |
+| --- | --- | --- |
+| F01 Push delivery/preferences | **Done** | `features/push/push_service.dart` (FCM permission, token registration/unregistration, foreground snackbar, tap routing); `/account/notification-preferences` (push/email/SMS) |
+| F02 Account deletion | **Done** | `/account/privacy` → typed `DELETE` confirmation, `ACCOUNT_HAS_OPEN_ORDERS` / `ACCOUNT_OWNS_SHOP` messages, sign-out; plus PDPA **Download my data** via the share sheet |
+| F03 Published legal policies | **Done** | Privacy/terms/returns links from `GET /app-config` (fallback `https://<APP_LINK_HOST>/legal/*`) in the account screen, drawer and sign-in/sign-up screens, opened in the in-app browser view |
+
+Other additions: English/Sinhala/Tamil UI for the core buyer flows (`lib/l10n/`), deep links and share buttons on product and shop screens, pull-to-refresh on list screens, and release-only Crashlytics.

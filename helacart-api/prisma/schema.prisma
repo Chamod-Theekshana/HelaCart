@@ -92,6 +92,12 @@ model User {
   bulkJobs BulkJob[]
   promotionSubmissions Promotion[] @relation("PromotionSubmitter")
   promotionDecisions PromotionEvent[]
+  phoneVerifications PhoneVerification[]
+  verifiedPhones VerifiedPhone[]
+  devices DeviceToken[]
+  notificationPreference NotificationPreference?
+  notificationDeliveries NotificationDelivery[]
+  adminAuditEntries AdminAuditLog[]
 }
 
 model Seller {
@@ -135,6 +141,8 @@ model Seller {
   teamChanges SellerTeamChange[]
   bulkJobs BulkJob[]
   promotions Promotion[]
+  statusReason String? @db.VarChar(500)
+  statusChangedAt DateTime? @db.Timestamptz(3)
 
   @@index([status])
 }
@@ -328,6 +336,7 @@ model PromotionEvent {
 enum AccountAccessStatus {
   ACTIVE
   SUSPENDED
+  DELETED
 }
 
 model AccountAccessChange {
@@ -494,11 +503,37 @@ model BuyerAddress {
   district    String
   postalCode  String
   isActive    Boolean @default(true)
+  isDefault   Boolean @default(false)
   createdAt   DateTime @default(now()) @db.Timestamptz(3)
   user        User @relation(fields: [userId], references: [id], onDelete: Restrict)
   orders      Order[]
 
   @@index([userId, createdAt])
+}
+
+model PhoneVerification {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  phone       String    @db.VarChar(16)
+  codeHash    String    @db.VarChar(64)
+  attempts    Int       @default(0)
+  expiresAt   DateTime  @db.Timestamptz(3)
+  consumedAt  DateTime? @db.Timestamptz(3)
+  createdAt   DateTime  @default(now()) @db.Timestamptz(3)
+  user        User      @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([phone, createdAt])
+}
+
+model VerifiedPhone {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  phone      String   @db.VarChar(16)
+  verifiedAt DateTime @db.Timestamptz(3)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([userId, phone])
 }
 
 model CartItem {
@@ -522,6 +557,8 @@ enum SellerOrderStatus {
   SHIPPED
   DELIVERED
   CANCELLED
+  DELIVERY_FAILED
+  RETURNED_TO_SELLER
 }
 
 model Order {
@@ -579,9 +616,12 @@ model SellerOrder {
   deliveryMinDays Int?
   deliveryMaxDays Int?
   shipment SellerShipment?
+  statusReason String? @db.VarChar(500)
+  statusChangedAt DateTime @default(now()) @db.Timestamptz(3)
 
   @@unique([orderId, sellerId])
   @@index([sellerId, createdAt])
+  @@index([status, statusChangedAt])
 }
 
 model OrderItem {
@@ -641,12 +681,14 @@ model ShipmentChange {
 model SellerOrderEvent {
   id            String @id @default(uuid()) @db.Uuid
   sellerOrderId String @db.Uuid
-  actorUserId   String @db.Uuid
+  // Null for background-job transitions such as automatic cancellation.
+  actorUserId   String? @db.Uuid
   fromStatus    SellerOrderStatus
   toStatus      SellerOrderStatus
+  reason        String? @db.VarChar(500)
   createdAt     DateTime @default(now()) @db.Timestamptz(3)
   sellerOrder   SellerOrder @relation(fields: [sellerOrderId], references: [id], onDelete: Restrict)
-  actor         User @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
+  actor         User? @relation(fields: [actorUserId], references: [id], onDelete: Restrict)
 
   @@index([sellerOrderId, createdAt])
 }
@@ -667,6 +709,7 @@ enum NotificationType {
   COMMISSION_REMINDER
   SUPPORT_UPDATED
   REFUND_UPDATED
+  SELLER_STATUS_CHANGED
 }
 
 model StockWatch {
@@ -708,9 +751,84 @@ model Notification {
   createdAt DateTime @default(now()) @db.Timestamptz(3)
   readAt    DateTime? @db.Timestamptz(3)
   user      User @relation(fields: [userId], references: [id], onDelete: Restrict)
+  deliveries NotificationDelivery[]
 
   @@index([userId, createdAt])
   @@index([userId, readAt])
+}
+
+enum NotificationChannel {
+  PUSH
+  EMAIL
+  SMS
+}
+
+enum NotificationDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+/// Outbox row: one per notification and external channel, processed by the
+/// notification delivery worker with retries.
+model NotificationDelivery {
+  id             String @id @default(uuid()) @db.Uuid
+  notificationId String @db.Uuid
+  userId         String @db.Uuid
+  channel        NotificationChannel
+  status         NotificationDeliveryStatus @default(PENDING)
+  attempts       Int @default(0)
+  nextAttemptAt  DateTime @default(now()) @db.Timestamptz(3)
+  lastError      String? @db.VarChar(500)
+  sentAt         DateTime? @db.Timestamptz(3)
+  createdAt      DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt      DateTime @updatedAt @db.Timestamptz(3)
+  notification   Notification @relation(fields: [notificationId], references: [id], onDelete: Restrict)
+  user           User @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@unique([notificationId, channel])
+  @@index([status, nextAttemptAt])
+  @@index([userId])
+}
+
+model DeviceToken {
+  id         String   @id @default(uuid()) @db.Uuid
+  userId     String   @db.Uuid
+  token      String   @unique @db.VarChar(4096)
+  platform   String   @db.VarChar(10)
+  appVersion String?  @db.VarChar(30)
+  createdAt  DateTime @default(now()) @db.Timestamptz(3)
+  updatedAt  DateTime @updatedAt @db.Timestamptz(3)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+
+  @@index([userId, updatedAt])
+}
+
+model NotificationPreference {
+  userId    String   @id @db.Uuid
+  push      Boolean  @default(true)
+  email     Boolean  @default(true)
+  sms       Boolean  @default(true)
+  updatedAt DateTime @updatedAt @db.Timestamptz(3)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Restrict)
+}
+
+/// Append-only record of administrator decisions.
+model AdminAuditLog {
+  id          String   @id @default(uuid()) @db.Uuid
+  actorId     String   @db.Uuid
+  actorEmail  String   @db.VarChar(320)
+  action      String   @db.VarChar(40)
+  subjectType String   @db.VarChar(40)
+  subjectId   String   @db.VarChar(100)
+  reason      String?  @db.VarChar(1000)
+  details     Json     @default("{}")
+  createdAt   DateTime @default(now()) @db.Timestamptz(3)
+  actor       User     @relation(fields: [actorId], references: [id], onDelete: Restrict)
+
+  @@index([createdAt, id])
+  @@index([action, createdAt])
 }
 
 enum ReturnStatus {

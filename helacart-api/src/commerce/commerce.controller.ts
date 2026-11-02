@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Header,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -20,6 +21,10 @@ import {
 import { AdminGuard } from '../sellers/admin.guard.js';
 import {
   AddressDto,
+  AdminOrderActionDto,
+  AttentionQueryDto,
+  BuyerCancelDto,
+  UpdateAddressDto,
   CartQuantityDto,
   CheckoutDto,
   DeliveryFeeDto,
@@ -47,6 +52,15 @@ export class BuyerCommerceController {
     @Body() dto: AddressDto,
   ) {
     return this.commerce.addAddress(request.user, dto);
+  }
+  @Patch('addresses/:addressId')
+  @Header('Cache-Control', 'no-store')
+  updateAddress(
+    @Req() request: AuthenticatedRequest,
+    @Param('addressId', uuid) id: string,
+    @Body() dto: UpdateAddressDto,
+  ) {
+    return this.commerce.updateAddress(request.user, id, dto);
   }
   @Delete('addresses/:addressId')
   @Header('Cache-Control', 'no-store')
@@ -100,8 +114,24 @@ export class BuyerCommerceController {
     @Req() request: AuthenticatedRequest,
     @Param('orderId', uuid) orderId: string,
     @Param('sellerOrderId', uuid) sellerOrderId: string,
+    @Body() dto: BuyerCancelDto,
   ) {
-    return this.commerce.buyerCancel(request.user, orderId, sellerOrderId);
+    return this.commerce.buyerCancel(
+      request.user,
+      orderId,
+      sellerOrderId,
+      dto?.reason,
+    );
+  }
+  @Post('orders/:orderId/seller-orders/:sellerOrderId/confirm-receipt')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  confirmReceipt(
+    @Req() request: AuthenticatedRequest,
+    @Param('orderId', uuid) orderId: string,
+    @Param('sellerOrderId', uuid) sellerOrderId: string,
+  ) {
+    return this.commerce.confirmReceipt(request.user, orderId, sellerOrderId);
   }
 }
 
@@ -181,5 +211,20 @@ export class AdminCommerceController {
   constructor(private readonly commerce: CommerceService) {}
   @Get() @Header('Cache-Control', 'no-store') orders() {
     return this.commerce.adminOrders();
+  }
+  @Get('attention') @Header('Cache-Control', 'no-store') attention(
+    @Query() query: AttentionQueryDto,
+  ) {
+    return this.commerce.attention(query);
+  }
+  @Post(':sellerOrderId/actions')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  action(
+    @Req() request: AuthenticatedRequest,
+    @Param('sellerOrderId', uuid) sellerOrderId: string,
+    @Body() dto: AdminOrderActionDto,
+  ) {
+    return this.commerce.adminAction(request.user, sellerOrderId, dto);
   }
 }

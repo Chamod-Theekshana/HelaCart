@@ -34,12 +34,8 @@ export default function SellerTeam() {
   return <TeamContent key={`${seller?.id}:${profile?.id}`} />;
 }
 function TeamContent() {
-  const { seller, profile, request, isPreview } = useSeller();
-  const owner =
-    isPreview ||
-    profile?.memberships.some(
-      (m) => m.seller.id === seller?.id && m.role === "OWNER",
-    );
+  const { seller, request, isPreview, isOwner } = useSeller();
+  const owner = isPreview || isOwner;
   const list = useFeedbackResource<Team>(
     `/sellers/${seller?.id}/team`,
     request,
@@ -72,22 +68,20 @@ function TeamContent() {
           </thead>
           <tbody>
             {[
-              "Products & inventory",
-              "Orders & delivery",
-              "Shop profile & review replies",
-              "Returns, support & commission records",
-            ].map((v) => (
-              <tr key={v}>
-                <td>{v}</td>
+              ["Products & inventory", true],
+              ["Orders & delivery updates", true],
+              ["Review replies & support cases", true],
+              ["View returns & commission records", true],
+              ["Shop profile, business details & delivery settings", false],
+              ["Record refunds & submit commission payments", false],
+              ["Add or remove managers", false],
+            ].map(([permission, manager]) => (
+              <tr key={String(permission)}>
+                <td>{permission}</td>
                 <td>Yes</td>
-                <td>Yes</td>
+                <td>{manager ? "Yes" : "No"}</td>
               </tr>
             ))}
-            <tr>
-              <td>Add or remove managers</td>
-              <td>Yes</td>
-              <td>No</td>
-            </tr>
             <tr>
               <td>Admin decisions & commission rates</td>
               <td>No</td>

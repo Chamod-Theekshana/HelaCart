@@ -1,8 +1,14 @@
 "use client";
 import { useShop } from "./shop-provider";
+import { useT } from "./language-provider";
 export function PreviewBanner() {
   const { isPreview } = useShop();
-  return isPreview
-    ? <div className="preview-banner"><div className="container"><strong>Design preview</strong> · These are example products and orders. Connect the backend to show live listings and enable checkout.</div></div>
-    : null;
+  const t = useT();
+  return isPreview ? (
+    <div className="preview-banner">
+      <div className="container">
+        <strong>{t("preview.title")}</strong> · {t("preview.text")}
+      </div>
+    </div>
+  ) : null;
 }

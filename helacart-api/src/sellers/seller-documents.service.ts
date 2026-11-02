@@ -12,6 +12,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { sanitizeUploadedImage } from '../media/strip-metadata.js';
 import { SellerDocumentKind } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 
@@ -136,24 +137,28 @@ export class SellerDocumentsService {
     sellerId: string,
     files: ApplicationFiles,
   ): Promise<StoredDocument[]> {
-    const entries = this.validate(files);
+    const entries = this.validate(files).map((entry) => ({
+      ...entry,
+      // Identity photos often carry GPS EXIF; strip before storage.
+      body: sanitizeUploadedImage(entry.file.buffer, entry.file.mimetype),
+    }));
     const { bucket, client } = this.storage();
     const stored: StoredDocument[] = [];
     try {
-      for (const { kind, file } of entries) {
+      for (const { kind, file, body } of entries) {
         const storageKey = `seller-verification/${sellerId}/${randomUUID()}.${imageTypes[file.mimetype as ImageType]}`;
         // Include attempted uploads in cleanup in case the storage response is interrupted.
         stored.push({
           kind,
           storageKey,
           contentType: file.mimetype,
-          byteSize: file.size,
+          byteSize: body.length,
         });
         await client.send(
           new PutObjectCommand({
             Bucket: bucket,
             Key: storageKey,
-            Body: file.buffer,
+            Body: body,
             ContentType: file.mimetype,
             CacheControl: 'private, no-store',
           }),

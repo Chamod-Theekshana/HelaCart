@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import '../../app/hc.dart';
 import '../../features/account/presentation/account_screen.dart';
+import '../../features/account/presentation/account_settings_screens.dart';
+import 'external_links.dart';
 
 class BuyerAccountMenuScope extends InheritedWidget {
   const BuyerAccountMenuScope({
@@ -30,7 +32,23 @@ class BuyerNavigationBar extends StatelessWidget {
   final ValueChanged<int> onSelected;
   static const _selectionRadius = 30.0;
   static const _curveGap = 3.0;
+
+  /// English labels (tests and documentation); the bar renders [labelKeys].
   static const labels = ['Home', 'Categories', 'Bag', 'Favorites', 'Orders'];
+  static const labelKeys = [
+    'nav.home',
+    'nav.categories',
+    'nav.bag',
+    'nav.favorites',
+    'nav.orders',
+  ];
+  static const shortLabelKeys = [
+    'nav.home',
+    'nav.browse',
+    'nav.bag',
+    'nav.saved',
+    'nav.orders',
+  ];
   static const icons = [
     Icons.home_outlined,
     Icons.grid_view_outlined,
@@ -42,9 +60,15 @@ class BuyerNavigationBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final safeBottom = MediaQuery.paddingOf(context).bottom;
-    final visibleLabels = MediaQuery.textScalerOf(context).scale(11) > 15
-        ? const ['Home', 'Browse', 'Bag', 'Saved', 'Orders']
-        : labels;
+    final strings = AppStrings.of(context);
+    final names = [for (final key in labelKeys) strings.t(key)];
+    final visibleLabels = [
+      for (final key
+          in MediaQuery.textScalerOf(context).scale(11) > 15
+              ? shortLabelKeys
+              : labelKeys)
+        strings.t(key),
+    ];
     final labelStyle = Theme.of(context).textTheme.bodyMedium!
         .copyWith(fontSize: 11, height: 1.25, fontWeight: FontWeight.w700);
     return TweenAnimationBuilder<double>(
@@ -109,8 +133,8 @@ class BuyerNavigationBar extends StatelessWidget {
                         child: Semantics(
                           selected: i == selectedIndex,
                           label: i == 2 && bagCount > 0
-                              ? 'Bag, $bagCount items'
-                              : labels[i],
+                              ? strings.t('nav.bagCount', {'count': bagCount})
+                              : names[i],
                           button: true,
                           child: Material(
                             color: Colors.transparent,
@@ -263,7 +287,7 @@ class BuyerAccountDrawer extends ConsumerWidget {
                 children: [
                   const Expanded(child: Brand()),
                   IconButton(
-                    tooltip: 'Close account menu',
+                    tooltip: context.tr('drawer.close'),
                     onPressed: () => Navigator.pop(context),
                     icon: const Icon(Icons.close),
                   ),
@@ -298,8 +322,11 @@ class BuyerAccountDrawer extends ConsumerWidget {
                           children: [
                             Text(
                               session == null
-                                  ? 'Welcome to HelaCart'
-                                  : string(profile?['name'], 'Your HelaCart'),
+                                  ? context.tr('drawer.welcome')
+                                  : string(
+                                      profile?['name'],
+                                      context.tr('drawer.yourHelaCart'),
+                                    ),
                               style: Theme.of(context).textTheme.titleMedium,
                             ),
                             if (session != null)
@@ -312,9 +339,11 @@ class BuyerAccountDrawer extends ConsumerWidget {
                                 session == null ? '/auth' : '/account/profile',
                               ),
                               child: Text(
-                                session == null
-                                    ? 'Sign in / Create account'
-                                    : 'View profile',
+                                context.tr(
+                                  session == null
+                                      ? 'drawer.signInCreate'
+                                      : 'drawer.viewProfile',
+                                ),
                               ),
                             ),
                           ],
@@ -323,65 +352,71 @@ class BuyerAccountDrawer extends ConsumerWidget {
                     ],
                   ),
                   if (session != null && profileState.hasError) ...[
-                    const Notice(
-                      'Your profile could not be loaded. You can still open your account.',
-                    ),
+                    Notice(context.tr('drawer.profileError')),
                     TextButton(
                       onPressed: () => ref.invalidate(profileProvider),
-                      child: const Text('Retry profile'),
+                      child: Text(context.tr('drawer.retryProfile')),
                     ),
                   ],
                   for (final group in [
                     (
-                      'Your shopping',
+                      'drawer.groupShopping',
                       [
-                        ('/orders', 'Orders', Icons.inventory_2_outlined),
-                        ('/favorites', 'Saved finds', Icons.favorite_border),
+                        ('/orders', 'menu.orders', Icons.inventory_2_outlined),
+                        (
+                          '/favorites',
+                          'menu.savedFinds',
+                          Icons.favorite_border,
+                        ),
                         (
                           '/returns',
-                          'Returns & refunds',
+                          'menu.returns',
                           Icons.assignment_return_outlined,
                         ),
                         (
                           '/account/reviews',
-                          'My product reviews',
+                          'menu.myReviews',
                           Icons.rate_review_outlined,
                         ),
                       ],
                     ),
                     (
-                      'My details',
+                      'drawer.groupDetails',
                       [
-                        ('/account/profile', 'Profile', Icons.person_outline),
+                        (
+                          '/account/profile',
+                          'menu.profile',
+                          Icons.person_outline,
+                        ),
                         (
                           '/account/addresses',
-                          'Addresses',
+                          'menu.addresses',
                           Icons.location_on_outlined,
                         ),
                         (
                           '/notifications',
-                          'Notifications',
+                          'menu.notifications',
                           Icons.notifications_none,
                         ),
                       ],
                     ),
                     (
-                      'Help & security',
+                      'drawer.groupHelp',
                       [
-                        ('/support', 'Support', Icons.chat_bubble_outline),
+                        ('/support', 'menu.support', Icons.chat_bubble_outline),
                         (
                           '/account/security',
-                          'Account security',
+                          'menu.security',
                           Icons.lock_outline,
                         ),
-                        ('/help', 'Shopping help', Icons.help_outline),
+                        ('/help', 'menu.help', Icons.help_outline),
                       ],
                     ),
                   ]) ...[
                     Padding(
                       padding: const EdgeInsets.only(top: 22, bottom: 8),
                       child: Text(
-                        group.$1.toUpperCase(),
+                        context.tr(group.$1).toUpperCase(),
                         style: const TextStyle(
                           fontSize: 11,
                           letterSpacing: 1.2,
@@ -400,13 +435,49 @@ class BuyerAccountDrawer extends ConsumerWidget {
                           size: 21,
                         ),
                         title: Text(
-                          link.$2,
+                          context.tr(link.$2),
                           style: const TextStyle(fontSize: 13),
                         ),
                         trailing: const Icon(Icons.chevron_right, size: 18),
                         onTap: () => open(link.$1),
                       ),
                   ],
+                  Padding(
+                    padding: const EdgeInsets.only(top: 22, bottom: 8),
+                    child: Text(
+                      context.tr('drawer.groupAbout').toUpperCase(),
+                      style: const TextStyle(
+                        fontSize: 11,
+                        letterSpacing: 1.2,
+                        fontWeight: FontWeight.w700,
+                        color: HelaColors.muted,
+                      ),
+                    ),
+                  ),
+                  ListTile(
+                    key: const ValueKey('drawer-language'),
+                    contentPadding: EdgeInsets.zero,
+                    minLeadingWidth: 24,
+                    leading: const Icon(
+                      Icons.translate,
+                      color: HelaColors.teal,
+                      size: 21,
+                    ),
+                    title: Text(
+                      context.tr('menu.language'),
+                      style: const TextStyle(fontSize: 13),
+                    ),
+                    subtitle: Text(
+                      AppStrings.languageNames[AppStrings.of(context)
+                              .locale
+                              .languageCode] ??
+                          '',
+                      style: const TextStyle(fontSize: 12),
+                    ),
+                    trailing: const Icon(Icons.chevron_right, size: 18),
+                    onTap: () => showLanguagePicker(context, ref),
+                  ),
+                  ...aboutHelaCartTiles(context, ref),
                   verticalGap(20),
                 ],
               ),
@@ -415,15 +486,15 @@ class BuyerAccountDrawer extends ConsumerWidget {
               Padding(
                 padding: const EdgeInsets.all(20),
                 child: ActionButton(
-                  label: 'Sign out',
+                  label: context.tr('signOut.label'),
                   outlined: true,
                   icon: Icons.logout,
                   action: () async {
                     if (!await confirm(
                       context,
-                      title: 'Sign out of HelaCart?',
-                      message: 'Your orders and favorites remain saved to your account.',
-                      action: 'Sign out',
+                      title: context.tr('signOut.title'),
+                      message: context.tr('signOut.message'),
+                      action: context.tr('signOut.label'),
                     )) {
                       return;
                     }

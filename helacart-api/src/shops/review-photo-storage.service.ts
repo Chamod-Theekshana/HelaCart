@@ -11,6 +11,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { sanitizeUploadedImage } from '../media/strip-metadata.js';
 export const reviewPhotoMaxBytes = 5 * 1024 * 1024;
 export type ReviewPhotoFile = {
   buffer: Buffer;
@@ -103,23 +104,28 @@ export class ReviewPhotoStorageService {
   ): Promise<StoredReviewPhoto[]> {
     this.validate(files);
     if (!files.length) return [];
+    // Strip EXIF/GPS and text metadata before anything reaches storage.
+    const prepared = files.map((file) => ({
+      file,
+      body: sanitizeUploadedImage(file.buffer, file.mimetype),
+    }));
     const { bucket, client } = this.storage();
     const stored: StoredReviewPhoto[] = [];
     try {
-      for (const file of files) {
+      for (const { file, body } of prepared) {
         const id = randomUUID();
         const storageKey = `review-photos/${reviewId}/${id}.${formats[file.mimetype as keyof typeof formats]}`;
         stored.push({
           id,
           storageKey,
           contentType: file.mimetype,
-          byteSize: file.size,
+          byteSize: body.length,
         });
         await client.send(
           new PutObjectCommand({
             Bucket: bucket,
             Key: storageKey,
-            Body: file.buffer,
+            Body: body,
             ContentType: file.mimetype,
             CacheControl: 'private, no-store',
           }),

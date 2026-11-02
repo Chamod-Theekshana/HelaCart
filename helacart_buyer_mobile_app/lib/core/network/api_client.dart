@@ -3,13 +3,23 @@ import 'dart:async';
 
 import 'package:dio/dio.dart';
 
+import '../../l10n/app_strings.dart';
 import '../data/json.dart';
 
 class AppFailure implements Exception {
-  const AppFailure(this.message, {this.status});
+  const AppFailure(this.message, {this.status, this.code});
   final String message;
   final int? status;
-  bool get definitiveCheckoutRejection => [400, 404, 409].contains(status);
+
+  /// Stable machine-readable error code from the API body (`code`), e.g.
+  /// `PHONE_NOT_VERIFIED`. Clients branch on this, never on [message].
+  final String? code;
+
+  /// The API answered and refused this exact checkout attempt, so the saved
+  /// attempt can never succeed and is cleared. 401/429/5xx/network failures
+  /// stay uncertain and keep the attempt for a safe recheck.
+  bool get definitiveCheckoutRejection =>
+      [400, 403, 404, 409, 422].contains(status);
   @override
   String toString() => message;
 }
@@ -110,21 +120,27 @@ class ApiClient {
 
 AppFailure failureFrom(DioException error) {
   final status = error.response?.statusCode;
-  final detail = object(error.response?.data)['message'];
+  final body = object(error.response?.data);
+  final detail = body['message'];
+  final code = body['code'];
   final message = detail is List
       ? detail.join('\n')
       : detail is String
       ? detail
       : null;
+  final strings = AppStrings.current;
   return AppFailure(
     message ??
-        (status == 403
-            ? 'This action is unavailable for your account.'
-            : status == 404
-            ? 'This item is no longer available.'
-            : status == 429
-            ? 'Too many requests. Please wait and try again.'
-            : 'Could not reach HelaCart. Check your connection and try again.'),
+        strings.t(
+          status == 403
+              ? 'error.forbidden'
+              : status == 404
+              ? 'error.notFound'
+              : status == 429
+              ? 'error.rateLimited'
+              : 'error.network',
+        ),
     status: status,
+    code: code is String && code.isNotEmpty ? code : null,
   );
 }

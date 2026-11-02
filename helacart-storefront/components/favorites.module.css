@@ -71,7 +71,9 @@
   margin: 8px 0;
 }
 .heading h1 > span {
-  font-family: Inter, Arial, sans-serif;
+  font-family:
+    Inter, "Noto Sans Sinhala", "Noto Sans Tamil", "Nirmala UI", Arial,
+    sans-serif;
   font-size: 13px;
   color: var(--teal);
   background: var(--greenwash);
@@ -172,7 +174,9 @@
   font-size: 11px;
 }
 .unavailable h2 {
-  font-family: Inter, Arial, sans-serif;
+  font-family:
+    Inter, "Noto Sans Sinhala", "Noto Sans Tamil", "Nirmala UI", Arial,
+    sans-serif;
   font-size: 14px;
   line-height: 1.6;
   margin: 6px 0 10px;

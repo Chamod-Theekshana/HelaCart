@@ -14,144 +14,151 @@ class _AfterSalesScreenState extends ConsumerState<AfterSalesScreen> {
   int page = 1;
   String status = 'ALL';
   late bool refunds = widget.refunds;
+  String get path =>
+      '/me/after-sales/${refunds ? 'refunds' : 'returns'}?page=$page&status=$status';
   @override
   Widget build(BuildContext context) => PageFrame(
     title: 'Returns & refunds',
     child: Protected(
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          SegmentedButton<bool>(
-            segments: const [
-              ButtonSegment(value: false, label: Text('Returns')),
-              ButtonSegment(value: true, label: Text('Refund records')),
-            ],
-            selected: {refunds},
-            onSelectionChanged: (v) => setState(() {
-              refunds = v.first;
-              page = 1;
-              status = 'ALL';
-            }),
-          ),
-          verticalGap(),
-          Text(
-            refunds
-                ? 'Records of actual refunds submitted by your shop; verification is separate.'
-                : 'Return selected items from an eligible delivered package in My orders.',
-            style: Theme.of(context).textTheme.bodySmall,
-          ),
-          DropdownButton<String>(
-            value: status,
-            isExpanded: true,
-            items: [
-              for (final s in [
-                'ALL',
-                'PENDING',
-                'APPROVED',
-                'REJECTED',
-                if (!refunds) 'RESOLVED',
-              ])
-                DropdownMenuItem(
-                  value: s,
-                  child: Text(refunds ? refundLabel(s, null) : label(s)),
-                ),
-            ],
-            onChanged: (v) => setState(() {
-              status = v!;
-              page = 1;
-            }),
-          ),
-          RemoteView(
-            path:
-                '/me/after-sales/${refunds ? 'refunds' : 'returns'}?page=$page&status=$status',
-            private: true,
-            builder: (c, data) => Column(
-              children: [
-                if (objects(data['items']).isEmpty)
-                  EmptyState(
-                    title: refunds ? 'No refund records' : 'No return requests',
-                    message: refunds
-                        ? 'Seller-submitted refunds will appear here.'
-                        : 'Start an eligible return from a delivered order.',
-                    icon: Icons.assignment_return_outlined,
+      child: RefreshIndicator(
+        onRefresh: () => refreshResource(ref, path, private: true),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          children: [
+            SegmentedButton<bool>(
+              segments: const [
+                ButtonSegment(value: false, label: Text('Returns')),
+                ButtonSegment(value: true, label: Text('Refund records')),
+              ],
+              selected: {refunds},
+              onSelectionChanged: (v) => setState(() {
+                refunds = v.first;
+                page = 1;
+                status = 'ALL';
+              }),
+            ),
+            verticalGap(),
+            Text(
+              refunds
+                  ? 'Records of actual refunds submitted by your shop; verification is separate.'
+                  : 'Return selected items from an eligible delivered package in My orders.',
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+            DropdownButton<String>(
+              value: status,
+              isExpanded: true,
+              items: [
+                for (final s in [
+                  'ALL',
+                  'PENDING',
+                  'APPROVED',
+                  'REJECTED',
+                  if (!refunds) 'RESOLVED',
+                ])
+                  DropdownMenuItem(
+                    value: s,
+                    child: Text(refunds ? refundLabel(s, null) : label(s)),
                   ),
-                for (final row in objects(data['items']))
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Panel(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Text(
-                            '${refunds ? 'Refund' : 'Return'} #${shortRef(row['id'])}',
-                            style: Theme.of(c).textTheme.titleMedium,
-                          ),
-                          verticalGap(8),
-                          Text(
-                            refunds
-                                ? refundLabel(
-                                    string(row['status']),
-                                    row['reversal'],
-                                  )
-                                : label(string(row['status'])),
-                            style: const TextStyle(
-                              color: HelaColors.teal,
-                              fontWeight: FontWeight.w700,
-                            ),
-                          ),
-                          Text(
-                            dateText(row['createdAt']),
-                            style: Theme.of(c).textTheme.bodySmall,
-                          ),
-                          if (refunds)
-                            MoneyRow(
-                              'Recorded refund',
-                              integer(row['amountMinor']),
-                            )
-                          else ...[
+              ],
+              onChanged: (v) => setState(() {
+                status = v!;
+                page = 1;
+              }),
+            ),
+            RemoteView(
+              path: path,
+              private: true,
+              builder: (c, data) => Column(
+                children: [
+                  if (objects(data['items']).isEmpty)
+                    EmptyState(
+                      title: refunds
+                          ? 'No refund records'
+                          : 'No return requests',
+                      message: refunds
+                          ? 'Seller-submitted refunds will appear here.'
+                          : 'Start an eligible return from a delivered order.',
+                      icon: Icons.assignment_return_outlined,
+                    ),
+                  for (final row in objects(data['items']))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Panel(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
                             Text(
-                              string(
-                                object(
-                                  object(row['sellerOrder'])['seller'],
-                                )['name'],
+                              '${refunds ? 'Refund' : 'Return'} #${shortRef(row['id'])}',
+                              style: Theme.of(c).textTheme.titleMedium,
+                            ),
+                            verticalGap(8),
+                            Text(
+                              refunds
+                                  ? refundLabel(
+                                      string(row['status']),
+                                      row['reversal'],
+                                    )
+                                  : label(string(row['status'])),
+                              style: const TextStyle(
+                                color: HelaColors.teal,
+                                fontWeight: FontWeight.w700,
                               ),
                             ),
-                            for (final item in objects(row['items']))
+                            Text(
+                              dateText(row['createdAt']),
+                              style: Theme.of(c).textTheme.bodySmall,
+                            ),
+                            if (refunds)
+                              MoneyRow(
+                                'Recorded refund',
+                                integer(row['amountMinor']),
+                              )
+                            else ...[
                               Text(
-                                '${item['quantity']} × ${string(object(item['orderItem'])['productTitle'])}',
-                              ),
-                          ],
-                          OutlinedButton(
-                            onPressed: () {
-                              final owner = ref
-                                  .read(sessionProvider)
-                                  .value!
-                                  .uid;
-                              showModalBottomSheet<void>(
-                                context: context,
-                                isScrollControlled: true,
-                                builder: (sheet) => AfterSalesDetailSheet(
-                                  owner: owner,
-                                  row: row,
-                                  refund: refunds,
+                                string(
+                                  object(
+                                    object(row['sellerOrder'])['seller'],
+                                  )['name'],
                                 ),
-                              );
-                            },
-                            child: const Text('View details'),
-                          ),
-                        ],
+                              ),
+                              for (final item in objects(row['items']))
+                                Text(
+                                  '${item['quantity']} × ${string(object(item['orderItem'])['productTitle'])}',
+                                ),
+                            ],
+                            OutlinedButton(
+                              onPressed: () {
+                                final owner = ref
+                                    .read(sessionProvider)
+                                    .value!
+                                    .uid;
+                                showModalBottomSheet<void>(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  builder: (sheet) => AfterSalesDetailSheet(
+                                    owner: owner,
+                                    row: row,
+                                    refund: refunds,
+                                  ),
+                                );
+                              },
+                              child: const Text('View details'),
+                            ),
+                          ],
+                        ),
                       ),
                     ),
+                  Pager(
+                    page: page,
+                    pages: integer(data['pages'], 1),
+                    change: (v) => setState(() => page = v),
                   ),
-                Pager(
-                  page: page,
-                  pages: integer(data['pages'], 1),
-                  change: (v) => setState(() => page = v),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );

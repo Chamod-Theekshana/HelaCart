@@ -2,6 +2,7 @@
 import type { Metadata } from "next";
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { cache } from "react";
 import { ChevronRight, MapPin, Package, Truck } from "lucide-react";
 import { api, ApiError, hasApi, money } from "@/lib/api";
 import {
@@ -16,6 +17,7 @@ import {
   type ReviewsPage,
 } from "@/lib/shops";
 import { rupeesToMinor } from "@/lib/seller";
+import { metaDescription } from "@/lib/seo";
 import type { Product } from "@/lib/types";
 import { ProductCard } from "@/components/product-card";
 import { Pagination, ShopLogo, Stars } from "@/components/shop-ui";
@@ -26,12 +28,51 @@ type Props = {
   params: Promise<{ slug: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 };
+/** Loads a public shop once per request; `null` = not found, `"error"` = API problem. */
+const loadShop = cache(
+  async (slug: string): Promise<PublicShop | null | "error"> => {
+    if (!hasApi) return previewShops.find((row) => row.slug === slug) ?? null;
+    try {
+      return await api<PublicShop>(`/shops/${encodeURIComponent(slug)}`, {
+        revalidate: 60,
+      });
+    } catch (error) {
+      return error instanceof ApiError && error.status === 404 ? null : "error";
+    }
+  },
+);
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
+  const shop = await loadShop(slug);
+  if (!shop || shop === "error")
+    return {
+      title: shop ? "Shop unavailable" : "Shop not found",
+      robots: { index: false },
+    };
+  const description = metaDescription(
+    shop.description,
+    `Explore products from ${shop.name}, a Sri Lankan shop on HelaCart, and read verified buyer reviews.`,
+  );
+  const canonical = shopPath(shop);
+  const image = shop.coverUrl || shop.logoUrl;
   return {
-    title: `${slug.replaceAll("-", " ")} | Shop`,
-    description:
-      "Explore this seller's products and verified customer reviews on HelaCart.",
+    title: `${shop.name} | Shop`,
+    description,
+    alternates: { canonical },
+    openGraph: {
+      type: "website",
+      url: canonical,
+      title: shop.name,
+      description,
+      siteName: "HelaCart",
+      ...(image ? { images: [{ url: image, alt: shop.name }] } : {}),
+    },
+    twitter: {
+      card: image ? "summary_large_image" : "summary",
+      title: shop.name,
+      description,
+      ...(image ? { images: [image] } : {}),
+    },
   };
 }
 export default async function ShopPage({ params, searchParams }: Props) {
@@ -61,13 +102,9 @@ export default async function ShopPage({ params, searchParams }: Props) {
   if (category) query.set("category", category);
   if (minPrice !== null) query.set("minPrice", String(minPrice));
   if (maxPrice !== null) query.set("maxPrice", String(maxPrice));
-  let shop: PublicShop | undefined;
-  try {
-    shop = hasApi
-      ? await api<PublicShop>(`/shops/${encodeURIComponent(slug)}`)
-      : previewShops.find((row) => row.slug === slug);
-  } catch (error) {
-    if (error instanceof ApiError && error.status === 404) notFound();
+  const shop = await loadShop(slug);
+  if (!shop) notFound();
+  if (shop === "error")
     return (
       <div className={`container ${s.page}`}>
         <div className={s.error}>
@@ -76,8 +113,6 @@ export default async function ShopPage({ params, searchParams }: Props) {
         </div>
       </div>
     );
-  }
-  if (!shop) notFound();
   let products: Page<Product> | null = null,
     reviews: ReviewsPage | null = null;
   [products, reviews] = await Promise.all([
@@ -289,7 +324,10 @@ export default async function ShopPage({ params, searchParams }: Props) {
                   : money(shop.shippingFeeLkrMinor)}
             </dd>
             <dt>Destination rates</dt>
-            <dd>Final delivery fee and availability are confirmed for your address at checkout.</dd>
+            <dd>
+              Final delivery fee and availability are confirmed for your address
+              at checkout.
+            </dd>
             <dt>Payment</dt>
             <dd>Cash on delivery</dd>
             <dt>On HelaCart since</dt>

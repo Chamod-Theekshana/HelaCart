@@ -18,7 +18,9 @@ class AppConfig {
         !['http', 'https'].contains(uri.scheme)) {
       throw const FormatException('API_URL must be an absolute HTTP(S) URL.');
     }
-    if ((kReleaseMode || environment == 'production') &&
+    // Profile builds are store-like performance builds: same HTTPS/no-preview
+    // guarantees as release.
+    if ((kReleaseMode || kProfileMode || environment == 'production') &&
         (uri.scheme != 'https' || preview)) {
       throw const FormatException('Production requires HTTPS and live data.');
     }

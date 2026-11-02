@@ -29,7 +29,13 @@ blocked**. This makes Express use the client's address for the per-process
 request limit. Use an edge or shared-store rate limit on Cloudflare/ingress when
 running multiple API replicas. The built-in limit is 180 requests per minute
 per address; write attempts to checkout, returns and image upload share a
-20-per-minute limit. Never log bearer tokens or private credentials.
+20-per-minute limit (both configurable with `RATE_LIMIT_*`). Requests with a
+bearer token are bucketed per address **and** token subject, with a per-address
+ceiling of `RATE_LIMIT_AUTHENTICATED_IP_MULTIPLIER` (default 5) times the limit,
+so buyers behind one mobile-carrier NAT do not block each other. Set the same
+`INTERNAL_API_TOKEN` on the API and the Next.js storefront server so its
+server-side calls skip the general per-address bucket. Never log bearer tokens
+or private credentials.
 
 Set `RETURN_WINDOW_DAYS` to your published policy before taking real orders;
 the default is 14 calendar days from the seller order delivery event. The
@@ -110,7 +116,9 @@ Use `/admin/support` for private case conversations and versioned decisions.
 An order-linked case can hold commission until its review completes. Closing one
 case releases only that case's hold. Return resolution records full/partial
 verified refund, replacement or another agreed outcome; it does not transfer
-money or automatically restock returned goods. See the
+money. Tick **restock** (`restock: true`) only after the returned units are
+physically back and sellable; this appends an inventory movement per item and
+cannot be repeated for the same return. See the
 [after-sales guide](../helacart-storefront/docs/after-sales.md).
 
 ## Product feedback and account access
@@ -168,3 +176,165 @@ Neon credentials and Firebase service accounts rotated and restricted.
 This package does not operate your bank account, shipping company, hosting
 platform, monitoring service or backups. Their live checks and policy choices
 must be completed by the operator before public launch.
+
+## November 2026 hardening release
+
+### Deploying this release
+
+1. Take a backup (see below) or create a Neon branch first.
+2. Apply the three new migrations with `npm run db:deploy`, in order:
+   `20261101000000_hardening_enum_values` (enum values only; PostgreSQL cannot
+   use new enum values in the same transaction), `20261101010000_hardening_release`
+   (order lifecycle columns, address defaults, phone verification, notification
+   outbox, devices, preferences, audit log) and
+   `20261101020000_search_trigram_indexes` (`CREATE EXTENSION pg_trgm` plus GIN
+   indexes; on a large catalogue run it in a quiet period — plain `CREATE INDEX`
+   blocks writes to the indexed table while it builds).
+3. Set the new environment values (all have safe defaults unless noted):
+
+   | Variable | Purpose |
+   | --- | --- |
+   | `DATABASE_POOL_SIZE` | pg pool per process (default 10). Keep replicas x size under the Neon pooler limit; every running worker tick holds one connection while it runs. |
+   | `AUTH_TOKEN_CACHE_SECONDS` | Verified Firebase token cache (0-60, default 60; 0 in tests). Revocation can take up to this long to apply; suspension/deletion apply immediately. |
+   | `LOG_LEVEL` | `debug` adds debug/verbose lines to production JSON logs. |
+   | `INTERNAL_API_TOKEN` | Shared secret for storefront server-to-server calls (`x-helacart-internal`); 32+ characters in production. |
+   | `RATE_LIMIT_GENERAL_PER_MINUTE`, `RATE_LIMIT_WRITE_PER_MINUTE`, `RATE_LIMIT_CONTENT_PER_MINUTE`, `RATE_LIMIT_AUTHENTICATED_IP_MULTIPLIER` | Request limits (180 / 20 / 30 / 5). |
+   | `SELLER_ACCEPT_HOURS` | PLACED orders not accepted within this window are auto-cancelled (default 48, min 12). |
+   | `MAX_OPEN_COD_ORDERS` | Open seller orders a buyer may hold before checkout is refused (default 5). |
+   | `MAX_COD_ORDER_LKR_MINOR` | Largest COD order total in cents (default 50,000,000 = LKR 500,000). |
+   | `REQUIRE_PHONE_VERIFICATION` | `true` requires an OTP-verified delivery phone at checkout (needs Notify.lk in production). |
+   | `NOTIFY_LK_USER_ID`, `NOTIFY_LK_API_KEY`, `NOTIFY_LK_SENDER_ID` | Notify.lk SMS — all three or none. |
+   | `OTP_SECRET` | HMAC key for OTP codes; required (32+ chars) when SMS is configured. Rotating it invalidates codes in flight only. |
+   | `RESEND_API_KEY`, `RESEND_FROM` | Resend email — both or none; the sender domain must be verified in Resend. |
+   | `PUSH_NOTIFICATIONS_ENABLED` | FCM push through the existing Firebase Admin credentials (default true). |
+   | `RESERVATIONS_ENABLED` | Keep `false`; enables the unused inventory-reservation expiry loop. |
+   | `APP_ANDROID_*`, `APP_IOS_*` (`MIN_VERSION`, `LATEST_VERSION`, `STORE_URL`) | `GET /api/v1/app-config` force-update data. Raise `*_MIN_VERSION` to force an upgrade. |
+   | `APP_WEB_BASE_URL` | Web origin used for links in notification emails. |
+   | `LEGAL_PRIVACY_URL`, `LEGAL_TERMS_URL`, `LEGAL_RETURNS_URL`, `SUPPORT_EMAIL`, `SUPPORT_PHONE` | Legal links and support contact served to the apps. |
+
+   In production `CORS_ORIGINS` must be https origins. Configuration errors stop
+   the process at start-up with the offending variable names (never values).
+4. On the first start after the deploy the auto-cancel worker cancels PLACED
+   orders older than `SELLER_ACCEPT_HOURS` within about five minutes, restoring
+   their stock and notifying buyers and sellers. Review
+   `GET /api/v1/admin/orders/attention` beforehand if you want to contact those
+   sellers first, or raise `SELLER_ACCEPT_HOURS` temporarily.
+
+### Background workers
+
+All workers run inside every API process but each tick first takes a
+PostgreSQL advisory lock (`pg_try_advisory_xact_lock`, held by a short-lived
+holder transaction), so only one replica runs a given tick. Failures are logged
+at error level with the worker name and retried on the next tick.
+
+| Worker | Interval | Lock key | Work |
+| --- | --- | --- | --- |
+| `DiscoveryWorker` | 60 s | 731001 | Favorite price-drop/restock alerts |
+| `StockAlertsWorker` | 60 s | 731002 | Low/out-of-stock seller alerts |
+| `ReservationExpiryService` | 60 s | 731003 | Only when `RESERVATIONS_ENABLED=true` |
+| `NotificationDeliveryWorker` | 15 s | 731004 | Email/SMS/push outbox with retries (1 min, 5 min, 15 min, 1 h, then FAILED) |
+| `OrderAutoCancelWorker` | 5 min | 731005 | Cancels unaccepted PLACED orders |
+
+Check delivery health with
+`SELECT channel, status, count(*) FROM "NotificationDelivery" WHERE "createdAt" > now() - interval '1 day' GROUP BY 1, 2;`.
+`SKIPPED` rows record why nothing was sent (preference off, provider not
+configured, no device, no phone). A growing `PENDING` backlog means the worker
+is not running or a provider is down; `lastError` holds the provider status
+(never credentials). To resend after fixing a provider, set the affected
+`FAILED` rows back to `PENDING` with `"nextAttemptAt" = now()`.
+
+### Order failure procedures
+
+- **Delivery failed** (courier could not deliver): the seller (or an admin with
+  `MARK_DELIVERY_FAILED`) records `DELIVERY_FAILED` with a reason. The buyer is
+  notified, including by SMS. The seller either re-ships (`SHIPPED` again,
+  optionally with new courier details; the original dispatch date is kept) or
+  records `RETURNED_TO_SELLER` when the parcel is back, which restores stock.
+- **Parcel back at the shop**: `RETURNED_TO_SELLER` (seller from
+  DELIVERY_FAILED; admin `MARK_RETURNED` from SHIPPED or DELIVERY_FAILED).
+  Stock is restored and no commission is charged.
+- **Delivered but the seller did not mark it**: the buyer can confirm receipt
+  in the app (SHIPPED → DELIVERED). Otherwise an admin uses `MARK_DELIVERED`
+  after confirming with the courier; this sets the COD collection time and
+  accrues commission exactly as a seller delivery would.
+- **Fraud or unreachable seller**: admin `CANCEL` (allowed up to SHIPPED and
+  DELIVERY_FAILED) with a specific reason; stock is restored.
+- **Stuck orders**: review `GET /api/v1/admin/orders/attention?days=7` daily —
+  SHIPPED/DELIVERY_FAILED orders unchanged for `days`, and PLACED orders within
+  six hours of auto-cancellation.
+- Every admin action needs a 5-500 character reason and is written to the
+  append-only audit log (`GET /api/v1/admin/audit-log`), together with seller
+  suspensions, product decisions, category/hero edits, account access changes
+  and commission rate changes.
+
+### Seller suspension
+
+`PATCH /api/v1/admin/sellers/:id/status` moves a shop between APPROVED and
+SUSPENDED with a reason; members are notified. A suspended shop disappears from
+the public catalogue, search and shop pages, its cart lines become unavailable
+and checkout returns `SELLER_SUSPENDED`. The shop can still read its workspace,
+change order statuses, update shipments and reply to support cases so existing
+orders are completed; all other seller writes return 403 `SELLER_SUSPENDED`.
+
+### COD fraud controls and phone verification
+
+OTP codes are six digits, valid 10 minutes, five attempts, one request per
+number per minute and five per account per hour. Only an HMAC of each code is
+stored. Without Notify.lk outside production the code is printed to the API log
+("DEV ONLY"); production refuses to send codes until SMS is configured. Decide
+`MAX_OPEN_COD_ORDERS`, `MAX_COD_ORDER_LKR_MINOR` and whether to enable
+`REQUIRE_PHONE_VERIFICATION` with your pilot sellers; the cart reports the
+same blockers before checkout.
+
+### Account deletion requests (PDPA)
+
+Buyers export their data from `GET /api/v1/me/data-export` and delete their
+account with `DELETE /api/v1/me/account`. Deletion is refused while orders or
+returns are open or while the user owns a non-rejected shop (transfer or close
+the shop through support first). Orders, ledgers, reviews and audit rows are
+retained for accounting; profile, phone, email, avatar, addresses, devices,
+cart and favorites are anonymised or removed and the Firebase user is deleted.
+If the Firebase deletion fails, the account is still blocked (`DELETED`); the
+error is logged with the internal user id — delete that Firebase user manually
+in the console.
+
+### Observability
+
+Every response carries `x-request-id` (a client-supplied id of up to 64
+`[A-Za-z0-9_-]` characters is echoed). In production logs are one JSON object
+per line, including a `request completed` line per request (method, path
+without query string, status, duration). Every 5xx is logged with the request
+id; ask users or client logs for the id when investigating. Database errors
+are returned as safe 4xx messages (unique conflicts 409, missing records 404,
+integrity-trigger rejections 409, check violations 400).
+
+### Backups and restore drills
+
+Neon keeps point-in-time history for its retention window; also take
+independent logical backups before every migration and on a schedule:
+
+```bash
+# DIRECT_URL = the non-pooled Neon connection string
+npm run db:backup                    # writes backups/helacart-<UTC>.dump
+node scripts/backup-db.mjs /secure/backups
+```
+
+The script uses `pg_dump --format=custom` (install the PostgreSQL 17 client
+tools), passes credentials through PG* variables rather than the command line,
+sets the file to mode 600 and verifies it with `pg_restore --list`. Copy the
+file to encrypted storage outside the host; it contains personal data, so apply
+the same retention and deletion rules as the database.
+
+Restore drill (at least monthly and before launch):
+
+1. Create an empty database, e.g. a new Neon branch reset to empty or a local
+   `docker run --rm -e POSTGRES_PASSWORD=drill -p 5433:5432 postgres:17`.
+2. `pg_restore --no-owner --no-privileges --exit-on-error -d "<restore URL>" helacart-<UTC>.dump`
+   (`pg_trgm` is recreated from the archive; the role needs CREATE on the database).
+3. Point a staging API at it (`DIRECT_URL`/`DATABASE_URL`), run
+   `npm run db:status` (must report no pending migrations) and probe
+   `/api/v1/health/ready`.
+4. Spot-check counts of orders, seller orders and commission charges against
+   production, open a recent order in the admin UI, and record the drill date,
+   backup age and restore duration in the operations log.
+5. Delete the drill database.

@@ -4,7 +4,7 @@ import { useShop } from "@/components/shop-provider";
 import { SellerPageHeading } from "@/components/seller-ui";
 import { ReturnsWorkspace } from "@/components/returns-workspace";
 export default function SellerReturnsScreen() {
-  const { seller, request, isPreview } = useSeller(),
+  const { seller, request, isPreview, isOwner, suspended } = useSeller(),
     { user } = useShop();
   return (
     <>
@@ -20,6 +20,7 @@ export default function SellerReturnsScreen() {
           role="SELLER"
           request={request}
           isPreview={isPreview}
+          canRecordRefunds={isOwner && !suspended}
         />
       )}
     </>

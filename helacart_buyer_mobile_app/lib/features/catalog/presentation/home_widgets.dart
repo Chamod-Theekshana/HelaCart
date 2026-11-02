@@ -20,7 +20,7 @@ class HomeNotifications extends ConsumerWidget {
     return Padding(
       padding: const EdgeInsets.only(right: 12),
       child: IconButton(
-        tooltip: 'Notifications',
+        tooltip: context.tr('actions.notifications'),
         style: IconButton.styleFrom(padding: EdgeInsets.zero),
         onPressed: () => context.push('/notifications'),
         icon: Container(
@@ -55,16 +55,19 @@ class DiscoverySearchBar extends StatelessWidget {
           child: InkWell(
             borderRadius: BorderRadius.circular(13),
             onTap: () => context.push('/search'),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
               child: Row(
                 children: [
-                  Icon(Icons.search, size: 21, color: HelaColors.muted),
-                  SizedBox(width: 10),
+                  const Icon(Icons.search, size: 21, color: HelaColors.muted),
+                  const SizedBox(width: 10),
                   Expanded(
                     child: Text(
-                      'Find your next good find',
-                      style: TextStyle(fontSize: 13, color: HelaColors.muted),
+                      context.tr('home.searchHint'),
+                      style: const TextStyle(
+                        fontSize: 13,
+                        color: HelaColors.muted,
+                      ),
                     ),
                   ),
                 ],
@@ -75,7 +78,7 @@ class DiscoverySearchBar extends StatelessWidget {
       ),
       const SizedBox(width: 10),
       IconButton.outlined(
-        tooltip: 'Filter products',
+        tooltip: context.tr('home.filterProducts'),
         onPressed: () => context.push('/products?filters=true'),
         style: IconButton.styleFrom(
           minimumSize: const Size(48, 48),
@@ -130,9 +133,9 @@ class StorefrontHero extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text(
-                  'A LITTLE CLOSER TO HOME',
-                  style: TextStyle(
+                Text(
+                  context.tr('home.heroKicker'),
+                  style: const TextStyle(
                     fontSize: 10,
                     letterSpacing: 1.3,
                     fontWeight: FontWeight.w700,
@@ -145,7 +148,7 @@ class StorefrontHero extends StatelessWidget {
                     maxWidth: large ? double.infinity : 240,
                   ),
                   child: Text(
-                    '${string(hero['title'], 'Good finds.')}\n${string(hero['accent'], 'Local roots.')}',
+                    '${string(hero['title'], context.tr('home.heroTitle'))}\n${string(hero['accent'], context.tr('home.heroAccent'))}',
                     style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                       fontSize: 28,
                       height: 1.2,
@@ -159,10 +162,7 @@ class StorefrontHero extends StatelessWidget {
                     maxWidth: large ? double.infinity : 210,
                   ),
                   child: Text(
-                    string(
-                      hero['description'],
-                      'Everyday things to love. Independent shops to discover.',
-                    ),
+                    string(hero['description'], context.tr('home.heroBody')),
                     style: const TextStyle(
                       fontSize: 12,
                       height: 1.45,
@@ -179,7 +179,10 @@ class StorefrontHero extends StatelessWidget {
                     children: [
                       Flexible(
                         child: Text(
-                          string(hero['buttonLabel'], 'Explore the collection'),
+                          string(
+                            hero['buttonLabel'],
+                            context.tr('home.heroButton'),
+                          ),
                           style: const TextStyle(fontSize: 12),
                         ),
                       ),
@@ -208,13 +211,16 @@ class DeliveryTrustStrip extends StatelessWidget {
         horizontal: BorderSide(color: HelaColors.border),
       ),
     ),
-    child: const Wrap(
+    child: Wrap(
       alignment: WrapAlignment.center,
       spacing: 16,
       runSpacing: 12,
       children: [
-        _TrustLabel(Icons.payments_outlined, 'Pay on delivery'),
-        _TrustLabel(Icons.local_shipping_outlined, 'Clear fees at checkout'),
+        _TrustLabel(Icons.payments_outlined, context.tr('home.trustCod')),
+        _TrustLabel(
+          Icons.local_shipping_outlined,
+          context.tr('home.trustFees'),
+        ),
       ],
     ),
   );

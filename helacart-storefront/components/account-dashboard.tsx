@@ -25,7 +25,7 @@ import { AccountProfileEditor } from "./account-profile";
 import { AccountSecurity } from "./account-security";
 import { ProfileAvatar } from "./profile-avatar";
 import { previewAccount } from "@/lib/profile";
-import { api, errorMessage, money } from "@/lib/api";
+import { errorMessage, money, userApi } from "@/lib/api";
 import { demoOrders } from "@/lib/demo";
 import { shopPath } from "@/lib/shops";
 import { pageOf, type Page } from "@/lib/shops";
@@ -37,22 +37,47 @@ import {
 } from "./list-controls";
 import { ItemReturnDialog } from "./item-return-dialog";
 import { BuyerReturns } from "./buyer-returns";
-import { BuyerCancelOrder } from "./buyer-order-actions";
+import { BuyerCancelOrder, BuyerConfirmReceipt } from "./buyer-order-actions";
+import { AccountPrivacy } from "./account-privacy";
+import { AddressForm } from "./address-form";
+import { PhoneVerification } from "./phone-verification";
+import { SignInLink } from "./sign-in-link";
+import { useLanguage } from "./language-provider";
+import {
+  closedStatuses,
+  fulfilmentSteps,
+  orderStatusLabel,
+  progressIndex,
+  sellerOrderStatuses,
+} from "@/lib/order-status";
 import s from "./list-controls.module.css";
 import profileStyles from "./profile.module.css";
-import type { Address, Notification, Order, SellerOrder } from "@/lib/types";
+import type {
+  Address,
+  AddressPatch,
+  Notification,
+  Order,
+  SellerOrder,
+} from "@/lib/types";
 import { Breadcrumbs } from "./breadcrumbs";
 import { useShop } from "./shop-provider";
 import { useFavorites } from "./favorites-provider";
 
 type Tab =
-  "profile" | "orders" | "returns" | "addresses" | "notifications" | "security";
-const progress = ["PLACED", "ACCEPTED", "PACKED", "SHIPPED", "DELIVERED"];
+  | "profile"
+  | "orders"
+  | "returns"
+  | "addresses"
+  | "notifications"
+  | "security";
 export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
   const { user, authReady, isPreview, signOutBuyer, accountProfile } =
     useShop();
   const favorites = useFavorites();
+  const { t, dateLocale } = useLanguage();
   const [tab, setTab] = useState<Tab>(initialTab);
+  const [editingAddress, setEditingAddress] = useState<string | null>(null);
+  const [verifyingAddress, setVerifyingAddress] = useState<string | null>(null);
   const [revision, setRevision] = useState(0),
     [orderPage, setOrderPage] = useState(1),
     [noticePage, setNoticePage] = useState(1),
@@ -112,8 +137,7 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
       orders: demoOrders.length,
       activeSellerOrders: demoOrders
         .flatMap((row) => row.sellerOrders)
-        .filter((row) => !["DELIVERED", "CANCELLED"].includes(row.status))
-        .length,
+        .filter((row) => !closedStatuses.includes(row.status)).length,
       addresses: 0,
       unreadNotifications: 0,
       returns: 0,
@@ -130,23 +154,27 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
   async function removeAddress(id: string) {
     if (!user) return;
     try {
-      await api(`/me/addresses/${id}`, {
-        method: "DELETE",
-        token: await user.getIdToken(),
-      });
+      await userApi(user, `/me/addresses/${id}`, { method: "DELETE" });
       setRevision((value) => value + 1);
-      setMessage("Address removed.");
+      setMessage(t("address.removed"));
     } catch (issue) {
       setError(errorMessage(issue));
     }
   }
+  async function updateAddress(id: string, body: AddressPatch) {
+    if (!user) return;
+    await userApi<Address>(user, `/me/addresses/${id}`, {
+      method: "PATCH",
+      body,
+    });
+    setEditingAddress(null);
+    setRevision((value) => value + 1);
+    setMessage(body.isDefault ? t("address.defaultSet") : t("address.updated"));
+  }
   async function readNotice(id: string) {
     if (!user) return;
     try {
-      await api(`/me/notifications/${id}/read`, {
-        method: "PATCH",
-        token: await user.getIdToken(),
-      });
+      await userApi(user, `/me/notifications/${id}/read`, { method: "PATCH" });
       setRevision((value) => value + 1);
     } catch (issue) {
       setError(errorMessage(issue));
@@ -157,49 +185,47 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
     : accountProfile?.name ||
       user?.displayName ||
       user?.email?.split("@")[0] ||
-      "Your account";
+      t("account.yourAccount");
   return (
     <div className="container account-page">
       <PageQueryBridge onChange={applyQuery} />
       <Breadcrumbs
         items={[
-          { label: "My Account" },
-          ...(tab === "orders" ? [{ label: "Orders & Tracking" }] : []),
+          { label: t("account.title") },
+          ...(tab === "orders" ? [{ label: t("account.tab.orders") }] : []),
         ]}
       />
       {!isPreview && !authReady ? (
         <div className="empty-panel" role="status">
-          Loading your account…
+          {t("account.loading")}
         </div>
       ) : !isPreview && authReady && !user ? (
         <div className="empty-panel">
           <UserRound size={35} />
-          <h1>Sign in to your account</h1>
-          <p>See your orders, addresses and notifications.</p>
-          <Link className="primary-btn" href="/auth">
-            Sign in
-          </Link>
+          <h1>{t("account.signIn.title")}</h1>
+          <p>{t("account.signIn.text")}</p>
+          <SignInLink className="primary-btn">{t("auth.signIn")}</SignInLink>
         </div>
       ) : (
         <>
           <section className="profile-hero">
             <ProfileAvatar name={buyerName} />
             <div className={profileStyles.identityCopy}>
-              <span className="section-kicker">BUYER ACCOUNT</span>
+              <span className="section-kicker">{t("account.kicker")}</span>
               <h1>{buyerName}</h1>
               <p>
                 {isPreview
-                  ? "This is a sample buyer profile for design preview."
-                  : user?.email || "Loading account..."}
+                  ? t("account.previewProfile")
+                  : user?.email || t("account.loading")}
               </p>
             </div>
             <span className="profile-badge">
               <ShieldCheck size={15} />{" "}
               {isPreview
-                ? "Preview account"
+                ? t("account.previewBadge")
                 : user?.emailVerified
-                  ? "Email verified"
-                  : "Verify email"}
+                  ? t("account.emailVerified")
+                  : t("account.verifyEmail")}
             </span>
           </section>
           <div className="account-stats">
@@ -207,39 +233,39 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
               <Truck size={20} />
               <span>
                 <strong>{summary.data?.activeSellerOrders ?? "—"}</strong>
-                <small>Active seller orders</small>
+                <small>{t("account.stats.active")}</small>
               </span>
             </div>
             <div>
               <Package size={20} />
               <span>
                 <strong>{summary.data?.orders ?? "—"}</strong>
-                <small>Orders</small>
+                <small>{t("account.stats.orders")}</small>
               </span>
             </div>
             <div>
               <MapPin size={20} />
               <span>
                 <strong>{summary.data?.addresses ?? "—"}</strong>
-                <small>Saved addresses</small>
+                <small>{t("account.stats.addresses")}</small>
               </span>
             </div>
             <div>
               <Bell size={20} />
               <span>
                 <strong>{summary.data?.unreadNotifications ?? "—"}</strong>
-                <small>Unread notifications</small>
+                <small>{t("account.stats.unread")}</small>
               </span>
             </div>
           </div>
           <div
             className="account-tabs"
             role="tablist"
-            aria-label="Account sections"
+            aria-label={t("account.sections")}
           >
             <Link href="/favorites" className="account-favorites">
               <Heart size={17} />
-              My Favorites{" "}
+              {t("account.nav.favorites")}{" "}
               <span>
                 {favorites.loading
                   ? "…"
@@ -249,17 +275,19 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
               </span>
             </Link>
             <Link href="/account/support" className="account-favorites">
-              <MessageSquare size={17} /> Support & help
+              <MessageSquare size={17} /> {t("account.nav.support")}
             </Link>
-            <Link href="/account/reviews" className="account-favorites"><MessageSquare size={17}/> My product reviews</Link>
+            <Link href="/account/reviews" className="account-favorites">
+              <MessageSquare size={17} /> {t("account.nav.reviews")}
+            </Link>
             {(
               [
-                ["profile", UserRound, "My Profile"],
-                ["orders", ClipboardList, "Orders & Tracking"],
-                ["returns", RotateCcw, "Returns"],
-                ["addresses", MapPin, "Delivery Addresses"],
-                ["notifications", Bell, "Notifications"],
-                ["security", ShieldCheck, "Account Security"],
+                ["profile", UserRound, t("account.tab.profile")],
+                ["orders", ClipboardList, t("account.tab.orders")],
+                ["returns", RotateCcw, t("account.tab.returns")],
+                ["addresses", MapPin, t("account.tab.addresses")],
+                ["notifications", Bell, t("account.tab.notifications")],
+                ["security", ShieldCheck, t("account.tab.security")],
               ] as const
             ).map(([value, Icon, label]) => (
               <button
@@ -291,7 +319,7 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                   setRevision((value) => value + 1);
                 }}
               >
-                Refresh account
+                {t("account.refresh")}
               </button>
             </div>
           )}
@@ -305,21 +333,21 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
           tab !== "security" &&
           tab !== "profile" ? (
             <div className={s.notice}>
-              Verify your email to view your orders and returns.{" "}
+              {t("account.verifyToView")}{" "}
               <button
                 className={s.returnButton}
                 onClick={() => setTab("security")}
               >
-                Check verification
+                {t("cart.checkVerification")}
               </button>
             </div>
           ) : (
             <div className="account-content">
               <aside className="panel account-side">
-                <strong>ACCOUNT NAVIGATION</strong>
+                <strong>{t("account.navTitle")}</strong>
                 <Link href="/favorites" className="account-favorites">
                   <Heart size={17} />
-                  My Favorites{" "}
+                  {t("account.nav.favorites")}{" "}
                   <span>
                     {favorites.loading
                       ? "…"
@@ -332,42 +360,42 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                   className={tab === "profile" ? "active" : ""}
                   onClick={() => setTab("profile")}
                 >
-                  <UserRound size={17} /> My Profile
+                  <UserRound size={17} /> {t("account.tab.profile")}
                 </button>
                 <button
                   className={tab === "returns" ? "active" : ""}
                   onClick={() => setTab("returns")}
                 >
                   <RotateCcw size={17} />
-                  My Returns
+                  {t("account.nav.returns")}
                 </button>
                 <button
                   className={tab === "orders" ? "active" : ""}
                   onClick={() => setTab("orders")}
                 >
-                  <Truck size={17} /> My Orders
+                  <Truck size={17} /> {t("account.nav.orders")}
                 </button>
                 <button
                   className={tab === "addresses" ? "active" : ""}
                   onClick={() => setTab("addresses")}
                 >
-                  <MapPin size={17} /> Delivery Addresses
+                  <MapPin size={17} /> {t("account.tab.addresses")}
                 </button>
                 <button
                   className={tab === "notifications" ? "active" : ""}
                   onClick={() => setTab("notifications")}
                 >
-                  <Bell size={17} /> Notifications
+                  <Bell size={17} /> {t("account.tab.notifications")}
                 </button>
                 <button
                   className={tab === "security" ? "active" : ""}
                   onClick={() => setTab("security")}
                 >
-                  <ShieldCheck size={17} /> Security
+                  <ShieldCheck size={17} /> {t("account.nav.security")}
                 </button>
                 {!isPreview && user && (
                   <button className="signout-btn" onClick={signOutBuyer}>
-                    <LogOut size={17} /> Sign out
+                    <LogOut size={17} /> {t("account.signOut")}
                   </button>
                 )}
               </aside>
@@ -376,14 +404,18 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                 {tab === "orders" && (
                   <>
                     <div className="account-section-title">
-                      <h2>Orders & Tracking</h2>
-                      <span>{ordersResource.data?.total ?? "—"} orders</span>
+                      <h2>{t("account.tab.orders")}</h2>
+                      <span>
+                        {t("orders.count", {
+                          count: ordersResource.data?.total ?? "—",
+                        })}
+                      </span>
                     </div>
                     <div className={s.filters}>
                       <input
-                        aria-label="Search your orders"
+                        aria-label={t("orders.searchLabel")}
                         maxLength={80}
-                        placeholder="Search order reference or recipient"
+                        placeholder={t("orders.searchPlaceholder")}
                         value={query}
                         onChange={(event) => {
                           setQuery(event.target.value);
@@ -391,34 +423,36 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                         }}
                       />
                       <select
-                        aria-label="Filter your order status"
+                        aria-label={t("orders.filterLabel")}
                         value={status}
                         onChange={(event) => {
                           setStatus(event.target.value);
                           setOrderPage(1);
                         }}
                       >
-                        <option value="ALL">All statuses</option>
-                        {[...progress, "CANCELLED"].map((value) => (
+                        <option value="ALL">{t("orders.allStatuses")}</option>
+                        {sellerOrderStatuses.map((value) => (
                           <option value={value} key={value}>
-                            {value.toLowerCase()}
+                            {orderStatusLabel(t, value)}
                           </option>
                         ))}
                       </select>
                     </div>
                     {loading ? (
-                      <div className="empty-panel">Loading your orders...</div>
+                      <div className="empty-panel">{t("orders.loading")}</div>
                     ) : orders.length ? (
                       orders.map((order) => (
                         <section className="panel account-order" key={order.id}>
                           <div className="account-order-heading">
                             <div>
                               <small>
-                                ORDER #{order.id.slice(0, 8).toUpperCase()}
+                                {t("orders.number", {
+                                  id: order.id.slice(0, 8).toUpperCase(),
+                                })}
                               </small>
                               <h3>
                                 {new Date(order.createdAt).toLocaleDateString(
-                                  "en-LK",
+                                  dateLocale,
                                   {
                                     day: "numeric",
                                     month: "long",
@@ -427,22 +461,28 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                                 )}
                               </h3>
                               <span>
-                                Cash on Delivery · {order.city},{" "}
+                                {t("trust.cod.title")} · {order.city},{" "}
                                 {order.district}
                               </span>
                             </div>
                             <div>
-                              <small>ORIGINAL TOTAL</small>
+                              <small>{t("orders.originalTotal")}</small>
                               <strong>{money(order.totalLkrMinor)}</strong>
-                              {order.sellerOrders.some(
-                                (part) => part.status === "CANCELLED",
+                              {order.sellerOrders.some((part) =>
+                                ["CANCELLED", "RETURNED_TO_SELLER"].includes(
+                                  part.status,
+                                ),
                               ) && (
                                 <small>
-                                  Excluding cancelled deliveries:{" "}
+                                  {t("orders.excludingCancelled")}{" "}
                                   {money(
                                     order.sellerOrders
                                       .filter(
-                                        (part) => part.status !== "CANCELLED",
+                                        (part) =>
+                                          ![
+                                            "CANCELLED",
+                                            "RETURNED_TO_SELLER",
+                                          ].includes(part.status),
                                       )
                                       .reduce(
                                         (sum, part) => sum + part.totalLkrMinor,
@@ -464,26 +504,48 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                                   <Link href={shopPath(sellerOrder.seller)}>
                                     <strong>{sellerOrder.seller.name}</strong>
                                   </Link>
-                                  <span className="status-pill">
-                                    {sellerOrder.status.replaceAll("_", " ")}
+                                  <span
+                                    className={`status-pill status-${sellerOrder.status.toLowerCase()}`}
+                                  >
+                                    {orderStatusLabel(t, sellerOrder.status)}
                                   </span>
                                 </div>
-                                {sellerOrder.status !== "CANCELLED" && (
+                                {!["CANCELLED", "RETURNED_TO_SELLER"].includes(
+                                  sellerOrder.status,
+                                ) && (
                                   <div className="order-progress">
-                                    {progress.map((stage) => (
+                                    {fulfilmentSteps.map((stage, index) => (
                                       <span
                                         className={
-                                          progress.indexOf(stage) <=
-                                          progress.indexOf(sellerOrder.status)
+                                          index <=
+                                          progressIndex(sellerOrder.status)
                                             ? "done"
                                             : ""
                                         }
                                         key={stage}
                                       >
-                                        {stage.toLowerCase()}
+                                        {orderStatusLabel(t, stage)}
                                       </span>
                                     ))}
                                   </div>
+                                )}
+                                {sellerOrder.status === "DELIVERY_FAILED" && (
+                                  <p className="status-reason" role="status">
+                                    {t("orders.deliveryFailed")}
+                                  </p>
+                                )}
+                                {sellerOrder.status ===
+                                  "RETURNED_TO_SELLER" && (
+                                  <p className="status-reason" role="status">
+                                    {t("orders.returnedToSeller")}
+                                  </p>
+                                )}
+                                {sellerOrder.statusReason && (
+                                  <p className="status-reason">
+                                    {t("orders.reason", {
+                                      reason: sellerOrder.statusReason,
+                                    })}
+                                  </p>
                                 )}
                                 {sellerOrder.items.map((item) => (
                                   <div className="order-item" key={item.id}>
@@ -492,9 +554,20 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                                     </span>
                                     <div>
                                       <strong>{item.productTitle}</strong>
-                                      {sellerOrder.status === "DELIVERED" && item.variant?.productId && <Link className="text-link" href={`/products/${item.variant.productId}#product-reviews`}>Review this product</Link>}
+                                      {sellerOrder.status === "DELIVERED" &&
+                                        item.variant?.productId && (
+                                          <Link
+                                            className="text-link"
+                                            href={`/products/${item.variant.productId}#product-reviews`}
+                                          >
+                                            {t("orders.reviewProduct")}
+                                          </Link>
+                                        )}
                                       <small>
-                                        Qty {item.quantity} · {item.sku}
+                                        {t("checkout.qty", {
+                                          count: item.quantity,
+                                        })}{" "}
+                                        · {item.sku}
                                       </small>
                                     </div>
                                     <b>{money(item.lineLkrMinor)}</b>
@@ -506,7 +579,7 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                                     className="outline-btn return-trigger"
                                     href={`${shopPath(sellerOrder.seller)}#reviews`}
                                   >
-                                    Review this shop
+                                    {t("orders.reviewShop")}
                                   </Link>
                                 )}
                                 {sellerOrder.status === "PLACED" && (
@@ -517,16 +590,30 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                                     sellerName={sellerOrder.seller.name}
                                     onChanged={() => {
                                       setRevision((value) => value + 1);
-                                      setMessage("Order status refreshed.");
+                                      setMessage(t("orders.refreshed"));
                                     }}
                                   />
+                                )}
+                                {sellerOrder.status === "SHIPPED" && (
+                                  <div className={s.actions}>
+                                    <BuyerConfirmReceipt
+                                      orderId={order.id}
+                                      sellerOrderId={sellerOrder.id}
+                                      sellerName={sellerOrder.seller.name}
+                                      total={money(sellerOrder.totalLkrMinor)}
+                                      onChanged={() => {
+                                        setRevision((value) => value + 1);
+                                        setMessage(t("orders.receipt.done"));
+                                      }}
+                                    />
+                                  </div>
                                 )}
                                 {!!sellerOrder.returnRequests?.length && (
                                   <button
                                     className={s.returnButton}
                                     onClick={() => setTab("returns")}
                                   >
-                                    View item return progress
+                                    {t("orders.viewReturns")}
                                   </button>
                                 )}
                                 {sellerOrder.status === "DELIVERED" &&
@@ -537,14 +624,15 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                                         setReturnOrder(sellerOrder.id)
                                       }
                                     >
-                                      <RotateCcw size={15} /> Return items
+                                      <RotateCcw size={15} />{" "}
+                                      {t("orders.returnItems")}
                                     </button>
                                   )}
                                 <Link
                                   className="outline-btn"
                                   href={`/account/support?order=${sellerOrder.id}`}
                                 >
-                                  Get support
+                                  {t("orders.support")}
                                 </Link>
                               </div>
                             ),
@@ -554,10 +642,10 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                     ) : (
                       <div className="empty-panel">
                         <Package size={32} />
-                        <h3>No orders yet</h3>
-                        <p>Your order history will appear here.</p>
+                        <h3>{t("orders.empty.title")}</h3>
+                        <p>{t("orders.empty.text")}</p>
                         <Link className="primary-btn" href="/products">
-                          Shop products
+                          {t("orders.empty.action")}
                         </Link>
                       </div>
                     )}
@@ -567,7 +655,7 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                         setOrderPage(next);
                         setReturnOrder(null);
                       }}
-                      label="Your order pages"
+                      label={t("orders.pages")}
                     />
                     {returnOrder && (
                       <ItemReturnDialog
@@ -578,9 +666,7 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                           setReturnOrder(null);
                           setRevision((v) => v + 1);
                           setTab("returns");
-                          setMessage(
-                            "Item return request submitted for review.",
-                          );
+                          setMessage(t("orders.returnSubmitted"));
                         }}
                       />
                     )}
@@ -590,9 +676,9 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                 {tab === "addresses" && (
                   <>
                     <div className="account-section-title">
-                      <h2>Saved Addresses</h2>
+                      <h2>{t("account.addresses.title")}</h2>
                       <Link className="text-link" href="/checkout">
-                        Add in checkout
+                        {t("account.addresses.add")}
                       </Link>
                     </div>
                     {addresses.length ? (
@@ -603,20 +689,100 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                             <div>
                               <strong>{address.recipient}</strong>
                               <p>
-                                {address.line1}, {address.city},{" "}
-                                {address.district} {address.postalCode}
+                                {address.line1}
+                                {address.line2
+                                  ? `, ${address.line2}`
+                                  : ""}, {address.city}, {address.district}{" "}
+                                {address.postalCode}
                               </p>
                               <small>{address.phone}</small>
+                              <span className="address-badges">
+                                {address.isDefault && (
+                                  <span className="badge">
+                                    {t("address.default")}
+                                  </span>
+                                )}
+                                {address.phoneVerified === true && (
+                                  <span className="badge good">
+                                    {t("address.phoneVerified")}
+                                  </span>
+                                )}
+                                {address.phoneVerified === false && (
+                                  <span className="badge warn">
+                                    {t("address.phoneUnverified")}
+                                  </span>
+                                )}
+                              </span>
+                              <span className="address-card-actions">
+                                <button
+                                  onClick={() =>
+                                    setEditingAddress(
+                                      editingAddress === address.id
+                                        ? null
+                                        : address.id,
+                                    )
+                                  }
+                                >
+                                  {t("address.edit")}
+                                </button>
+                                {!address.isDefault && (
+                                  <button
+                                    onClick={() =>
+                                      void updateAddress(address.id, {
+                                        isDefault: true,
+                                      }).catch((cause) =>
+                                        setError(errorMessage(cause)),
+                                      )
+                                    }
+                                  >
+                                    {t("address.makeDefault")}
+                                  </button>
+                                )}
+                                {address.phoneVerified === false && (
+                                  <button
+                                    onClick={() =>
+                                      setVerifyingAddress(
+                                        verifyingAddress === address.id
+                                          ? null
+                                          : address.id,
+                                      )
+                                    }
+                                  >
+                                    {t("address.verifyPhone")}
+                                  </button>
+                                )}
+                                <button
+                                  onClick={() => removeAddress(address.id)}
+                                >
+                                  {t("address.remove")}
+                                </button>
+                              </span>
+                              {verifyingAddress === address.id && (
+                                <PhoneVerification
+                                  phone={address.phone}
+                                  onVerified={() => {
+                                    setVerifyingAddress(null);
+                                    setRevision((value) => value + 1);
+                                    setMessage(t("phone.verified"));
+                                  }}
+                                />
+                              )}
+                              {editingAddress === address.id && (
+                                <AddressForm
+                                  initial={address}
+                                  onCancel={() => setEditingAddress(null)}
+                                  onSubmit={(body) =>
+                                    updateAddress(address.id, body)
+                                  }
+                                />
+                              )}
                             </div>
-                            <button onClick={() => removeAddress(address.id)}>
-                              Remove
-                            </button>
                           </div>
                         ))}
                       </div>
                     ) : (
                       <div className="empty-panel">
-                        No saved addresses yet. Add one when you check out.
+                        {t("account.addresses.empty")}
                       </div>
                     )}
                   </>
@@ -624,16 +790,15 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                 {tab === "notifications" && (
                   <>
                     <div className="account-section-title">
-                      <h2>Notifications</h2>
+                      <h2>{t("account.tab.notifications")}</h2>
                       <button
                         className="outline-btn"
                         disabled={isPreview || !user}
                         onClick={async () => {
                           if (!user) return;
                           try {
-                            await api("/me/notifications/read-all", {
+                            await userApi(user, "/me/notifications/read-all", {
                               method: "PATCH",
-                              token: await user.getIdToken(),
                             });
                             setRevision((v) => v + 1);
                           } catch (cause) {
@@ -641,7 +806,7 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                           }
                         }}
                       >
-                        Mark all read
+                        {t("notifications.markAll")}
                       </button>
                     </div>
                     {notifications.length ? (
@@ -651,7 +816,7 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                           <div>
                             <strong>
                               {entry.type?.replaceAll("_", " ") ||
-                                "HelaCart update"}
+                                t("notifications.update")}
                             </strong>
                             <p>{entry.message}</p>
                             {entry.href &&
@@ -662,25 +827,25 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                                   href={notificationHref(entry)}
                                   onClick={() => void readNotice(entry.id)}
                                 >
-                                  View update
+                                  {t("notifications.view")}
                                 </Link>
                               )}
                             <small>
                               {new Date(entry.createdAt).toLocaleDateString(
-                                "en-LK",
+                                dateLocale,
                               )}
                             </small>
                           </div>
                           {!entry.readAt && (
                             <button onClick={() => readNotice(entry.id)}>
-                              Mark read
+                              {t("notifications.markRead")}
                             </button>
                           )}
                         </div>
                       ))
                     ) : (
                       <div className="empty-panel">
-                        You're all caught up. Notifications will appear here.
+                        {t("notifications.empty")}
                       </div>
                     )}
                   </>
@@ -689,10 +854,15 @@ export function AccountDashboard({ initialTab }: { initialTab: Tab }) {
                   <ListPagination
                     data={noticesResource.data}
                     onPage={setNoticePage}
-                    label="Notification pages"
+                    label={t("notifications.pages")}
                   />
                 )}
-                {tab === "security" && <AccountSecurity />}
+                {tab === "security" && (
+                  <>
+                    <AccountSecurity />
+                    {(isPreview || user?.emailVerified) && <AccountPrivacy />}
+                  </>
+                )}
               </div>
             </div>
           )}

@@ -6,7 +6,7 @@ import { CommissionAccount } from "@/components/commission-workspace";
 import { ProductCommissionManagement } from "@/components/product-commission-management";
 import { FinanceCard } from "@/components/commission-workspace";
 export default function SellerCommissionScreen() {
-  const { seller, request, isPreview } = useSeller();
+  const { seller, request, isPreview, isOwner, suspended } = useSeller();
   const { user } = useShop();
   return (
     <>
@@ -21,6 +21,8 @@ export default function SellerCommissionScreen() {
           sellerId={seller.id}
           request={request}
           isPreview={isPreview}
+          canSubmitPayments={isOwner && !suspended}
+          canViewReceipts={isOwner}
         />
       )}
       {seller && (

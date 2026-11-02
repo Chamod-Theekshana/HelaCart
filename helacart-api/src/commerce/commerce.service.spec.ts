@@ -3,6 +3,8 @@ import type { AuthService } from '../auth/auth.service.js';
 import type { CatalogService } from '../catalog/catalog.service.js';
 import type { NotificationsService } from '../notifications/notifications.service.js';
 import type { PrismaService } from '../prisma/prisma.service.js';
+import type { ConfigService } from '@nestjs/config';
+import type { AuditService } from '../audit/audit.service.js';
 import { CommerceService } from './commerce.service.js';
 import { Prisma } from '../generated/prisma/client.js';
 describe('Reviewed COD checkout', () => {
@@ -14,9 +16,13 @@ describe('Reviewed COD checkout', () => {
     order: { findUnique: vi.fn(), create: vi.fn() },
     inventoryMovement: { createMany: vi.fn() },
     commissionPolicy: { findUnique: vi.fn() },
+    sellerOrder: { count: vi.fn() },
+    verifiedPhone: { findUnique: vi.fn(), findMany: vi.fn() },
     $queryRaw: vi.fn(),
     $transaction: vi.fn(),
   };
+  const settings: Record<string, unknown> = {};
+  const config = { get: (key: string) => settings[key] };
   const notices = {
     forUser: vi.fn(),
     forSeller: vi.fn(),
@@ -30,6 +36,8 @@ describe('Reviewed COD checkout', () => {
     } as unknown as AuthService,
     {} as CatalogService,
     notices as unknown as NotificationsService,
+    config as unknown as ConfigService,
+    {} as AuditService,
   );
   const row = () => ({
     variantId: 'variant-a',
@@ -70,7 +78,11 @@ describe('Reviewed COD checkout', () => {
   let rows: ReturnType<typeof row>[];
   beforeEach(() => {
     vi.resetAllMocks();
+    for (const key of Object.keys(settings)) delete settings[key];
     db.commissionPolicy.findUnique.mockResolvedValue(null);
+    db.sellerOrder.count.mockResolvedValue(0);
+    db.verifiedPhone.findUnique.mockResolvedValue(null);
+    db.verifiedPhone.findMany.mockResolvedValue([]);
     rows = [row()];
     db.cartItem.findMany.mockImplementation(() => Promise.resolve(rows));
     db.order.findUnique.mockResolvedValue(null);
@@ -314,5 +326,66 @@ describe('Reviewed COD checkout', () => {
     rows[0].variant.onHand = 5;
     rows[0].variant.priceLkrMinor = 1_000_000_000;
     expect((await service.cart(identity)).canCheckout).toBe(false);
+  });
+  it('reports checkout blockers on the cart before checkout', async () => {
+    settings.MAX_OPEN_COD_ORDERS = 2;
+    settings.MAX_COD_ORDER_LKR_MINOR = 20_000;
+    settings.REQUIRE_PHONE_VERIFICATION = true;
+    db.sellerOrder.count.mockResolvedValue(2);
+    db.buyerAddress.findFirst.mockResolvedValue({
+      id: 'address-a',
+      recipient: 'Buyer',
+      phone: '0771234567',
+      line1: 'Address',
+      city: 'Kandy',
+      district: 'Kandy',
+    });
+    rows[0].variant.product.seller.status = 'SUSPENDED';
+    const cart = await service.cart(identity, 'address-a');
+    expect(cart.checkoutBlockers).toEqual([
+      'SELLER_SUSPENDED',
+      'COD_LIMIT_EXCEEDED',
+      'TOO_MANY_OPEN_ORDERS',
+      'PHONE_NOT_VERIFIED',
+    ]);
+    expect(cart.canCheckout).toBe(false);
+    expect(db.verifiedPhone.findUnique).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { userId_phone: { userId: 'buyer-id', phone: '+94771234567' } },
+      }),
+    );
+  });
+  it('has no blockers for an ordinary cart and skips the phone check by default', async () => {
+    const cart = await service.cart(identity, 'address-a');
+    expect(cart.checkoutBlockers).toEqual([]);
+    expect(db.verifiedPhone.findUnique).not.toHaveBeenCalled();
+  });
+  it.each([
+    ['SELLER_SUSPENDED', 409],
+    ['COD_LIMIT_EXCEEDED', 400],
+    ['TOO_MANY_OPEN_ORDERS', 409],
+    ['PHONE_NOT_VERIFIED', 409],
+  ])('refuses checkout with %s before touching stock', async (code, status) => {
+    const quote = (await service.cart(identity, 'address-a')).checkoutQuote;
+    if (code === 'SELLER_SUSPENDED')
+      rows[0].variant.product.seller.status = 'SUSPENDED';
+    if (code === 'COD_LIMIT_EXCEEDED')
+      settings.MAX_COD_ORDER_LKR_MINOR = 10_000;
+    if (code === 'TOO_MANY_OPEN_ORDERS')
+      db.sellerOrder.count.mockResolvedValue(5);
+    if (code === 'PHONE_NOT_VERIFIED')
+      settings.REQUIRE_PHONE_VERIFICATION = true;
+    await expect(
+      service.checkout(identity, {
+        addressId: 'address-a',
+        checkoutKey: 'key-a',
+        quote,
+      }),
+    ).rejects.toMatchObject({
+      status,
+      response: expect.objectContaining({ code }),
+    });
+    expect(db.$queryRaw).not.toHaveBeenCalled();
+    expect(db.order.create).not.toHaveBeenCalled();
   });
 });

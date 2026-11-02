@@ -11,6 +11,7 @@ import { StorefrontImage } from "./storefront-image";
 import { FavoriteButton } from "./favorite-button";
 import favoriteStyles from "./favorites.module.css";
 import s from "./product-card.module.css";
+import { useT } from "./language-provider";
 
 export function ProductImage({
   product,
@@ -19,6 +20,7 @@ export function ProductImage({
   product: Product;
   className?: string;
 }) {
+  const t = useT();
   return (
     <div className={`product-photo ${className}`}>
       <StorefrontImage
@@ -27,7 +29,7 @@ export function ProductImage({
         fallback={
           <span className={s.imageFallback}>
             <Package size={32} strokeWidth={1.3} />
-            <small>Photo coming soon</small>
+            <small>{t("product.photoSoon")}</small>
           </span>
         }
       />
@@ -37,6 +39,7 @@ export function ProductImage({
 
 export function ProductCard({ product }: { product: Product }) {
   const { addToCart, isPreview, authReady } = useShop();
+  const t = useT();
   const [busy, setBusy] = useState(false);
   const [feedback, setFeedback] = useState("");
   const [result, setResult] = useState<"idle" | "success" | "error">("idle");
@@ -58,7 +61,7 @@ export function ProductCard({ product }: { product: Product }) {
     try {
       await addToCart(product, variant.id);
       setResult("success");
-      setFeedback(isPreview ? "Added to preview cart." : "Added to your cart.");
+      setFeedback(isPreview ? t("product.addedPreview") : t("product.added"));
     } catch (error) {
       setResult("error");
       setFeedback(errorMessage(error));
@@ -74,10 +77,10 @@ export function ProductCard({ product }: { product: Product }) {
       <Link
         href={`/products/${product.id}`}
         className={`product-image-link ${s.imageLink}`}
-        aria-label={`View ${product.title}`}
+        aria-label={t("product.view", { title: product.title })}
       >
         <ProductImage product={product} className={s.photo} />
-        {!variant && <span className={s.category}>Sold out</span>}
+        {!variant && <span className={s.category}>{t("product.soldOut")}</span>}
       </Link>
       <div className={`product-card-body ${s.body}`}>
         <Link
@@ -119,9 +122,9 @@ export function ProductCard({ product }: { product: Product }) {
             <span />
             {variant
               ? lowStock
-                ? `Only ${variant.availableQuantity} left`
-                : "In stock"
-              : "Out of stock"}
+                ? t("product.onlyLeft", { count: variant.availableQuantity })
+                : t("product.inStock")
+              : t("product.outOfStock")}
           </span>
         </div>
         {hasOptions && variant ? (
@@ -129,7 +132,7 @@ export function ProductCard({ product }: { product: Product }) {
             href={`/products/${product.id}`}
             className={`primary-btn ${s.add} ${s.options}`}
           >
-            Choose options <ShoppingBag size={15} />
+            {t("product.chooseOptions")} <ShoppingBag size={15} />
           </Link>
         ) : (
           <button
@@ -140,8 +143,8 @@ export function ProductCard({ product }: { product: Product }) {
             aria-busy={busy}
             aria-label={
               variant
-                ? `Add ${product.title} to cart`
-                : `${product.title} is out of stock`
+                ? t("product.addAria", { title: product.title })
+                : t("product.outOfStockAria", { title: product.title })
             }
           >
             {busy ? (
@@ -156,12 +159,12 @@ export function ProductCard({ product }: { product: Product }) {
               <ShoppingBag size={16} aria-hidden="true" />
             )}
             {busy
-              ? "Adding..."
+              ? t("product.adding")
               : result === "success"
-                ? "Added"
+                ? t("product.addedShort")
                 : variant
-                  ? "Add to cart"
-                  : "Out of stock"}
+                  ? t("product.addToCart")
+                  : t("product.outOfStock")}
           </button>
         )}
         <p

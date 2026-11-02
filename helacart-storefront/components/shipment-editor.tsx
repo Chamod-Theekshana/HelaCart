@@ -18,7 +18,10 @@ export function ShipmentEditor({
   onSaved: () => Promise<void>;
   onClose: () => void;
 }) {
-  const dispatch = order.status === "PACKED",
+  // Dispatch (PACKED) or re-attempt after a failed delivery: both move the
+  // order to SHIPPED with fresh courier details (API §1.2).
+  const reattempt = order.status === "DELIVERY_FAILED",
+    dispatch = order.status === "PACKED" || reattempt,
     dialog = useRef<HTMLDialogElement>(null),
     operation = useRef(false);
   const [courier, setCourier] = useState(order.shipment?.courierName ?? ""),
@@ -72,7 +75,13 @@ export function ShipmentEditor({
     >
       <form onSubmit={(e) => void save(e)} className={styles.form}>
         <div className={styles.heading}>
-          <h2>{dispatch ? "Dispatch order" : "Update tracking"}</h2>
+          <h2>
+            {reattempt
+              ? "Re-attempt delivery"
+              : dispatch
+                ? "Dispatch order"
+                : "Update tracking"}
+          </h2>
           <button
             type="button"
             className="outline-btn"
@@ -123,16 +132,20 @@ export function ShipmentEditor({
             </label>
           )}
           <p className={styles.muted}>
-            {dispatch
-              ? "Dispatching marks this order shipped and notifies the buyer."
-              : "The buyer is notified. The original dispatch date is preserved."}
+            {reattempt
+              ? "The order moves back to shipped and the buyer is notified of the new delivery attempt."
+              : dispatch
+                ? "Dispatching marks this order shipped and notifies the buyer."
+                : "The buyer is notified. The original dispatch date is preserved."}
           </p>
           <button type="submit" className="primary-btn">
             {busy
               ? "Saving…"
-              : dispatch
-                ? "Mark shipped & notify buyer"
-                : "Save tracking & notify buyer"}
+              : reattempt
+                ? "Ship again & notify buyer"
+                : dispatch
+                  ? "Mark shipped & notify buyer"
+                  : "Save tracking & notify buyer"}
           </button>
         </fieldset>
         {error && (

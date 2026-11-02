@@ -127,8 +127,12 @@ export class StockAlertsService {
     INSERT INTO "Notification" (id,"userId",type,"subjectId",message,href)
     SELECT gen_random_uuid(),m."userId",'STOCK_LOW'::"NotificationType",p."variantId",left(p.title,120)||' ('||p.sku||'): '||CASE WHEN p.next_level='OUT' THEN 'out of available stock' ELSE 'available stock is low' END,'/seller/stock-alerts'
     FROM pending p JOIN updated x ON x."variantId"=p."variantId" JOIN "SellerMember" m ON m."sellerId"=p."sellerId" JOIN "User" u ON u.id=m."userId"
-    WHERE u."accessStatus"='ACTIVE' AND p.next_level<>'CLEAR' AND (p.old_level='CLEAR' OR (p.old_level='LOW' AND p.next_level='OUT')) RETURNING id
-   ) SELECT (SELECT count(*)::integer FROM updated) AS processed,(SELECT count(*)::integer FROM notices) AS notifications`;
+    WHERE u."accessStatus"='ACTIVE' AND p.next_level<>'CLEAR' AND (p.old_level='CLEAR' OR (p.old_level='LOW' AND p.next_level='OUT')) RETURNING id,"userId"
+   ), deliveries AS (
+    -- STOCK_LOW is push-only in the default channel matrix (contract section 7).
+    INSERT INTO "NotificationDelivery" (id,"notificationId","userId",channel,"updatedAt")
+    SELECT gen_random_uuid(),n.id,n."userId",'PUSH'::"NotificationChannel",NOW() FROM notices n RETURNING id
+   ) SELECT (SELECT count(*)::integer FROM updated) AS processed,(SELECT count(*)::integer FROM notices) AS notifications,(SELECT count(*)::integer FROM deliveries) AS deliveries`;
     return result;
   }
 }

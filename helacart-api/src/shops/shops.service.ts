@@ -197,7 +197,9 @@ export class ShopsService {
     identity: DecodedIdToken,
     dto: UpdateShopBusinessDto,
   ) {
-    await this.catalog.requireSellerMember(sellerId, identity, true);
+    await this.catalog.requireSellerMember(sellerId, identity, true, {
+      ownerOnly: true,
+    });
     return this.prisma.seller.update({
       where: { id: sellerId, status: 'APPROVED' },
       data: {
@@ -209,7 +211,9 @@ export class ShopsService {
   }
 
   async update(sellerId: string, identity: DecodedIdToken, dto: UpdateShopDto) {
-    await this.catalog.requireSellerMember(sellerId, identity, true);
+    await this.catalog.requireSellerMember(sellerId, identity, true, {
+      ownerOnly: true,
+    });
     return this.prisma.seller.update({
       where: { id: sellerId, status: 'APPROVED' },
       data: {

@@ -2,6 +2,7 @@ import { Transform, Type } from 'class-transformer';
 import {
   IsEmail,
   IsEnum,
+  IsIn,
   IsInt,
   IsOptional,
   IsString,
@@ -20,7 +21,9 @@ export class AccountsQueryDto {
 }
 export class AccessDecisionDto {
   @IsInt() @Min(0) @Max(2147483646) version!: number;
-  @IsEnum(AccountAccessStatus) status!: AccountAccessStatus;
+  // DELETED is reserved for owner-initiated account deletion.
+  @IsIn([AccountAccessStatus.ACTIVE, AccountAccessStatus.SUSPENDED])
+  status!: 'ACTIVE' | 'SUSPENDED';
   @Transform(trim) @IsString() @Length(10, 500) reason!: string;
 }
 export class TeamReasonDto {

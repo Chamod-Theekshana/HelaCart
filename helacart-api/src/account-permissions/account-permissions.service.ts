@@ -17,6 +17,8 @@ import {
   TeamReasonDto,
 } from './account-permissions.dto.js';
 import { paginated } from '../shops/shops.service.js';
+import { apiError } from '../common/api-error.js';
+import { AuditService } from '../audit/audit.service.js';
 const options = { timeout: 30000, maxWait: 10000 };
 @Injectable()
 export class AccountPermissionsService {
@@ -24,6 +26,7 @@ export class AccountPermissionsService {
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
     private readonly config: ConfigService,
+    private readonly audit: AuditService,
   ) {}
   private admins() {
     return this.config.getOrThrow<string[]>('ADMIN_FIREBASE_UIDS');
@@ -100,6 +103,8 @@ export class AccountPermissionsService {
         throw new ConflictException(
           'Account access changed. Refresh before deciding',
         );
+      if (user.accessStatus === 'DELETED')
+        throw new ConflictException('Deleted accounts cannot be changed');
       if (user.accessStatus === dto.status)
         throw new BadRequestException('Account already has this access status');
       const version = dto.version + 1;
@@ -116,6 +121,17 @@ export class AccountPermissionsService {
           reason: dto.reason,
         },
       });
+      await this.audit.record(
+        tx,
+        { id: actor.id, email: actor.email ?? identity.email ?? '' },
+        {
+          action: 'ACCOUNT_ACCESS_CHANGE',
+          subjectType: 'USER',
+          subjectId: id,
+          reason: dto.reason,
+          details: { from: user.accessStatus, to: dto.status, version },
+        },
+      );
       return { saved: true };
     }, options);
   }
@@ -123,6 +139,7 @@ export class AccountPermissionsService {
     sellerId: string,
     identity: DecodedIdToken,
     db: Prisma.TransactionClient = this.prisma,
+    write = false,
   ) {
     if (!identity.email_verified)
       throw new ForbiddenException('Verify your email to manage shop access');
@@ -137,12 +154,21 @@ export class AccountPermissionsService {
         seller: { select: { status: true } },
       },
     });
-    if (!member || member.role !== 'OWNER')
-      throw new ForbiddenException(
+    if (!member) throw new ForbiddenException('Seller membership required');
+    if (member.role !== 'OWNER')
+      throw apiError(
+        403,
+        'OWNER_ONLY',
         'Only the shop owner can manage team access',
       );
     if (!['APPROVED', 'SUSPENDED'].includes(member.seller.status))
       throw new ForbiddenException('Shop approval is required');
+    if (write && member.seller.status === 'SUSPENDED')
+      throw apiError(
+        403,
+        'SELLER_SUSPENDED',
+        'This shop is suspended. Contact HelaCart support',
+      );
     return member;
   }
   async team(sellerId: string, identity: DecodedIdToken) {
@@ -184,7 +210,7 @@ export class AccountPermissionsService {
   async add(sellerId: string, identity: DecodedIdToken, dto: AddManagerDto) {
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Seller" WHERE id=${sellerId}::uuid FOR UPDATE`;
-      const owner = await this.owner(sellerId, identity, tx);
+      const owner = await this.owner(sellerId, identity, tx, true);
       const user = await tx.user.findFirst({
         where: {
           email: { equals: dto.email, mode: 'insensitive' },
@@ -229,7 +255,7 @@ export class AccountPermissionsService {
   ) {
     return this.prisma.$transaction(async (tx) => {
       await tx.$queryRaw`SELECT id FROM "Seller" WHERE id=${sellerId}::uuid FOR UPDATE`;
-      const owner = await this.owner(sellerId, identity, tx);
+      const owner = await this.owner(sellerId, identity, tx, true);
       const member = await tx.sellerMember.findFirst({
         where: { id, sellerId },
         select: { userId: true, role: true },

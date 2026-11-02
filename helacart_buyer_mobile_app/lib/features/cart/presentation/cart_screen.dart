@@ -7,7 +7,7 @@ class CartScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final cart = ref.watch(cartProvider).asData?.value;
     return PageFrame(
-      title: 'Your cart',
+      title: context.tr('cart.title'),
       bottom:
           ref.watch(sessionProvider).value?.verified == true &&
               cart != null &&
@@ -16,12 +16,12 @@ class CartScreen extends ConsumerWidget {
               onPressed: cart.canCheckout
                   ? () => context.push('/checkout')
                   : null,
-              child: const Text('Continue to checkout'),
+              child: Text(context.tr('cart.continue')),
             )
           : null,
       actions: [
         IconButton(
-          tooltip: 'Refresh cart',
+          tooltip: context.tr('cart.refresh'),
           onPressed: () => ref.invalidate(cartProvider),
           icon: const Icon(Icons.refresh),
         ),
@@ -35,23 +35,24 @@ class CartScreen extends ConsumerWidget {
               data: (cart) {
                 if (cart == null || cart.items.isEmpty) {
                   return EmptyState(
-                    title: 'Your cart is waiting',
-                    message: 'Find something you’ll love from a local shop.',
+                    title: context.tr('cart.emptyTitle'),
+                    message: context.tr('cart.emptyMessage'),
                     action: FilledButton(
                       onPressed: () => context.go('/products'),
-                      child: const Text('Explore products'),
+                      child: Text(context.tr('common.exploreProducts')),
                     ),
                   );
                 }
                 return ListView(
                   padding: const EdgeInsets.all(20),
                   children: [
-                    const Notice(
-                      'Each shop delivers separately. Final destination delivery fees are shown at checkout.',
-                    ),
+                    Notice(context.tr('cart.notice')),
                     for (final group in cart.groups.entries) ...[
                       SectionTitle(
-                        string(group.value.first['sellerName'], 'Local shop'),
+                        string(
+                          group.value.first['sellerName'],
+                          context.tr('common.localShop'),
+                        ),
                       ),
                       Panel(
                         child: Column(
@@ -68,17 +69,22 @@ class CartScreen extends ConsumerWidget {
                     Panel(
                       child: Column(
                         children: [
-                          MoneyRow('Items subtotal', cart.subtotalLkrMinor),
-                          const Padding(
-                            padding: EdgeInsets.symmetric(vertical: 8),
+                          MoneyRow(
+                            context.tr('cart.subtotal'),
+                            cart.subtotalLkrMinor,
+                          ),
+                          Padding(
+                            padding: const EdgeInsets.symmetric(vertical: 8),
                             child: Row(
                               children: [
-                                Expanded(child: Text('Delivery')),
+                                Expanded(
+                                  child: Text(context.tr('cart.delivery')),
+                                ),
                                 Flexible(
                                   child: Text(
-                                    'Calculated at checkout',
+                                    context.tr('cart.deliveryLater'),
                                     textAlign: TextAlign.end,
-                                    style: TextStyle(
+                                    style: const TextStyle(
                                       color: HelaColors.muted,
                                       fontSize: 12,
                                     ),
@@ -91,10 +97,7 @@ class CartScreen extends ConsumerWidget {
                       ),
                     ),
                     if (!cart.canCheckout)
-                      const Notice(
-                        'Review unavailable items or shop delivery settings before checkout.',
-                        error: true,
-                      ),
+                      Notice(context.tr('cart.reviewIssues'), error: true),
                   ],
                 );
               },
@@ -137,24 +140,26 @@ class CartItemRow extends ConsumerWidget {
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   Text(
-                    '${money(integer(item['priceLkrMinor']))} each',
+                    context.tr('cart.each', {
+                      'price': money(integer(item['priceLkrMinor'])),
+                    }),
                     style: Theme.of(context).textTheme.bodySmall,
                   ),
                   if (item['available'] != true)
-                    const Notice('Currently unavailable', error: true),
+                    Notice(context.tr('cart.unavailable'), error: true),
                 ],
               ),
             ),
           ],
         ),
         MoneyRow(
-          'Item total',
+          context.tr('cart.itemTotal'),
           integer(item['priceLkrMinor']) * integer(item['quantity']),
         ),
         Row(
           children: [
             IconButton(
-              tooltip: 'Decrease quantity',
+              tooltip: context.tr('product.decrease'),
               onPressed: integer(item['quantity']) > 1
                   ? () => change(context, ref, integer(item['quantity']) - 1)
                   : null,
@@ -162,7 +167,7 @@ class CartItemRow extends ConsumerWidget {
             ),
             Text('${item['quantity']}'),
             IconButton(
-              tooltip: 'Increase quantity',
+              tooltip: context.tr('product.increase'),
               onPressed:
                   integer(item['quantity']) <
                           integer(item['availableQuantity']) &&
@@ -183,7 +188,7 @@ class CartItemRow extends ConsumerWidget {
                   if (context.mounted) toast(context, friendlyError(e));
                 }
               },
-              child: const Text('Remove'),
+              child: Text(context.tr('cart.remove')),
             ),
           ],
         ),

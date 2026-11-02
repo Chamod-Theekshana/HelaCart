@@ -2,12 +2,15 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, CheckCircle2 } from "lucide-react";
-import { api, errorMessage, money } from "@/lib/api";
+import { errorMessage, money, userApi } from "@/lib/api";
 import type { Order } from "@/lib/types";
 import { useShop } from "./shop-provider";
+import { useT } from "./language-provider";
+import { SignInLink } from "./sign-in-link";
 
 export function OrderConfirmation({ orderId }: { orderId: string }) {
   const { user } = useShop();
+  const t = useT();
   const identityKey = `${user?.uid}:${orderId}`;
   const [state, setState] = useState<{
     key: string;
@@ -20,11 +23,7 @@ export function OrderConfirmation({ orderId }: { orderId: string }) {
   useEffect(() => {
     if (!user || !orderId) return;
     let active = true;
-    user
-      .getIdToken()
-      .then((token) =>
-        api<Order>(`/me/orders/${encodeURIComponent(orderId)}`, { token }),
-      )
+    userApi<Order>(user, `/me/orders/${encodeURIComponent(orderId)}`)
       .then((data) => {
         if (active) setState({ key: identityKey, order: data, error: "" });
       })
@@ -42,7 +41,12 @@ export function OrderConfirmation({ orderId }: { orderId: string }) {
   }, [user, orderId, identityKey, attempt]);
   const due =
     order?.sellerOrders
-      .filter((part) => !["CANCELLED", "DELIVERED"].includes(part.status))
+      .filter(
+        (part) =>
+          !["CANCELLED", "DELIVERED", "RETURNED_TO_SELLER"].includes(
+            part.status,
+          ),
+      )
       .reduce((sum, part) => sum + part.totalLkrMinor, 0) ?? 0;
   return (
     <div className="container success-page">
@@ -50,55 +54,60 @@ export function OrderConfirmation({ orderId }: { orderId: string }) {
         {order ? (
           <>
             <CheckCircle2 size={57} />
-            <span className="section-kicker">ORDER CONFIRMED</span>
-            <h1>Thank you for shopping with HelaCart!</h1>
-            <p>
-              Your cash on delivery order has been placed. You can view its
-              seller orders in your account.
-            </p>
+            <span className="section-kicker">{t("success.kicker")}</span>
+            <h1>{t("success.title")}</h1>
+            <p>{t("success.text")}</p>
             <div className="success-meta">
               <div>
-                <span>Order number</span>
+                <span>{t("success.orderNumber")}</span>
                 <strong>#{order.id.slice(0, 8).toUpperCase()}</strong>
               </div>
               <div>
-                <span>Amount still due on delivery</span>
+                <span>{t("success.due")}</span>
                 <strong>{money(due)}</strong>
                 {due !== order.totalLkrMinor && (
-                  <small>Original total: {money(order.totalLkrMinor)}</small>
+                  <small>
+                    {t("success.originalTotal", {
+                      total: money(order.totalLkrMinor),
+                    })}
+                  </small>
                 )}
               </div>
               <div>
-                <span>Delivery address</span>
+                <span>{t("success.address")}</span>
                 <strong>
                   {order.line1}, {order.city}
                 </strong>
               </div>
             </div>
             <Link className="primary-btn" href="/orders">
-              View your orders <ArrowRight size={17} />
+              {t("success.viewOrders")} <ArrowRight size={17} />
             </Link>
           </>
         ) : (
           <>
-            <h1>Order confirmation</h1>
+            <h1>{t("success.confirmation")}</h1>
             <p role={error ? "alert" : undefined}>
               {error ||
-                (orderId && user
-                  ? "Checking your order..."
-                  : "Sign in to view a confirmed order.")}
+                (orderId && user ? t("success.checking") : t("success.signIn"))}
             </p>
             {error && user && (
               <button
                 className="outline-btn"
                 onClick={() => setAttempt((value) => value + 1)}
               >
-                Try again
+                {t("common.tryAgain")}
               </button>
             )}
-            <Link className="primary-btn" href={user ? "/orders" : "/auth"}>
-              {user ? "Your orders" : "Sign in"}
-            </Link>
+            {user ? (
+              <Link className="primary-btn" href="/orders">
+                {t("success.yourOrders")}
+              </Link>
+            ) : (
+              <SignInLink className="primary-btn">
+                {t("auth.signIn")}
+              </SignInLink>
+            )}
           </>
         )}
       </div>

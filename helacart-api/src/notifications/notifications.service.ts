@@ -4,6 +4,19 @@ import type { DecodedIdToken } from 'firebase-admin/auth';
 import { NotificationType, Prisma } from '../generated/prisma/client.js';
 import { AuthService } from '../auth/auth.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { channelsFor, type NotificationAudience } from './channel-matrix.js';
+
+export type NotifyOptions = {
+  /** Recipient role for the default channel matrix (defaults to BUYER). */
+  audience?: NotificationAudience;
+  /** New seller-order status, which decides SMS for buyer order updates. */
+  orderStatus?: string;
+};
+type CreatedNotification = {
+  id: string;
+  userId: string;
+  type: NotificationType;
+};
 
 @Injectable()
 export class NotificationsService {
@@ -20,6 +33,7 @@ export class NotificationsService {
     subjectId: string,
     message: string,
     href?: string,
+    options: NotifyOptions = {},
   ) {
     href ??= type.startsWith('COMMISSION_')
       ? type === 'COMMISSION_SUBMITTED'
@@ -28,9 +42,59 @@ export class NotificationsService {
       : type.startsWith('RETURN_')
         ? '/account/returns'
         : undefined;
-    return tx.notification.create({
+    const notification = await tx.notification.create({
       data: { userId, type, subjectId, message, ...(href ? { href } : {}) },
     });
+    await this.enqueue(
+      tx,
+      [notification],
+      options.audience ?? 'BUYER',
+      options.orderStatus,
+    );
+    return notification;
+  }
+
+  /**
+   * Creates in-app notifications and queues their email/SMS/push deliveries in
+   * the same transaction (outbox), so a rolled-back change never notifies.
+   */
+  async createMany(
+    tx: Prisma.TransactionClient,
+    rows: Prisma.NotificationCreateManyInput[],
+    options: NotifyOptions = {},
+  ) {
+    if (!rows.length) return [];
+    const created = await tx.notification.createManyAndReturn({
+      data: rows,
+      select: { id: true, userId: true, type: true },
+    });
+    await this.enqueue(
+      tx,
+      created,
+      options.audience ?? 'BUYER',
+      options.orderStatus,
+    );
+    return created;
+  }
+
+  private async enqueue(
+    tx: Prisma.TransactionClient,
+    notifications: CreatedNotification[],
+    audience: NotificationAudience,
+    orderStatus?: string,
+  ) {
+    const data = notifications.flatMap((notification) =>
+      channelsFor(notification.type, audience, orderStatus).map((channel) => ({
+        notificationId: notification.id,
+        userId: notification.userId,
+        channel,
+      })),
+    );
+    if (data.length)
+      await tx.notificationDelivery.createMany({
+        data,
+        skipDuplicates: true,
+      });
   }
 
   async forSeller(
@@ -50,16 +114,17 @@ export class NotificationsService {
       where: { sellerId },
       select: { userId: true },
     });
-    if (members.length)
-      await tx.notification.createMany({
-        data: members.map(({ userId }) => ({
-          userId,
-          type,
-          subjectId,
-          message,
-          ...(href ? { href } : {}),
-        })),
-      });
+    await this.createMany(
+      tx,
+      members.map(({ userId }) => ({
+        userId,
+        type,
+        subjectId,
+        message,
+        ...(href ? { href } : {}),
+      })),
+      { audience: 'SELLER' },
+    );
   }
   async forSellerOrders(
     tx: Prisma.TransactionClient,
@@ -69,19 +134,20 @@ export class NotificationsService {
       where: { sellerId: { in: orders.map((o) => o.sellerId) } },
       select: { sellerId: true, userId: true },
     });
-    if (members.length)
-      await tx.notification.createMany({
-        data: members.map((member) => {
-          const order = orders.find((o) => o.sellerId === member.sellerId)!;
-          return {
-            userId: member.userId,
-            type: NotificationType.ORDER_PLACED,
-            subjectId: order.id,
-            message: 'A new COD order needs fulfillment',
-            href: `/seller/orders?order=${order.id}`,
-          };
-        }),
-      });
+    await this.createMany(
+      tx,
+      members.map((member) => {
+        const order = orders.find((o) => o.sellerId === member.sellerId)!;
+        return {
+          userId: member.userId,
+          type: NotificationType.ORDER_PLACED,
+          subjectId: order.id,
+          message: 'A new COD order needs fulfillment',
+          href: `/seller/orders?order=${order.id}`,
+        };
+      }),
+      { audience: 'SELLER' },
+    );
   }
   async forAdmins(
     tx: Prisma.TransactionClient,
@@ -96,16 +162,17 @@ export class NotificationsService {
       where: { firebaseUid: { in: uids } },
       select: { id: true },
     });
-    if (admins.length)
-      await tx.notification.createMany({
-        data: admins.map((a) => ({
-          userId: a.id,
-          type,
-          subjectId,
-          message,
-          href,
-        })),
-      });
+    await this.createMany(
+      tx,
+      admins.map((a) => ({
+        userId: a.id,
+        type,
+        subjectId,
+        message,
+        href,
+      })),
+      { audience: 'ADMIN' },
+    );
   }
   async inbox(identity: DecodedIdToken) {
     const user = await this.auth.getOrCreateProfile(identity);

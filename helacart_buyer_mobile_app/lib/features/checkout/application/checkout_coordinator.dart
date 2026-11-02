@@ -81,6 +81,19 @@ class CheckoutCoordinator {
   final CheckoutStore store;
   final String? Function() identity;
   bool _busy = false;
+
+  /// "Start over": forgets this owner's saved attempt so a new checkout can
+  /// begin. Also the recovery path when the saved data cannot be read (the key
+  /// is deleted without parsing it). The UI confirms first because the old
+  /// attempt may already have created an order.
+  Future<void> abandon(String owner) async {
+    if (_busy) throw const AppFailure('An order check is already in progress.');
+    if (identity() != owner) {
+      throw const AppFailure('Sign in again to continue your checkout.');
+    }
+    await store.clear(owner);
+  }
+
   Future<Json> place({
     required String owner,
     String? addressId,

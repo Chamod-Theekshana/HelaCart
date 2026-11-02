@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:helacart_buyer_mobile_app/core/data/buyer_repository.dart';
+import 'package:helacart_buyer_mobile_app/core/data/contract_models.dart';
 import 'package:helacart_buyer_mobile_app/core/data/json.dart';
 import 'package:helacart_buyer_mobile_app/core/data/models.dart';
 import 'package:helacart_buyer_mobile_app/features/auth/data/auth_service.dart';
@@ -29,6 +30,12 @@ class FakeRepository implements BuyerRepository {
   Future<Object?> Function(String)? onRead;
   Future<CartData> Function(String?)? onCart;
   CartData cartValue = const CartData();
+
+  /// §3.2 blockers returned with every quote.
+  List<String> checkoutBlockers = const [];
+
+  /// Per-address flags keyed by address id (§3.1/§4).
+  Map<String, ({bool phoneVerified, bool isDefault})> addressFlags = const {};
   @override
   Future<Object?> write(String path, String method, [Object? data]) async {
     writes.add((path: path, method: method, data: data));
@@ -45,6 +52,18 @@ class FakeRepository implements BuyerRepository {
       onCart == null ? cartValue : await onCart!(addressId);
   @override
   Future<List<BuyerAddress>> addresses() async => const [];
+  @override
+  Future<CartQuote> cartQuote([String? addressId]) async =>
+      CartQuote(await cart(addressId), checkoutBlockers: checkoutBlockers);
+  @override
+  Future<List<SavedAddress>> savedAddresses() async => [
+    for (final address in await addresses())
+      SavedAddress(
+        address,
+        phoneVerified: addressFlags[address.id]?.phoneVerified ?? false,
+        isDefault: addressFlags[address.id]?.isDefault ?? false,
+      ),
+  ];
   @override
   Future<List<Json>> categories() async => const [];
   @override

@@ -1,5 +1,6 @@
 import 'package:dio/dio.dart';
 
+import 'contract_models.dart';
 import 'json.dart';
 import 'models.dart';
 import '../network/api_client.dart';
@@ -12,6 +13,12 @@ abstract class BuyerRepository {
   Future<Product> product(String id);
   Future<CartData> cart([String? addressId]);
   Future<List<BuyerAddress>> addresses();
+
+  /// Destination quote including §3.2 `checkoutBlockers`.
+  Future<CartQuote> cartQuote([String? addressId]);
+
+  /// Saved addresses including §3.1/§4 `phoneVerified` and `isDefault`.
+  Future<List<SavedAddress>> savedAddresses();
 }
 
 class ApiBuyerRepository implements BuyerRepository {
@@ -35,7 +42,10 @@ class ApiBuyerRepository implements BuyerRepository {
     object(await read('/products/${Uri.encodeComponent(id)}')),
   );
   @override
-  Future<CartData> cart([String? addressId]) async => CartData.fromJson(
+  Future<CartData> cart([String? addressId]) async =>
+      (await cartQuote(addressId)).cart;
+  @override
+  Future<CartQuote> cartQuote([String? addressId]) async => CartQuote.fromJson(
     object(
       await read(
         '/me/cart${addressId == null ? '' : '?addressId=${Uri.encodeQueryComponent(addressId)}'}',
@@ -45,8 +55,11 @@ class ApiBuyerRepository implements BuyerRepository {
   );
   @override
   Future<List<BuyerAddress>> addresses() async =>
+      (await savedAddresses()).map((row) => row.address).toList();
+  @override
+  Future<List<SavedAddress>> savedAddresses() async =>
       objects(await read('/me/addresses', private: true))
-          .map(BuyerAddress.fromJson)
+          .map(SavedAddress.fromJson)
           .toList();
 }
 

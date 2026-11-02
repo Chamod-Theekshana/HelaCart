@@ -228,10 +228,19 @@ export class BulkToolsService {
             status: true,
             updatedAt: true,
             imageUrls: true,
+            commissionRateBps: true,
             seller: { select: { status: true } },
             category: { select: { isActive: true } },
           },
         });
+        const commissionRequired =
+          dto.kind === 'PRODUCT_APPROVE' &&
+          (
+            await tx.commissionPolicy.findUnique({
+              where: { id: 'platform' },
+              select: { enabled: true },
+            })
+          )?.enabled === true;
         const byId = new Map(products.map((p) => [p.id, p]));
         const after = {
           PRODUCT_SUBMIT: 'PENDING',
@@ -262,7 +271,9 @@ export class BulkToolsService {
                         dto.kind === 'PRODUCT_APPROVE') &&
                       !p.imageUrls.length
                     ? 'An image is required'
-                    : null;
+                    : commissionRequired && p.commissionRateBps == null
+                      ? 'Set a commission rate before approval'
+                      : null;
           return {
             id,
             title: p?.title ?? 'Unavailable product',
@@ -380,12 +391,30 @@ export class BulkToolsService {
           Prisma.sql`SELECT id FROM "Product" WHERE id IN (${Prisma.join(rows.map((r) => Prisma.sql`${r.id}::uuid`))}) ORDER BY id FOR UPDATE`,
         );
         const changed = await tx.$queryRaw<{ id: string }[]>(
-          Prisma.sql`UPDATE "Product" p SET status=b.after::"ProductStatus","updatedAt"=NOW() FROM (VALUES ${Prisma.join(rows.map((r) => Prisma.sql`(${r.id}::uuid,${r.before}::text,${r.after}::text,${new Date(r.updatedAt)}::timestamptz)`))}) b(id,before,after,updated_at) WHERE p.id=b.id AND p.status::text=b.before AND p."updatedAt"=b.updated_at AND ${sellerId ? Prisma.sql`p."sellerId"=${sellerId}::uuid` : Prisma.sql`TRUE`} AND ${job.kind === 'PRODUCT_REJECT' ? Prisma.sql`TRUE` : Prisma.sql`EXISTS(SELECT 1 FROM "Seller" s WHERE s.id=p."sellerId" AND s.status='APPROVED')`} AND ${['PRODUCT_SUBMIT', 'PRODUCT_APPROVE'].includes(job.kind) ? Prisma.sql`cardinality(p."imageUrls")>0 AND EXISTS(SELECT 1 FROM "Category" c WHERE c.id=p."categoryId" AND c."isActive")` : Prisma.sql`TRUE`} RETURNING p.id`,
+          Prisma.sql`UPDATE "Product" p SET status=b.after::"ProductStatus","updatedAt"=NOW() FROM (VALUES ${Prisma.join(rows.map((r) => Prisma.sql`(${r.id}::uuid,${r.before}::text,${r.after}::text,${new Date(r.updatedAt)}::timestamptz)`))}) b(id,before,after,updated_at) WHERE p.id=b.id AND p.status::text=b.before AND p."updatedAt"=b.updated_at AND ${sellerId ? Prisma.sql`p."sellerId"=${sellerId}::uuid` : Prisma.sql`TRUE`} AND ${job.kind === 'PRODUCT_REJECT' ? Prisma.sql`TRUE` : Prisma.sql`EXISTS(SELECT 1 FROM "Seller" s WHERE s.id=p."sellerId" AND s.status='APPROVED')`} AND ${['PRODUCT_SUBMIT', 'PRODUCT_APPROVE'].includes(job.kind) ? Prisma.sql`cardinality(p."imageUrls")>0 AND EXISTS(SELECT 1 FROM "Category" c WHERE c.id=p."categoryId" AND c."isActive")` : Prisma.sql`TRUE`} AND ${job.kind === 'PRODUCT_APPROVE' ? Prisma.sql`(p."commissionRateBps" IS NOT NULL OR NOT EXISTS(SELECT 1 FROM "CommissionPolicy" cp WHERE cp.id='platform' AND cp.enabled))` : Prisma.sql`TRUE`} RETURNING p.id`,
         );
         if (changed.length !== rows.length)
           throw new ConflictException(
             'A product changed since preview. Nothing was applied; create a new preview',
           );
+        if (job.kind === 'PRODUCT_APPROVE' || job.kind === 'PRODUCT_REJECT') {
+          const email =
+            (actor as { email?: string }).email ?? identity.email ?? '';
+          await tx.adminAuditLog.createMany({
+            data: rows.map((r) => ({
+              actorId: actor.id,
+              actorEmail: email.slice(0, 320),
+              action:
+                job.kind === 'PRODUCT_APPROVE'
+                  ? 'PRODUCT_APPROVE'
+                  : 'PRODUCT_REJECT',
+              subjectType: 'PRODUCT',
+              subjectId: r.id,
+              reason: job.reason,
+              details: { bulkJobId: job.id },
+            })),
+          });
+        }
         if (job.kind === 'PRODUCT_APPROVE' || job.kind === 'PRODUCT_REJECT')
           await tx.productReview.createMany({
             data: rows.map((r) => ({

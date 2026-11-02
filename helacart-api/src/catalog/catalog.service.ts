@@ -5,7 +5,9 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import {
   Prisma,
@@ -16,11 +18,20 @@ import {
 import { AuthService } from '../auth/auth.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { CreateCategoryDto } from './dto/create-category.dto.js';
+import { apiError } from '../common/api-error.js';
+import { AuditService } from '../audit/audit.service.js';
 import {
   CreateProductDto,
   ListPublicProductsDto,
   UpdateProductDto,
 } from './dto/product.dto.js';
+
+export type SellerAccessOptions = {
+  /** Only the shop OWNER may continue (MANAGER gets 403 OWNER_ONLY). */
+  ownerOnly?: boolean;
+  /** With requireApproved: a SUSPENDED shop may continue (order fulfilment). */
+  allowSuspended?: boolean;
+};
 
 export const publicProduct = {
   id: true,
@@ -77,13 +88,65 @@ export class CatalogService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
+    @Optional() private readonly config?: ConfigService,
+    @Optional() private readonly audit?: AuditService,
   ) {}
 
-  async createCategory(dto: CreateCategoryDto) {
+  async createCategory(dto: CreateCategoryDto, identity?: DecodedIdToken) {
+    const actor =
+      identity && this.audit ? await this.audit.actor(identity) : undefined;
     try {
-      return await this.prisma.category.create({ data: dto });
+      const category = await this.prisma.category.create({ data: dto });
+      if (actor && this.audit)
+        await this.audit.record(this.prisma, actor, {
+          action: 'CATEGORY_CREATE',
+          subjectType: 'CATEGORY',
+          subjectId: category.id,
+          details: { name: category.name, slug: category.slug },
+        });
+      return category;
     } catch (error) {
       this.throwUniqueConflict(error, 'Category slug already exists');
+    }
+  }
+
+  /**
+   * Product images must be uploaded through HelaCart (R2_PUBLIC_BASE_URL).
+   * Without R2 configuration, development/test accept any HTTPS URL while
+   * production rejects all external URLs.
+   */
+  assertImageUrlsAllowed(imageUrls?: string[]) {
+    if (!imageUrls?.length) return;
+    const base = this.config?.get<string>('R2_PUBLIC_BASE_URL')?.trim();
+    if (!base) {
+      if (this.config?.get<string>('NODE_ENV') === 'production')
+        throw apiError(
+          400,
+          'IMAGE_URL_NOT_ALLOWED',
+          'Upload product images through HelaCart',
+        );
+      return;
+    }
+    const origin = new URL(base).origin;
+    for (const value of imageUrls) {
+      let allowed = false;
+      try {
+        const url = new URL(value);
+        allowed =
+          url.origin === origin &&
+          url.protocol === 'https:' &&
+          !url.username &&
+          !url.password &&
+          url.pathname.length > 1;
+      } catch {
+        allowed = false;
+      }
+      if (!allowed)
+        throw apiError(
+          400,
+          'IMAGE_URL_NOT_ALLOWED',
+          'Product images must be uploaded through HelaCart',
+        );
     }
   }
 
@@ -151,6 +214,7 @@ export class CatalogService {
     dto: CreateProductDto,
   ) {
     await this.requireSellerMember(sellerId, identity, true);
+    this.assertImageUrlsAllowed(dto.imageUrls);
     await this.requireCategory(dto.categoryId);
     try {
       return await this.prisma.product.create({
@@ -214,6 +278,7 @@ export class CatalogService {
     await this.requireSellerMember(sellerId, identity, true);
     if (!Object.keys(dto).length)
       throw new BadRequestException('Supply at least one product field');
+    this.assertImageUrlsAllowed(dto.imageUrls);
     if (dto.categoryId) await this.requireCategory(dto.categoryId);
     try {
       const update = async (tx: Prisma.TransactionClient) => {
@@ -330,12 +395,22 @@ export class CatalogService {
     identity: DecodedIdToken,
     decision: ProductReviewDecision,
     reason?: string,
+    commissionRateBps?: number,
   ) {
     const reviewer = await this.auth.getOrCreateProfile(identity);
+    const actor = {
+      id: reviewer.id,
+      email: (reviewer as { email?: string }).email ?? identity.email ?? '',
+    };
     return this.prisma.$transaction(async (tx) => {
       const existing = await tx.product.findUnique({
         where: { id: productId },
-        select: { status: true, imageUrls: true },
+        select: {
+          status: true,
+          imageUrls: true,
+          commissionRateBps: true,
+          commissionVersion: true,
+        },
       });
       if (!existing) throw new NotFoundException('Product not found');
       if (existing.status !== ProductStatus.PENDING)
@@ -345,6 +420,57 @@ export class CatalogService {
         !existing.imageUrls.length
       )
         throw new ConflictException('Product has no image');
+      if (decision === ProductReviewDecision.APPROVED) {
+        const policy = await tx.commissionPolicy.findUnique({
+          where: { id: 'platform' },
+          select: { enabled: true },
+        });
+        if (
+          policy?.enabled &&
+          existing.commissionRateBps == null &&
+          commissionRateBps === undefined
+        )
+          throw apiError(
+            409,
+            'COMMISSION_RATE_REQUIRED',
+            'Set a commission rate for this product before approving it',
+          );
+        if (commissionRateBps !== undefined) {
+          const version = (existing.commissionVersion ?? 0) + 1;
+          const rated = await tx.product.updateMany({
+            where: {
+              id: productId,
+              commissionVersion: existing.commissionVersion ?? 0,
+            },
+            data: { commissionRateBps, commissionVersion: version },
+          });
+          if (rated.count !== 1)
+            throw new ConflictException(
+              'Product commission changed. Reload before approving',
+            );
+          await tx.productCommissionChange.create({
+            data: {
+              productId,
+              version,
+              actorId: reviewer.id,
+              beforeRateBps: existing.commissionRateBps ?? null,
+              rateBps: commissionRateBps,
+              reason: 'Commission rate set when the product was approved',
+            },
+          });
+          await this.audit?.record(tx, actor, {
+            action: 'COMMISSION_RATE_CHANGE',
+            subjectType: 'PRODUCT',
+            subjectId: productId,
+            reason: 'Commission rate set when the product was approved',
+            details: {
+              beforeRateBps: existing.commissionRateBps ?? null,
+              rateBps: commissionRateBps,
+              version,
+            },
+          });
+        }
+      }
 
       const updated = await tx.product.updateMany({
         where: {
@@ -376,6 +502,16 @@ export class CatalogService {
           reason: reason ?? null,
         },
       });
+      await this.audit?.record(tx, actor, {
+        action:
+          decision === ProductReviewDecision.APPROVED
+            ? 'PRODUCT_APPROVE'
+            : 'PRODUCT_REJECT',
+        subjectType: 'PRODUCT',
+        subjectId: productId,
+        reason: reason ?? null,
+        details: commissionRateBps !== undefined ? { commissionRateBps } : {},
+      });
       return tx.product.findUniqueOrThrow({
         where: { id: productId },
         select: privateProduct,
@@ -383,10 +519,16 @@ export class CatalogService {
     });
   }
 
+  /**
+   * Seller route access. `requireApproved` marks a write route: a SUSPENDED
+   * shop gets 403 SELLER_SUSPENDED unless `allowSuspended` (order status,
+   * shipment updates). Read routes pass `false` and keep working when suspended.
+   */
   async requireSellerMember(
     sellerId: string,
     identity: DecodedIdToken,
     requireApproved: boolean,
+    options: SellerAccessOptions = {},
   ) {
     if (!identity.email_verified)
       throw new ForbiddenException(
@@ -398,10 +540,26 @@ export class CatalogService {
       select: { role: true, seller: { select: { status: true } } },
     });
     if (!membership) throw new ForbiddenException('Seller membership required');
-    if (requireApproved && membership.seller.status !== SellerStatus.APPROVED)
-      throw new ForbiddenException(
-        'Seller must be approved to manage products',
+    if (options.ownerOnly && membership.role !== 'OWNER')
+      throw apiError(
+        403,
+        'OWNER_ONLY',
+        'Only the shop owner can make this change',
       );
+    const status = membership.seller.status;
+    if (requireApproved && status !== SellerStatus.APPROVED) {
+      if (status === SellerStatus.SUSPENDED) {
+        if (!options.allowSuspended)
+          throw apiError(
+            403,
+            'SELLER_SUSPENDED',
+            'This shop is suspended. Contact HelaCart support',
+          );
+      } else
+        throw new ForbiddenException(
+          'Seller must be approved to manage products',
+        );
+    }
     return profile;
   }
 

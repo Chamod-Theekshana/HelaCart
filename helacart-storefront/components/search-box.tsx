@@ -5,6 +5,7 @@ import Link from "next/link";
 import { Search } from "lucide-react";
 import { api, hasApi } from "@/lib/api";
 import s from "./discovery.module.css";
+import { useT } from "./language-provider";
 type Suggestions = {
   products: {
     id: string;
@@ -23,7 +24,8 @@ export function SearchBox({ mobile = false }: { mobile?: boolean }) {
     data: null,
   });
   const router = useRouter(),
-    id = useId();
+    id = useId(),
+    t = useT();
   useEffect(() => {
     if (!hasApi || q.trim().length < 2) return;
     let live = true;
@@ -53,12 +55,12 @@ export function SearchBox({ mobile = false }: { mobile?: boolean }) {
     ...(result?.categories.map((c) => ({
       href: `/products?category=${encodeURIComponent(c.slug)}`,
       label: c.name,
-      detail: "Browse category",
+      detail: t("search.browseCategory"),
     })) ?? []),
     {
       href: `/products?q=${encodeURIComponent(q.trim())}&sort=relevance`,
-      label: `Search for “${q.trim()}”`,
-      detail: "All matching products",
+      label: t("search.searchFor", { q: q.trim() }),
+      detail: t("search.allMatching"),
     },
   ];
   const show = open && q.trim().length >= 2;
@@ -76,8 +78,8 @@ export function SearchBox({ mobile = false }: { mobile?: boolean }) {
         name="q"
         maxLength={80}
         autoComplete="off"
-        aria-label="Search products"
-        placeholder="Search for your next good find"
+        aria-label={t("search.label")}
+        placeholder={t("search.placeholder")}
         value={q}
         onChange={(e) => {
           setQ(e.target.value);
@@ -119,13 +121,13 @@ export function SearchBox({ mobile = false }: { mobile?: boolean }) {
         }}
       />
       <input type="hidden" name="sort" value="relevance" />
-      <button type="submit">Search</button>
+      <button type="submit">{t("search.submit")}</button>
       {show && (
         <div
           id={id}
           className={s.suggestions}
           role="listbox"
-          aria-label="Search suggestions"
+          aria-label={t("search.suggestions")}
         >
           {links.map((link, index) => (
             <Link

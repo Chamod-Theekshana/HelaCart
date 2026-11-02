@@ -3,9 +3,13 @@ import 'dart:typed_data';
 import 'package:dio/dio.dart';
 import 'package:image_picker/image_picker.dart';
 
+import '../../../app/app_update.dart';
 import '../../../app/hc.dart';
+import '../../../app/locale.dart';
 import '../../../core/data/buyer_repository.dart';
+import '../../../core/ui/external_links.dart';
 import '../../reviews/presentation/reviews_screen.dart';
+import 'account_settings_screens.dart';
 
 final avatarProvider = FutureProvider.autoDispose.family<Uint8List, int>((
   ref,
@@ -56,7 +60,7 @@ class AccountScreen extends ConsumerWidget {
   const AccountScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) => PageFrame(
-    title: 'Your HelaCart',
+    title: context.tr('account.title'),
     child: Protected(
       verified: false,
       child: ref
@@ -100,7 +104,7 @@ class AccountScreen extends ConsumerWidget {
                           ),
                         ),
                         IconButton(
-                          tooltip: 'Edit profile',
+                          tooltip: context.tr('account.editProfile'),
                           onPressed: () => context.push('/account/profile'),
                           icon: const Icon(Icons.edit_outlined),
                         ),
@@ -117,10 +121,10 @@ class AccountScreen extends ConsumerWidget {
                         runSpacing: 10,
                         children: [
                           for (final pair in [
-                            ('Orders', 'orders'),
-                            ('Active packages', 'activeSellerOrders'),
-                            ('Addresses', 'addresses'),
-                            ('Unread notices', 'unreadNotifications'),
+                            ('account.statOrders', 'orders'),
+                            ('account.statActive', 'activeSellerOrders'),
+                            ('account.statAddresses', 'addresses'),
+                            ('account.statUnread', 'unreadNotifications'),
                           ])
                             SizedBox(
                               width: (MediaQuery.sizeOf(c).width - 60) / 2,
@@ -135,7 +139,7 @@ class AccountScreen extends ConsumerWidget {
                                           .headlineSmall,
                                     ),
                                     Text(
-                                      pair.$1,
+                                      c.tr(pair.$1),
                                       style: Theme.of(c).textTheme.bodySmall,
                                     ),
                                   ],
@@ -146,61 +150,89 @@ class AccountScreen extends ConsumerWidget {
                       ),
                     ),
                   ],
-                  const SectionTitle('Personal & orders'),
+                  SectionTitle(context.tr('account.sectionPersonal')),
                   for (final row in [
-                    ('/account/profile', 'My profile', Icons.person_outline),
-                    ('/orders', 'My orders', Icons.inventory_2_outlined),
-                    ('/favorites', 'Favorites', Icons.favorite_border),
+                    (
+                      '/account/profile',
+                      'account.myProfile',
+                      Icons.person_outline,
+                    ),
+                    ('/orders', 'account.myOrders', Icons.inventory_2_outlined),
+                    ('/favorites', 'account.favorites', Icons.favorite_border),
                     (
                       '/account/addresses',
-                      'Delivery addresses',
+                      'account.addresses',
                       Icons.location_on_outlined,
                     ),
                     (
                       '/notifications',
-                      'Notifications',
+                      'account.notifications',
                       Icons.notifications_none,
                     ),
                     (
                       '/account/reviews',
-                      'My product reviews',
+                      'account.myReviews',
                       Icons.star_border,
                     ),
                     (
                       '/returns',
-                      'Returns & refunds',
+                      'account.returns',
                       Icons.assignment_return_outlined,
                     ),
-                    ('/support', 'Support cases', Icons.support_agent),
+                    ('/support', 'account.support', Icons.support_agent),
                     (
                       '/account/security',
-                      'Account security',
+                      'account.security',
                       Icons.lock_outline,
                     ),
-                    ('/help', 'Shopping help', Icons.help_outline),
+                    ('/help', 'account.help', Icons.help_outline),
                   ])
-                    Padding(
-                      padding: const EdgeInsets.only(bottom: 8),
-                      child: Panel(
-                        padding: const EdgeInsets.symmetric(horizontal: 12),
-                        child: ListTile(
-                          leading: Icon(row.$3, color: HelaColors.teal),
-                          title: Text(row.$2),
-                          trailing: const Icon(Icons.chevron_right),
-                          onTap: () => context.push(row.$1),
-                        ),
-                      ),
+                    AccountRow(
+                      icon: row.$3,
+                      title: context.tr(row.$2),
+                      onTap: () => context.push(row.$1),
                     ),
+                  SectionTitle(context.tr('account.sectionSettings')),
+                  AccountRow(
+                    key: const ValueKey('account-language'),
+                    icon: Icons.translate,
+                    title: context.tr('account.language'),
+                    subtitle: AppStrings
+                        .languageNames[ref.watch(localeProvider).languageCode],
+                    onTap: () => showLanguagePicker(context, ref),
+                  ),
+                  AccountRow(
+                    icon: Icons.notifications_active_outlined,
+                    title: context.tr('account.notificationPrefs'),
+                    onTap: () =>
+                        context.push('/account/notification-preferences'),
+                  ),
+                  AccountRow(
+                    key: const ValueKey('account-privacy'),
+                    icon: Icons.shield_outlined,
+                    title: context.tr('account.privacy'),
+                    onTap: () => context.push('/account/privacy'),
+                  ),
+                  SectionTitle(context.tr('account.sectionAbout')),
+                  AccountRow(
+                    key: const ValueKey('account-sell'),
+                    icon: Icons.storefront_outlined,
+                    title: context.tr('account.sell'),
+                    subtitle: context.tr('account.sellSubtitle'),
+                    trailing: Icons.open_in_new,
+                    onTap: () => openSellerApplication(context),
+                  ),
+                  const LegalLinksBar(),
                   verticalGap(),
                   ActionButton(
-                    label: 'Sign out',
+                    label: context.tr('signOut.label'),
                     outlined: true,
                     action: () async {
                       if (!await confirm(
                         context,
-                        title: 'Sign out of HelaCart?',
-                        message: 'Your orders and favorites remain saved to your account.',
-                        action: 'Sign out',
+                        title: context.tr('signOut.title'),
+                        message: context.tr('signOut.message'),
+                        action: context.tr('signOut.label'),
                       )) {
                         return;
                       }
@@ -211,15 +243,57 @@ class AccountScreen extends ConsumerWidget {
                     },
                   ),
                   verticalGap(24),
-                  const Text(
-                    'HelaCart · Good finds. Local roots.',
+                  Text(
+                    context.tr('account.tagline'),
                     textAlign: TextAlign.center,
-                    style: TextStyle(color: HelaColors.muted, fontSize: 12),
+                    style: const TextStyle(
+                      color: HelaColors.muted,
+                      fontSize: 12,
+                    ),
                   ),
+                  if (ref.watch(appVersionProvider).value case final version?)
+                    Text(
+                      context.tr('account.version', {'version': version}),
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: HelaColors.muted,
+                        fontSize: 11,
+                      ),
+                    ),
                 ],
               );
             },
           ),
+    ),
+  );
+}
+
+/// One tappable account-menu row in a bordered panel.
+class AccountRow extends StatelessWidget {
+  const AccountRow({
+    super.key,
+    required this.icon,
+    required this.title,
+    required this.onTap,
+    this.subtitle,
+    this.trailing = Icons.chevron_right,
+  });
+  final IconData icon, trailing;
+  final String title;
+  final String? subtitle;
+  final VoidCallback onTap;
+  @override
+  Widget build(BuildContext context) => Padding(
+    padding: const EdgeInsets.only(bottom: 8),
+    child: Panel(
+      padding: const EdgeInsets.symmetric(horizontal: 12),
+      child: ListTile(
+        leading: Icon(icon, color: HelaColors.teal),
+        title: Text(title),
+        subtitle: subtitle == null ? null : Text(subtitle!),
+        trailing: Icon(trailing),
+        onTap: onTap,
+      ),
     ),
   );
 }

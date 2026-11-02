@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../../../core/network/api_client.dart';
+import '../../../l10n/app_strings.dart';
 
 class BuyerSession {
   const BuyerSession(this.uid, this.email, this.verified);
@@ -34,9 +35,7 @@ class AuthService {
       auth?.currentUser?.getIdToken(refresh);
   FirebaseAuth get _configured =>
       auth ??
-      (throw const AppFailure(
-        'Firebase is not configured. Follow the mobile README to enable sign-in.',
-      ));
+      (throw AppFailure(AppStrings.current.t('error.firebaseNotConfigured')));
   Future<void> signIn(String email, String password) async => _configured
       .signInWithEmailAndPassword(email: email.trim(), password: password);
   Future<void> register(String email, String password) async {
@@ -73,7 +72,25 @@ class AuthService {
     await user.verifyBeforeUpdateEmail(next.trim());
   }
 
-  Future<void> signOut() => _configured.signOut();
+  final _signOutHooks = <Future<void> Function()>[];
+
+  /// Work that needs the still-valid session right before sign-out, such as
+  /// `POST /me/devices/unregister`. Hooks are best-effort and time-limited.
+  void addSignOutHook(Future<void> Function() hook) => _signOutHooks.add(hook);
+  void removeSignOutHook(Future<void> Function() hook) =>
+      _signOutHooks.remove(hook);
+
+  Future<void> signOut() async {
+    for (final hook in List.of(_signOutHooks)) {
+      try {
+        await hook().timeout(const Duration(seconds: 5));
+      } catch (_) {
+        /* Never block sign-out on a cleanup request. */
+      }
+    }
+    await _configured.signOut();
+  }
+
   void dispose() {
     _subscription?.cancel();
     _changes.close();
@@ -81,23 +98,21 @@ class AuthService {
 }
 
 String friendlyError(Object error) {
+  final strings = AppStrings.current;
   if (error is FirebaseAuthException) {
-    return switch (error.code) {
+    return strings.t(switch (error.code) {
       'invalid-credential' ||
       'wrong-password' ||
-      'user-not-found' => 'The email or password is incorrect.',
-      'email-already-in-use' => 'Could not create this account. Try signing in or resetting your password.',
-      'weak-password' => 'Choose a stronger password.',
-      'invalid-email' => 'Enter a valid email address.',
-      'too-many-requests' => 'Please wait before trying again.',
-      'network-request-failed' => 'Check your connection and try again.',
-      'requires-recent-login' =>
-        'Sign in again before changing account security.',
-      'user-disabled' => 'Account access is currently unavailable.',
-      _ => 'Could not complete this account action. Please try again.',
-    };
+      'user-not-found' => 'auth.error.invalidCredential',
+      'email-already-in-use' => 'auth.error.emailInUse',
+      'weak-password' => 'auth.error.weakPassword',
+      'invalid-email' => 'auth.error.invalidEmail',
+      'too-many-requests' => 'auth.error.tooManyRequests',
+      'network-request-failed' => 'auth.error.network',
+      'requires-recent-login' => 'auth.error.recentLogin',
+      'user-disabled' => 'auth.error.disabled',
+      _ => 'auth.error.other',
+    });
   }
-  return error is AppFailure
-      ? error.message
-      : 'Something went wrong. Please try again.';
+  return error is AppFailure ? error.message : strings.t('error.generic');
 }

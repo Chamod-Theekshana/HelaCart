@@ -33,7 +33,7 @@ class AddressesScreen extends ConsumerWidget {
   const AddressesScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) => PageFrame(
-    title: 'Delivery addresses',
+    title: context.tr('addresses.title'),
     child: Protected(
       child: ref
           .watch(addressesProvider)
@@ -52,39 +52,89 @@ class AddressesScreen extends ConsumerWidget {
                     ref.invalidate(addressesProvider);
                   },
                   icon: const Icon(Icons.add),
-                  label: const Text('Add address'),
+                  label: Text(context.tr('addresses.add')),
                 ),
                 verticalGap(20),
                 if (rows.isEmpty)
-                  const EmptyState(
-                    title: 'No saved addresses',
-                    message:
-                        'Add an address to see destination delivery rates.',
+                  EmptyState(
+                    title: context.tr('addresses.emptyTitle'),
+                    message: context.tr('addresses.emptyMessage'),
                     icon: Icons.location_on_outlined,
                   ),
                 for (final row in rows)
                   Padding(
+                    key: ValueKey('address-${row.id}'),
                     padding: const EdgeInsets.only(bottom: 12),
                     child: Panel(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           Text(
-                            row.recipient,
+                            row.address.recipient,
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
-                          Text(row.phone),
-                          Text(row.formatted),
+                          AddressSummary(row),
                           verticalGap(),
+                          Wrap(
+                            spacing: 8,
+                            runSpacing: 4,
+                            children: [
+                              TextButton.icon(
+                                key: ValueKey('address-edit-${row.id}'),
+                                onPressed: () async {
+                                  await context.push(
+                                    '/account/addresses/${Uri.encodeComponent(row.id)}/edit',
+                                  );
+                                  ref.invalidate(addressesProvider);
+                                },
+                                icon: const Icon(Icons.edit_outlined),
+                                label: Text(context.tr('addresses.edit')),
+                              ),
+                              if (!row.phoneVerified)
+                                TextButton.icon(
+                                  key: ValueKey('address-verify-${row.id}'),
+                                  onPressed: () async {
+                                    await context.push(
+                                      '/account/phone?phone=${Uri.encodeQueryComponent(row.address.phone)}',
+                                    );
+                                    ref.invalidate(addressesProvider);
+                                  },
+                                  icon: const Icon(
+                                    Icons.verified_user_outlined,
+                                  ),
+                                  label: Text(
+                                    context.tr('addresses.verifyPhone'),
+                                  ),
+                                ),
+                            ],
+                          ),
+                          if (!row.isDefault)
+                            ActionButton(
+                              key: ValueKey('address-default-${row.id}'),
+                              label: context.tr('addresses.setDefault'),
+                              outlined: true,
+                              icon: Icons.home_outlined,
+                              action: () async {
+                                final done = context.tr('addresses.defaultSet');
+                                await ref.read(repositoryProvider).write(
+                                  '/me/addresses/${row.id}',
+                                  'PATCH',
+                                  {'isDefault': true},
+                                );
+                                ref.invalidate(addressesProvider);
+                                if (context.mounted) toast(context, done);
+                              },
+                            ),
+                          verticalGap(8),
                           ActionButton(
-                            label: 'Remove address',
+                            label: context.tr('addresses.remove'),
                             outlined: true,
                             action: () async {
                               if (!await confirm(
                                 context,
-                                title: 'Remove address?',
-                                message: 'Previous orders keep their original delivery address.',
-                                action: 'Remove',
+                                title: context.tr('addresses.removeTitle'),
+                                message: context.tr('addresses.removeBody'),
+                                action: context.tr('addresses.removeConfirm'),
                               )) {
                                 return;
                               }
@@ -105,15 +155,53 @@ class AddressesScreen extends ConsumerWidget {
   );
 }
 
+/// Loads a saved address for `/account/addresses/:id/edit` (§4).
+class EditAddressScreen extends ConsumerWidget {
+  const EditAddressScreen({super.key, required this.id});
+  final String id;
+  @override
+  Widget build(BuildContext context, WidgetRef ref) => ref
+      .watch(addressesProvider)
+      .when(
+        skipLoadingOnRefresh: false,
+        skipLoadingOnReload: false,
+        loading: () => PageFrame(
+          title: context.tr('addresses.editTitle'),
+          child: const LoadingBlocks(),
+        ),
+        error: (e, _) => PageFrame(
+          title: context.tr('addresses.editTitle'),
+          child: ErrorState(e, retry: () => ref.invalidate(addressesProvider)),
+        ),
+        data: (rows) {
+          final row = rows.where((a) => a.id == id).firstOrNull;
+          if (row == null) {
+            return PageFrame(
+              title: context.tr('addresses.editTitle'),
+              child: EmptyState(
+                title: context.tr('addresses.notFound'),
+                message: context.tr('addresses.emptyMessage'),
+                icon: Icons.location_off_outlined,
+              ),
+            );
+          }
+          return AddAddressScreen(key: ValueKey(row.id), initial: row);
+        },
+      );
+}
+
 class AddAddressScreen extends ConsumerStatefulWidget {
-  const AddAddressScreen({super.key});
+  const AddAddressScreen({super.key, this.initial});
+
+  /// Editing an existing address (PATCH) instead of creating one.
+  final SavedAddress? initial;
   @override
   ConsumerState<AddAddressScreen> createState() => _AddAddressScreenState();
 }
 
 class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
   final form = GlobalKey<FormState>();
-  final fields = {
+  late final fields = {
     for (final k in [
       'recipient',
       'phone',
@@ -122,9 +210,25 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
       'city',
       'postalCode',
     ])
-      k: TextEditingController(),
+      k: TextEditingController(text: initialValue(k)),
   };
-  String? district;
+  late String? district = widget.initial?.address.district;
+  late bool makeDefault = widget.initial?.isDefault ?? false;
+
+  String initialValue(String key) {
+    final address = widget.initial?.address;
+    if (address == null) return '';
+    return switch (key) {
+      'recipient' => address.recipient,
+      'phone' => address.phone,
+      'line1' => address.line1,
+      'line2' => address.line2 ?? '',
+      'city' => address.city,
+      'postalCode' => address.postalCode,
+      _ => '',
+    };
+  }
+
   @override
   void dispose() {
     for (final c in fields.values) {
@@ -152,9 +256,9 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
               child: Column(
                 children: [
                   TextField(
-                    decoration: const InputDecoration(
-                      labelText: 'Search Sri Lankan districts',
-                      prefixIcon: Icon(Icons.search),
+                    decoration: InputDecoration(
+                      labelText: c.tr('addresses.searchDistricts'),
+                      prefixIcon: const Icon(Icons.search),
                     ),
                     onChanged: (v) => update(() => q = v.toLowerCase()),
                   ),
@@ -189,98 +293,165 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
   }
 
   @override
-  Widget build(BuildContext context) => PageFrame(
-    title: 'Add delivery address',
-    child: Protected(
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          Form(
-            key: form,
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                for (final pair in [
-                  ('recipient', 'Recipient full name'),
-                  ('phone', 'Contact phone'),
-                  ('line1', 'Address line 1'),
-                  ('line2', 'Address line 2 (optional)'),
-                  ('city', 'City'),
-                  ('postalCode', 'Postal code'),
-                ]) ...[
-                  TextFormField(
-                    controller: fields[pair.$1],
-                    keyboardType: pair.$1 == 'phone'
-                        ? TextInputType.phone
-                        : pair.$1 == 'postalCode'
-                        ? TextInputType.text
-                        : TextInputType.streetAddress,
-                    decoration: InputDecoration(labelText: pair.$2),
-                    validator: (v) {
-                      if (pair.$1 == 'line2') {
-                        return v != null && v.length > 200
-                            ? 'Use 200 characters or fewer.'
-                            : null;
+  Widget build(BuildContext context) {
+    final editing = widget.initial;
+    return PageFrame(
+      title: context.tr(
+        editing == null ? 'addresses.addTitle' : 'addresses.editTitle',
+      ),
+      child: Protected(
+        child: ListView(
+          padding: const EdgeInsets.all(20),
+          children: [
+            Form(
+              key: form,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  for (final pair in [
+                    ('recipient', 'addresses.recipient'),
+                    ('phone', 'addresses.phone'),
+                    ('line1', 'addresses.line1'),
+                    ('line2', 'addresses.line2'),
+                    ('city', 'addresses.city'),
+                    ('postalCode', 'addresses.postalCode'),
+                  ]) ...[
+                    TextFormField(
+                      controller: fields[pair.$1],
+                      keyboardType: pair.$1 == 'phone'
+                          ? TextInputType.phone
+                          : pair.$1 == 'postalCode'
+                          ? TextInputType.text
+                          : TextInputType.streetAddress,
+                      decoration: InputDecoration(
+                        labelText: context.tr(pair.$2),
+                        helperText: pair.$1 == 'phone' && editing != null
+                            ? context.tr('addresses.phoneChangeNote')
+                            : null,
+                        helperMaxLines: 2,
+                      ),
+                      validator: (v) {
+                        if (pair.$1 == 'line2') {
+                          return v != null && v.length > 200
+                              ? AppStrings.current.t('validation.maxChars', {
+                                  'max': 200,
+                                })
+                              : null;
+                        }
+                        if (pair.$1 == 'phone') {
+                          return v != null &&
+                                  RegExp(r'^\+?[0-9 ()-]{9,20}$')
+                                      .hasMatch(v.trim())
+                              ? null
+                              : AppStrings.current.t('addresses.phoneInvalid');
+                        }
+                        return requiredText(
+                          v,
+                          min: pair.$1 == 'line1'
+                              ? 5
+                              : pair.$1 == 'postalCode'
+                              ? 3
+                              : 2,
+                          max: pair.$1 == 'recipient'
+                              ? 100
+                              : pair.$1 == 'city'
+                              ? 80
+                              : pair.$1 == 'postalCode'
+                              ? 20
+                              : 200,
+                        );
+                      },
+                    ),
+                    verticalGap(),
+                  ],
+                  OutlinedButton.icon(
+                    onPressed: selectDistrict,
+                    icon: const Icon(Icons.location_on_outlined),
+                    label: Text(
+                      district ?? context.tr('addresses.chooseDistrict'),
+                    ),
+                  ),
+                  CheckboxListTile(
+                    key: const ValueKey('address-make-default'),
+                    contentPadding: EdgeInsets.zero,
+                    value: makeDefault,
+                    onChanged: editing?.isDefault == true
+                        ? null
+                        : (v) => setState(() => makeDefault = v ?? false),
+                    title: Text(context.tr('addresses.makeDefault')),
+                  ),
+                  verticalGap(12),
+                  ActionButton(
+                    label: context.tr('addresses.save'),
+                    action: () async {
+                      if (!form.currentState!.validate()) return;
+                      if (district == null) {
+                        throw AppFailure(
+                          AppStrings.current.t('addresses.districtRequired'),
+                        );
                       }
-                      if (pair.$1 == 'phone') {
-                        return v != null &&
-                                RegExp(r'^\+?[0-9 ()-]{9,20}$')
-                                    .hasMatch(v.trim())
-                            ? null
-                            : 'Enter a valid contact number.';
+                      final values = <String, dynamic>{
+                        for (final e in fields.entries)
+                          if (e.key != 'line2' ||
+                              e.value.text.trim().isNotEmpty)
+                            e.key: e.value.text.trim(),
+                        'district': district,
+                      };
+                      final repository = ref.read(repositoryProvider);
+                      Json result;
+                      if (editing == null) {
+                        // The API makes a buyer's first address the default.
+                        result = object(
+                          await repository.write('/me/addresses', 'POST', {
+                            ...values,
+                            if (makeDefault) 'isDefault': true,
+                          }),
+                        );
+                      } else {
+                        // §4: send only changed fields (plus isDefault).
+                        final before = editing.address;
+                        final original = <String, String?>{
+                          'recipient': before.recipient,
+                          'phone': before.phone,
+                          'line1': before.line1,
+                          'line2': before.line2,
+                          'city': before.city,
+                          'postalCode': before.postalCode,
+                          'district': before.district,
+                        };
+                        final changes = <String, dynamic>{
+                          for (final entry in values.entries)
+                            if (entry.value != original[entry.key])
+                              entry.key: entry.value,
+                          // `line2: null` clears the optional second line.
+                          if (before.line2?.isNotEmpty == true &&
+                              fields['line2']!.text.trim().isEmpty)
+                            'line2': null,
+                          if (makeDefault && !editing.isDefault)
+                            'isDefault': true,
+                        };
+                        result = changes.isEmpty
+                            ? {'id': editing.id}
+                            : object(
+                                await repository.write(
+                                  '/me/addresses/${editing.id}',
+                                  'PATCH',
+                                  changes,
+                                ),
+                              );
                       }
-                      return requiredText(
-                        v,
-                        min: pair.$1 == 'line1'
-                            ? 5
-                            : pair.$1 == 'postalCode'
-                            ? 3
-                            : 2,
-                        max: pair.$1 == 'recipient'
-                            ? 100
-                            : pair.$1 == 'city'
-                            ? 80
-                            : pair.$1 == 'postalCode'
-                            ? 20
-                            : 200,
-                      );
+                      ref.invalidate(addressesProvider);
+                      if (context.mounted) {
+                        context.pop(string(result['id'], editing?.id ?? ''));
+                      }
                     },
                   ),
-                  verticalGap(),
                 ],
-                OutlinedButton.icon(
-                  onPressed: selectDistrict,
-                  icon: const Icon(Icons.location_on_outlined),
-                  label: Text(district ?? 'Choose district'),
-                ),
-                verticalGap(24),
-                ActionButton(
-                  label: 'Save address',
-                  action: () async {
-                    if (!form.currentState!.validate()) return;
-                    if (district == null) {
-                      throw const AppFailure('Choose a Sri Lankan district.');
-                    }
-                    final body = <String, dynamic>{
-                      for (final e in fields.entries)
-                        if (e.key != 'line2' || e.value.text.trim().isNotEmpty)
-                          e.key: e.value.text.trim(),
-                      'district': district,
-                    };
-                    final result = object(
-                      await ref
-                          .read(repositoryProvider)
-                          .write('/me/addresses', 'POST', body),
-                    );
-                    ref.invalidate(addressesProvider);
-                    if (context.mounted) context.pop(string(result['id']));
-                  },
-                ),
-              ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
-    ),
-  );
+    );
+  }
 }

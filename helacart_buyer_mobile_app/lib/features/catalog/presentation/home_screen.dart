@@ -25,12 +25,12 @@ class ShoppingActions extends ConsumerWidget {
       mainAxisSize: MainAxisSize.min,
       children: [
         IconButton(
-          tooltip: 'Search',
+          tooltip: context.tr('actions.search'),
           onPressed: () => context.push('/search'),
           icon: const Icon(Icons.search),
         ),
         IconButton(
-          tooltip: 'Notifications',
+          tooltip: context.tr('actions.notifications'),
           onPressed: () => context.push('/notifications'),
           icon: Badge(
             isLabelVisible: unread > 0,
@@ -39,7 +39,7 @@ class ShoppingActions extends ConsumerWidget {
           ),
         ),
         IconButton(
-          tooltip: 'Cart',
+          tooltip: context.tr('actions.cart'),
           onPressed: () => context.push('/cart'),
           icon: Badge(
             isLabelVisible: count > 0,
@@ -64,7 +64,7 @@ class HomeScreen extends ConsumerWidget {
         builder: (c) => Padding(
           padding: const EdgeInsets.only(left: 8),
           child: IconButton(
-            tooltip: 'Open account menu',
+            tooltip: c.tr('home.openMenu'),
             onPressed: () => BuyerAccountMenuScope.openMenu(c),
             icon: profile == null
                 ? const CircleAvatar(
@@ -96,7 +96,7 @@ class HomeScreen extends ConsumerWidget {
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
           children: [
             if (ref.watch(configProvider).preview)
-              const Notice('DESIGN PREVIEW · Sample products and shops.'),
+              Notice(context.tr('home.preview')),
             Align(
               alignment: Alignment.centerLeft,
               child: TextButton.icon(
@@ -106,9 +106,9 @@ class HomeScreen extends ConsumerWidget {
                 ),
                 onPressed: () => context.push('/account/addresses'),
                 icon: const Icon(Icons.location_on_outlined, size: 16),
-                label: const Text(
-                  'Delivery in Sri Lanka  ⌄',
-                  style: TextStyle(fontSize: 12),
+                label: Text(
+                  context.tr('home.deliveryIn'),
+                  style: const TextStyle(fontSize: 12),
                 ),
               ),
             ),
@@ -123,8 +123,8 @@ class HomeScreen extends ConsumerWidget {
               ),
             ),
             SectionTitle(
-              'Find your everyday',
-              more: 'View all',
+              context.tr('home.findEveryday'),
+              more: context.tr('home.viewAll'),
               onMore: () => context.go('/categories'),
             ),
             ref
@@ -138,18 +138,17 @@ class HomeScreen extends ConsumerWidget {
                   ),
                 ),
             SectionTitle(
-              'New & noteworthy',
-              more: 'See all',
+              context.tr('home.newNoteworthy'),
+              more: context.tr('home.seeAll'),
               onMore: () => context.push('/products?sort=newest'),
             ),
             ref
                 .watch(productsProvider('sort=newest&limit=4'))
                 .when(
                   data: (page) => page.items.isEmpty
-                      ? const EmptyState(
-                          title: 'New finds are on their way',
-                          message:
-                              'Check back soon for products from local shops.',
+                      ? EmptyState(
+                          title: context.tr('home.newEmptyTitle'),
+                          message: context.tr('home.newEmptyMessage'),
                         )
                       : ProductGrid(page.items),
                   loading: () => const LoadingBlocks(),
@@ -180,13 +179,13 @@ class HomeScreen extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text(
-                              'A good find, for a little less.',
+                              context.tr('home.offerTitle'),
                               style: Theme.of(context).textTheme.titleSmall,
                             ),
                             verticalGap(4),
-                            const Text(
-                              'Explore offers from independent shops',
-                              style: TextStyle(
+                            Text(
+                              context.tr('home.offerBody'),
+                              style: const TextStyle(
                                 fontSize: 12,
                                 color: HelaColors.muted,
                               ),
@@ -206,8 +205,8 @@ class HomeScreen extends ConsumerWidget {
             ),
             const RecommendationsSection(),
             SectionTitle(
-              'Meet the local shops',
-              more: 'Discover',
+              context.tr('home.meetShops'),
+              more: context.tr('home.discover'),
               onMore: () => context.push('/shops'),
             ),
             RemoteView(
@@ -215,9 +214,9 @@ class HomeScreen extends ConsumerWidget {
               builder: (context, data) {
                 final shops = objects(data['items']);
                 if (shops.isEmpty) {
-                  return const Text(
-                    'Local shops will appear here.',
-                    style: TextStyle(color: HelaColors.muted),
+                  return Text(
+                    context.tr('home.shopsEmpty'),
+                    style: const TextStyle(color: HelaColors.muted),
                   );
                 }
                 return SingleChildScrollView(
@@ -239,14 +238,14 @@ class HomeScreen extends ConsumerWidget {
               },
             ),
             verticalGap(24),
-            const Text(
-              'A little local. A lot to love.',
+            Text(
+              context.tr('home.tagline'),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 12, color: HelaColors.muted),
+              style: const TextStyle(fontSize: 12, color: HelaColors.muted),
             ),
             TextButton(
               onPressed: () => context.push('/help'),
-              child: const Text('How HelaCart works'),
+              child: Text(context.tr('home.howItWorks')),
             ),
           ],
         ),
@@ -322,9 +321,9 @@ class CategoryTiles extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     if (rows.isEmpty) {
-      return const Text(
-        'Categories will appear here.',
-        style: TextStyle(color: HelaColors.muted),
+      return Text(
+        context.tr('home.categoriesEmpty'),
+        style: const TextStyle(color: HelaColors.muted),
       );
     }
     if (compact) {
@@ -359,38 +358,42 @@ class CategoriesScreen extends ConsumerWidget {
   const CategoriesScreen({super.key});
   @override
   Widget build(BuildContext context, WidgetRef ref) => PageFrame(
-    title: 'Categories',
+    title: context.tr('categories.title'),
     actions: const [ShoppingActions()],
-    child: ListView(
-      padding: const EdgeInsets.all(20),
-      children: [
-        Text(
-          'Find your everyday favourites.',
-          style: Theme.of(context).textTheme.headlineSmall,
-        ),
-        verticalGap(20),
-        ref
-            .watch(categoriesProvider)
-            .when(
-              data: (rows) => CategoryTiles(rows),
-              loading: () => const LoadingBlocks(),
-              error: (e, _) => ErrorState(
-                e,
-                retry: () => ref.invalidate(categoriesProvider),
-              ),
-            ),
-        for (final item in [
-          ('All products', '/products'),
-          ('New arrivals', '/products?sort=newest'),
-          ('Offers', '/offers'),
-          ('Discover shops', '/shops'),
-        ])
-          ListTile(
-            title: Text(item.$1),
-            trailing: const Icon(Icons.chevron_right),
-            onTap: () => context.push(item.$2),
+    child: RefreshIndicator(
+      onRefresh: () => refreshFuture(ref.refresh(categoriesProvider.future)),
+      child: ListView(
+        physics: const AlwaysScrollableScrollPhysics(),
+        padding: const EdgeInsets.all(20),
+        children: [
+          Text(
+            context.tr('categories.headline'),
+            style: Theme.of(context).textTheme.headlineSmall,
           ),
-      ],
+          verticalGap(20),
+          ref
+              .watch(categoriesProvider)
+              .when(
+                data: (rows) => CategoryTiles(rows),
+                loading: () => const LoadingBlocks(),
+                error: (e, _) => ErrorState(
+                  e,
+                  retry: () => ref.invalidate(categoriesProvider),
+                ),
+              ),
+          for (final item in [
+            ('categories.all', '/products'),
+            ('categories.newArrivals', '/products?sort=newest'),
+            ('categories.offers', '/offers'),
+            ('categories.shops', '/shops'),
+          ])
+            ListTile(
+              title: Text(context.tr(item.$1)),
+              trailing: const Icon(Icons.chevron_right),
+              onTap: () => context.push(item.$2),
+            ),
+        ],
+      ),
     ),
   );
 }
@@ -416,11 +419,13 @@ class RecommendationsSection extends ConsumerWidget {
         return Column(
           children: [
             SectionTitle(
-              productId != null
-                  ? 'You may also like'
-                  : data['basis'] == 'YOUR_FAVORITE_CATEGORIES'
-                  ? 'Inspired by your favorites'
-                  : 'Discover more',
+              c.tr(
+                productId != null
+                    ? 'home.youMayLike'
+                    : data['basis'] == 'YOUR_FAVORITE_CATEGORIES'
+                    ? 'home.inspired'
+                    : 'home.discoverMore',
+              ),
             ),
             ProductGrid(rows.map(Product.fromJson).toList()),
           ],

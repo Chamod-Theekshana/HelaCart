@@ -5,11 +5,14 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { apiError } from '../common/api-error.js';
+import { AuditService } from '../audit/audit.service.js';
 import { AuthService } from '../auth/auth.service.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 import {
@@ -120,22 +123,44 @@ export class CommissionService {
     private readonly receipts: CommissionReceiptsService,
     private readonly notifications: NotificationsService,
     private readonly config: ConfigService,
+    @Optional() private readonly audit?: AuditService,
   ) {}
 
-  private async member(sellerId: string, identity: DecodedIdToken) {
+  private async member(
+    sellerId: string,
+    identity: DecodedIdToken,
+    options: { ownerOnly?: boolean; write?: boolean } = {},
+  ) {
     if (!identity.email_verified)
       throw new ForbiddenException('Verify your email to access shop finances');
     const user = await this.auth.getOrCreateProfile(identity);
-    await this.membership(this.prisma, sellerId, user.id);
+    await this.membership(this.prisma, sellerId, user.id, options);
     return user;
   }
-  private async membership(tx: Db, sellerId: string, userId: string) {
+  private async membership(
+    tx: Db,
+    sellerId: string,
+    userId: string,
+    options: { ownerOnly?: boolean; write?: boolean } = {},
+  ) {
     const member = await tx.sellerMember.findUnique({
       where: { sellerId_userId: { sellerId, userId } },
-      select: { id: true },
+      select: { id: true, role: true, seller: { select: { status: true } } },
     });
     if (!member)
       throw new ForbiddenException('This account cannot access this shop');
+    if (options.ownerOnly && member.role !== 'OWNER')
+      throw apiError(
+        403,
+        'OWNER_ONLY',
+        'Only the shop owner can manage commission payments',
+      );
+    if (options.write && member.seller?.status === 'SUSPENDED')
+      throw apiError(
+        403,
+        'SELLER_SUSPENDED',
+        'This shop is suspended. Contact HelaCart support',
+      );
   }
   private async lockSeller(tx: Db, sellerId: string) {
     const rows = await tx.$queryRaw<
@@ -288,6 +313,21 @@ export class CommissionService {
           reason: dto.reason,
         },
       });
+      await this.audit?.record(
+        tx,
+        { id: actor.id, email: actor.email ?? identity.email ?? '' },
+        {
+          action: 'COMMISSION_RATE_CHANGE',
+          subjectType: 'PRODUCT',
+          subjectId: productId,
+          reason: dto.reason,
+          details: {
+            beforeRateBps: before.commissionRateBps,
+            rateBps: dto.rateBps,
+            version: dto.version + 1,
+          },
+        },
+      );
       return tx.product.findUniqueOrThrow({
         where: { id: productId },
         select: { id: true, commissionRateBps: true, commissionVersion: true },
@@ -517,7 +557,10 @@ export class CommissionService {
     dto: CommissionPaymentDto,
     file?: ReceiptFile,
   ) {
-    const user = await this.member(sellerId, identity);
+    const user = await this.member(sellerId, identity, {
+      ownerOnly: true,
+      write: true,
+    });
     this.receipts.validate(file);
     const paidDate = new Date(dto.paidOn + 'T00:00:00.000Z');
     const today = new Intl.DateTimeFormat('en-CA', {
@@ -565,7 +608,10 @@ export class CommissionService {
     try {
       const result = await this.prisma.$transaction(async (tx) => {
         await this.lockSeller(tx, sellerId);
-        await this.membership(tx, sellerId, user.id);
+        await this.membership(tx, sellerId, user.id, {
+          ownerOnly: true,
+          write: true,
+        });
         const repeated = await tx.commissionPayment.findUnique({
           where: {
             sellerId_requestKey: { sellerId, requestKey: dto.requestKey },
@@ -686,7 +732,8 @@ export class CommissionService {
     }, transactionOptions);
   }
   async receipt(id: string, sellerId?: string, identity?: DecodedIdToken) {
-    if (sellerId && identity) await this.member(sellerId, identity);
+    if (sellerId && identity)
+      await this.member(sellerId, identity, { ownerOnly: true });
     const payment = await this.prisma.commissionPayment.findFirst({
       where: { id, ...(sellerId ? { sellerId } : {}) },
       select: { storageKey: true, contentType: true, byteSize: true },

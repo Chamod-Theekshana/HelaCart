@@ -30,90 +30,95 @@ class SupportScreen extends ConsumerStatefulWidget {
 class _SupportScreenState extends ConsumerState<SupportScreen> {
   int page = 1;
   String status = 'ALL', q = '';
+  String get path =>
+      '/me/after-sales/support?page=$page&status=$status&q=${Uri.encodeQueryComponent(q)}';
   @override
   Widget build(BuildContext context) => PageFrame(
     title: 'Support cases',
     child: Protected(
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          FilledButton.icon(
-            onPressed: () => context.push('/support/new'),
-            icon: const Icon(Icons.add),
-            label: const Text('New case'),
-          ),
-          verticalGap(),
-          TextField(
-            maxLength: 80,
-            decoration: const InputDecoration(
-              counterText: '',
-              labelText: 'Search case titles',
-              prefixIcon: Icon(Icons.search),
+      child: RefreshIndicator(
+        onRefresh: () => refreshResource(ref, path, private: true),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          children: [
+            FilledButton.icon(
+              onPressed: () => context.push('/support/new'),
+              icon: const Icon(Icons.add),
+              label: const Text('New case'),
             ),
-            onSubmitted: (v) => setState(() {
-              q = v.trim();
-              page = 1;
-            }),
-          ),
-          verticalGap(),
-          DropdownButtonFormField<String>(
-            initialValue: status,
-            decoration: const InputDecoration(labelText: 'Case status'),
-            isExpanded: true,
-            items: supportStatuses
-                .map((s) => DropdownMenuItem(value: s, child: Text(label(s))))
-                .toList(),
-            onChanged: (v) => setState(() {
-              status = v!;
-              page = 1;
-            }),
-          ),
-          verticalGap(),
-          RemoteView(
-            path:
-                '/me/after-sales/support?page=$page&status=$status&q=${Uri.encodeQueryComponent(q)}',
-            private: true,
-            builder: (c, data) => Column(
-              children: [
-                if (objects(data['items']).isEmpty)
-                  const EmptyState(
-                    title: 'No support cases',
-                    message: 'Open a case when you need help with shopping, delivery or your account.',
-                    icon: Icons.support_agent,
-                  ),
-                for (final row in objects(data['items']))
-                  Padding(
-                    padding: const EdgeInsets.only(bottom: 12),
-                    child: Panel(
-                      child: ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        title: Text(string(row['title'])),
-                        subtitle: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(label(string(row['category']))),
-                            verticalGap(4),
-                            StatusPill(string(row['status'])),
-                            Text(
-                              'Updated ${dateText(row['updatedAt'])}',
-                              style: Theme.of(c).textTheme.bodySmall,
-                            ),
-                          ],
+            verticalGap(),
+            TextField(
+              maxLength: 80,
+              decoration: const InputDecoration(
+                counterText: '',
+                labelText: 'Search case titles',
+                prefixIcon: Icon(Icons.search),
+              ),
+              onSubmitted: (v) => setState(() {
+                q = v.trim();
+                page = 1;
+              }),
+            ),
+            verticalGap(),
+            DropdownButtonFormField<String>(
+              initialValue: status,
+              decoration: const InputDecoration(labelText: 'Case status'),
+              isExpanded: true,
+              items: supportStatuses
+                  .map((s) => DropdownMenuItem(value: s, child: Text(label(s))))
+                  .toList(),
+              onChanged: (v) => setState(() {
+                status = v!;
+                page = 1;
+              }),
+            ),
+            verticalGap(),
+            RemoteView(
+              path: path,
+              private: true,
+              builder: (c, data) => Column(
+                children: [
+                  if (objects(data['items']).isEmpty)
+                    const EmptyState(
+                      title: 'No support cases',
+                      message: 'Open a case when you need help with shopping, delivery or your account.',
+                      icon: Icons.support_agent,
+                    ),
+                  for (final row in objects(data['items']))
+                    Padding(
+                      padding: const EdgeInsets.only(bottom: 12),
+                      child: Panel(
+                        child: ListTile(
+                          contentPadding: EdgeInsets.zero,
+                          title: Text(string(row['title'])),
+                          subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(label(string(row['category']))),
+                              verticalGap(4),
+                              StatusPill(string(row['status'])),
+                              Text(
+                                'Updated ${dateText(row['updatedAt'])}',
+                                style: Theme.of(c).textTheme.bodySmall,
+                              ),
+                            ],
+                          ),
+                          trailing: const Icon(Icons.chevron_right),
+                          onTap: () => context.push('/support/${row['id']}'),
                         ),
-                        trailing: const Icon(Icons.chevron_right),
-                        onTap: () => context.push('/support/${row['id']}'),
                       ),
                     ),
+                  Pager(
+                    page: page,
+                    pages: integer(data['pages'], 1),
+                    change: (v) => setState(() => page = v),
                   ),
-                Pager(
-                  page: page,
-                  pages: integer(data['pages'], 1),
-                  change: (v) => setState(() => page = v),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     ),
   );

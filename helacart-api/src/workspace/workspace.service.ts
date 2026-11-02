@@ -206,7 +206,7 @@ export class WorkspaceService {
       this.prisma.sellerOrder.count({
         where: {
           order: { buyerId: user.id },
-          status: { notIn: ['DELIVERED', 'CANCELLED'] },
+          status: { notIn: ['DELIVERED', 'CANCELLED', 'RETURNED_TO_SELLER'] },
         },
       }),
       this.prisma.buyerAddress.count({
@@ -563,7 +563,12 @@ export class WorkspaceService {
       totalProducts: products.reduce((sum, row) => sum + row._count._all, 0),
       totalOrders: orders.reduce((sum, row) => sum + row._count._all, 0),
       activeOrders: orders
-        .filter((row) => !['DELIVERED', 'CANCELLED'].includes(row.status))
+        .filter(
+          (row) =>
+            !['DELIVERED', 'CANCELLED', 'RETURNED_TO_SELLER'].includes(
+              row.status,
+            ),
+        )
         .reduce((sum, row) => sum + row._count._all, 0),
       variants: Number(row?.variants ?? 0),
       onHand: Number(row?.onHand ?? 0),

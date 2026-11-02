@@ -7,6 +7,14 @@ import 'package:helacart_buyer_mobile_app/features/checkout/application/checkout
 
 import 'support/fakes.dart';
 
+/// Secure storage that cannot be read (corrupt entry, keystore reset).
+class UnreadableCheckoutStore extends MemoryCheckoutStore {
+  @override
+  Future<CheckoutIntent?> read(String owner) async => values.containsKey(owner)
+      ? throw const AppFailure('Checkout recovery data needs attention.')
+      : null;
+}
+
 const address = 'ef59222a-a72b-4dfb-80fd-464b1002e500';
 final quote = List.filled(64, 'a').join();
 void main() {
@@ -47,7 +55,7 @@ void main() {
       expect(store.values, isEmpty);
     },
   );
-  for (final status in [400, 404, 409]) {
+  for (final status in [400, 403, 404, 409, 422]) {
     test(
       'definitive $status rejection clears old quote before another attempt',
       () async {
@@ -62,7 +70,7 @@ void main() {
       },
     );
   }
-  for (final status in [401, 403, 429, 500]) {
+  for (final status in [401, 429, 500]) {
     test(
       'uncertain/auth $status response preserves original attempt',
       () async {
@@ -126,6 +134,67 @@ void main() {
       expect(store.values['buyer-a'], isNotNull);
     },
   );
+  group('start over', () {
+    test('abandon clears the saved attempt so a new key is used', () async {
+      repo.onWrite = (p, m, d) async => throw const AppFailure('Timed out');
+      await expectLater(place(), throwsA(isA<AppFailure>()));
+      final first = object(repo.writes.single.data)['checkoutKey'];
+      expect(store.values['buyer-a'], isNotNull);
+      await checkout.abandon('buyer-a');
+      expect(store.values, isEmpty);
+      repo.onWrite = (p, m, d) async => {'id': 'fresh'};
+      await place();
+      expect(object(repo.writes.last.data)['checkoutKey'], isNot(first));
+    });
+    test('abandon only affects the signed-in owner', () async {
+      await store.save(
+        CheckoutIntent(
+          owner: 'buyer-a',
+          key: 'e0e6a8ed-3f1f-4e04-a9e4-e944572c1e6b',
+          addressId: address,
+          quote: quote,
+        ),
+      );
+      owner = 'buyer-b';
+      await expectLater(
+        checkout.abandon('buyer-a'),
+        throwsA(isA<AppFailure>()),
+      );
+      expect(store.values['buyer-a'], isNotNull);
+    });
+    test('abandon is refused while an order check is in flight', () async {
+      final pending = Completer<Object?>();
+      repo.onWrite = (p, m, d) => pending.future;
+      final first = place();
+      await Future<void>.delayed(Duration.zero);
+      await expectLater(
+        checkout.abandon('buyer-a'),
+        throwsA(isA<AppFailure>()),
+      );
+      expect(store.values['buyer-a'], isNotNull);
+      pending.complete({'id': 'done'});
+      await first;
+    });
+    test('unreadable storage can be cleared without parsing it', () async {
+      final broken = UnreadableCheckoutStore();
+      await broken.save(
+        CheckoutIntent(
+          owner: 'buyer-a',
+          key: 'e0e6a8ed-3f1f-4e04-a9e4-e944572c1e6b',
+          addressId: address,
+          quote: quote,
+        ),
+      );
+      final coordinator = CheckoutCoordinator(repo, broken, () => owner);
+      await expectLater(
+        coordinator.place(owner: 'buyer-a'),
+        throwsA(isA<AppFailure>()),
+      );
+      expect(repo.writes, isEmpty);
+      await coordinator.abandon('buyer-a');
+      expect(broken.values, isEmpty);
+    });
+  });
   test('invalid recovered intent is rejected', () {
     expect(
       () => CheckoutIntent.fromJson({

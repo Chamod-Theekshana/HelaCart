@@ -59,6 +59,21 @@ export type Cart = {
   addressId?: string | null;
   deliveryQuoted?: boolean;
   deliveryBySeller?: import("./delivery").DeliveryQuote[];
+  /** Checkout error codes already known before checkout (API §3.2). */
+  checkoutBlockers?: CheckoutBlocker[];
+};
+/** Machine-readable checkout failure codes (API contract §3.2). */
+export type CheckoutBlocker =
+  | "PHONE_NOT_VERIFIED"
+  | "TOO_MANY_OPEN_ORDERS"
+  | "COD_LIMIT_EXCEEDED"
+  | "SELLER_SUSPENDED"
+  | (string & {});
+/** A guest cart line kept in localStorage before sign-in. */
+export type GuestCartLine = {
+  productId: string;
+  variantId: string;
+  quantity: number;
 };
 export type Address = {
   id: string;
@@ -69,7 +84,38 @@ export type Address = {
   city: string;
   district: string;
   postalCode: string;
+  /** The address phone has been verified by this user via SMS OTP (§3.1). */
+  phoneVerified?: boolean;
+  isDefault?: boolean;
 };
+export type AddressInput = Pick<
+  Address,
+  "recipient" | "phone" | "line1" | "city" | "district" | "postalCode"
+> & { line2?: string | null };
+/** Body for PATCH /me/addresses/:addressId (§4). */
+export type AddressPatch = Partial<AddressInput> & { isDefault?: boolean };
+export type PhoneVerification = {
+  verificationId: string;
+  phone: string;
+  expiresAt: string;
+  resendAfter: string;
+};
+export type VerifiedPhone = { phone: string; verifiedAt: string };
+export type NotificationPreferences = {
+  push: boolean;
+  email: boolean;
+  sms: boolean;
+};
+/** Seller-order statuses across buyer, seller and admin views (§1.1). */
+export type SellerOrderStatus =
+  | "PLACED"
+  | "ACCEPTED"
+  | "PACKED"
+  | "SHIPPED"
+  | "DELIVERED"
+  | "CANCELLED"
+  | "DELIVERY_FAILED"
+  | "RETURNED_TO_SELLER";
 export type OrderItem = {
   variant?: { productId: string };
   id: string;
@@ -88,11 +134,17 @@ export type SellerOrder = import("./delivery").DeliveryTracking & {
   items: OrderItem[];
   returnRequest?: { id: string; status: string } | null;
   returnRequests?: { id: string; status: string }[];
+  /** Reason recorded with the latest status change (§1.1). */
+  statusReason?: string | null;
+  statusChangedAt?: string;
   events?: {
     id: string;
     fromStatus: string;
     toStatus: string;
     createdAt: string;
+    reason?: string | null;
+    /** null for background transitions (e.g. auto-cancel): show "HelaCart". */
+    actorUserId?: string | null;
   }[];
 };
 export type Order = {

@@ -14,6 +14,7 @@ import {
   ArrayUnique,
   ValidateNested,
   IsIn,
+  IsBoolean,
 } from 'class-validator';
 import { ReturnStatus } from '../generated/prisma/client.js';
 
@@ -47,6 +48,8 @@ export class ResolveReturnDto {
   @IsOptional()
   @IsIn(['REFUNDED', 'PARTIAL_REFUND', 'REPLACED', 'OTHER'])
   outcome = 'OTHER';
+  /** Put the returned (received) units back into sellable stock. */
+  @IsOptional() @IsBoolean() restock?: boolean;
 }
 
 export class PageDto {

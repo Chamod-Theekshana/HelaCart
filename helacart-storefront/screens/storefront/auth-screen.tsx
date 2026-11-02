@@ -22,10 +22,16 @@ import { errorMessage } from "@/lib/api";
 import { clientAuth, hasFirebase } from "@/lib/firebase";
 import { useShop } from "@/components/shop-provider";
 import { safeSignInDestination } from "@/lib/favorites";
+import { useT } from "@/components/language-provider";
 
 export default function AuthPage() {
+  const t = useT();
   const router = useRouter();
   const { user, refreshCart } = useShop();
+  const destination = () =>
+    safeSignInDestination(
+      new URLSearchParams(window.location.search).get("next"),
+    );
   const [mode, setMode] = useState<"sign-in" | "register" | "reset">("sign-in");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -42,9 +48,7 @@ export default function AuthPage() {
     try {
       if (mode === "reset") {
         await sendPasswordResetEmail(auth, email);
-        setNotice(
-          "If this email has an account, a password reset link has been sent.",
-        );
+        setNotice(t("auth.resetSent"));
       } else if (mode === "register") {
         const created = await createUserWithEmailAndPassword(
           auth,
@@ -52,13 +56,10 @@ export default function AuthPage() {
           password,
         );
         await sendEmailVerification(created.user);
-        setNotice(
-          "Account created. Please use the verification link in your email before shopping.",
-        );
+        setNotice(t("auth.created"));
       } else {
         await signInWithEmailAndPassword(auth, email, password);
-        const next = new URLSearchParams(window.location.search).get("next");
-        router.push(safeSignInDestination(next));
+        router.push(destination());
       }
     } catch (issue) {
       setError(errorMessage(issue));
@@ -72,12 +73,13 @@ export default function AuthPage() {
     setError("");
     try {
       await reload(user);
-      await user.getIdToken(true);
-      if (user.emailVerified) await refreshCart();
+      if (user.emailVerified) {
+        // Force one token refresh right after verification so the API sees it.
+        await user.getIdToken(true);
+        await refreshCart();
+      }
       setNotice(
-        user.emailVerified
-          ? "Email verified. You're ready to shop."
-          : "Still waiting for verification. Check your inbox and try again.",
+        user.emailVerified ? t("auth.verifiedNow") : t("auth.stillWaiting"),
       );
       router.refresh();
     } catch (issue) {
@@ -93,38 +95,30 @@ export default function AuthPage() {
           <span className="auth-emblem">
             <ShieldCheck size={23} />
           </span>
-          <span className="section-kicker">HELACART BUYER ACCOUNT</span>
-          <h1>
-            {mode === "reset" ? "Reset your password" : "Welcome to HelaCart"}
-          </h1>
-          <p>Your orders and favorites, all in one place.</p>
+          <span className="section-kicker">{t("auth.kicker")}</span>
+          <h1>{mode === "reset" ? t("auth.resetTitle") : t("auth.welcome")}</h1>
+          <p>{t("auth.subtitle")}</p>
           {user && (
             <div className="message success">
-              Signed in as {user.email}.{" "}
+              {t("auth.signedInAs", { email: user.email ?? "" })}{" "}
               {user.emailVerified
-                ? "Your email is verified."
-                : "Please verify your email before shopping."}
+                ? t("auth.isVerified")
+                : t("auth.pleaseVerify")}
               {!user.emailVerified && (
                 <button
                   className="inline-action"
                   disabled={busy}
                   onClick={checkVerification}
                 >
-                  I have verified my email
+                  {t("auth.iVerified")}
                 </button>
               )}
               <button
                 className="inline-action"
                 disabled={busy}
-                onClick={() =>
-                  router.push(
-                    safeSignInDestination(
-                      new URLSearchParams(window.location.search).get("next"),
-                    ),
-                  )
-                }
+                onClick={() => router.push(destination())}
               >
-                Continue shopping
+                {t("auth.continue")}
               </button>
             </div>
           )}
@@ -137,7 +131,7 @@ export default function AuthPage() {
                   setError("");
                 }}
               >
-                Sign In
+                {t("auth.tabSignIn")}
               </button>
               <button
                 className={mode === "register" ? "active" : ""}
@@ -146,13 +140,13 @@ export default function AuthPage() {
                   setError("");
                 }}
               >
-                Create Account
+                {t("auth.tabRegister")}
               </button>
             </div>
           )}
           <form onSubmit={submit}>
             <label>
-              Email address
+              {t("auth.email")}
               <div className="input-with-icon">
                 <Mail size={18} />
                 <input
@@ -167,7 +161,7 @@ export default function AuthPage() {
             </label>
             {mode !== "reset" && (
               <label>
-                Password
+                {t("auth.password")}
                 <div className="input-with-icon">
                   <LockKeyhole size={18} />
                   <input
@@ -179,7 +173,7 @@ export default function AuthPage() {
                     required
                     value={password}
                     onChange={(event) => setPassword(event.target.value)}
-                    placeholder="At least 6 characters"
+                    placeholder={t("auth.passwordHint")}
                   />
                 </div>
               </label>
@@ -190,7 +184,7 @@ export default function AuthPage() {
                 type="button"
                 onClick={() => setMode("reset")}
               >
-                Forgot password?
+                {t("auth.forgot")}
               </button>
             )}
             {error && (
@@ -204,10 +198,7 @@ export default function AuthPage() {
               </div>
             )}
             {!hasFirebase && (
-              <div className="message info">
-                Account sign-in is not configured in this preview. Add the
-                Firebase web settings to enable it.
-              </div>
+              <div className="message info">{t("auth.notConfigured")}</div>
             )}
             <button
               className="primary-btn auth-submit"
@@ -215,51 +206,64 @@ export default function AuthPage() {
               disabled={busy || !hasFirebase}
             >
               {busy
-                ? "Please wait..."
+                ? t("common.pleaseWait")
                 : mode === "reset"
-                  ? "Send reset link"
+                  ? t("auth.sendReset")
                   : mode === "register"
-                    ? "Create Account"
-                    : "Sign In to HelaCart"}{" "}
+                    ? t("auth.tabRegister")
+                    : t("auth.submitSignIn")}{" "}
               <ArrowRight size={17} />
             </button>
+            {mode === "register" && (
+              <p className="auth-legal">
+                {t("auth.legal.prefix")}{" "}
+                <Link href="/legal/terms">{t("legal.terms.title")}</Link>
+                {t("auth.legal.and")}
+                <Link href="/legal/privacy">{t("legal.privacy.title")}</Link>
+                {t("auth.legal.suffix")}
+              </p>
+            )}
           </form>
           {mode === "reset" && (
             <button
               className="text-link auth-return"
               onClick={() => setMode("sign-in")}
             >
-              Back to sign in
+              {t("auth.backToSignIn")}
             </button>
           )}
           <div className="auth-card-bottom">
             <span>
-              <Banknote size={19} /> Cash on delivery
+              <Banknote size={19} /> {t("trust.cod.title")}
             </span>
             <span>
-              <Truck size={19} /> Sri Lankan marketplace
+              <Truck size={19} /> {t("auth.marketplace")}
             </span>
           </div>
         </div>
         <div className="auth-support">
           <div>
             <ShieldCheck size={24} />
-            <strong>Made for local shopping</strong>
-            <p>Find products from sellers across Sri Lanka.</p>
+            <strong>{t("auth.support.local.title")}</strong>
+            <p>{t("auth.support.local.text")}</p>
           </div>
           <div>
             <Banknote size={24} />
-            <strong>Pay when your order arrives</strong>
-            <p>Review the full amount before placing a COD order.</p>
+            <strong>{t("trust.cod.text")}</strong>
+            <p>{t("auth.support.cod.text")}</p>
           </div>
           <div>
             <Truck size={24} />
-            <strong>Manage your orders</strong>
-            <p>Keep delivery details and order history in one account.</p>
+            <strong>{t("auth.support.orders.title")}</strong>
+            <p>{t("auth.support.orders.text")}</p>
           </div>
         </div>
         <p className="auth-disclaimer">
-          <Link href="/products">Continue browsing without an account</Link>
+          <Link href="/products">{t("auth.browseWithout")}</Link>
+          <span aria-hidden="true"> · </span>
+          <Link href="/legal/privacy">{t("legal.privacy.title")}</Link>
+          <span aria-hidden="true"> · </span>
+          <Link href="/legal/terms">{t("legal.terms.title")}</Link>
         </p>
       </div>
     </div>

@@ -74,18 +74,20 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Text(
-                    'Filter products',
+                    c.tr('catalog.filterTitle'),
                     style: Theme.of(c).textTheme.titleLarge,
                   ),
                   verticalGap(),
                   DropdownButtonFormField<String>(
                     initialValue: category,
-                    decoration: const InputDecoration(labelText: 'Category'),
+                    decoration: InputDecoration(
+                      labelText: c.tr('catalog.category'),
+                    ),
                     isExpanded: true,
                     items: [
-                      const DropdownMenuItem(
+                      DropdownMenuItem(
                         value: null,
-                        child: Text('All categories'),
+                        child: Text(c.tr('catalog.allCategories')),
                       ),
                       ...categoryRows.map(
                         (r) => DropdownMenuItem(
@@ -108,8 +110,8 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
-                          decoration: const InputDecoration(
-                            labelText: 'Min price (Rs.)',
+                          decoration: InputDecoration(
+                            labelText: c.tr('catalog.minPrice'),
                           ),
                         ),
                       ),
@@ -120,8 +122,8 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                           keyboardType: const TextInputType.numberWithOptions(
                             decimal: true,
                           ),
-                          decoration: const InputDecoration(
-                            labelText: 'Max price (Rs.)',
+                          decoration: InputDecoration(
+                            labelText: c.tr('catalog.maxPrice'),
                           ),
                         ),
                       ),
@@ -130,13 +132,13 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                   if (widget.shopSlug == null) ...[
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('In stock only'),
+                      title: Text(c.tr('catalog.inStock')),
                       value: stock,
                       onChanged: (v) => update(() => stock = v),
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Active offers only'),
+                      title: Text(c.tr('catalog.offersOnly')),
                       value: offers,
                       onChanged: (v) => update(() => offers = v),
                     ),
@@ -156,9 +158,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                           (minimum != null &&
                               maximum != null &&
                               minimum > maximum)) {
-                        update(
-                          () => error = 'Enter valid prices; minimum must not exceed maximum.',
-                        );
+                        update(() => error = c.tr('catalog.priceError'));
                         return;
                       }
                       Navigator.pop(c, {
@@ -169,11 +169,11 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
                         if (offers) 'deals': 'true',
                       });
                     },
-                    child: const Text('Apply filters'),
+                    child: Text(c.tr('catalog.apply')),
                   ),
                   TextButton(
                     onPressed: () => Navigator.pop(c, <String, String>{}),
-                    child: const Text('Reset filters'),
+                    child: Text(c.tr('catalog.reset')),
                   ),
                 ],
               ),
@@ -209,14 +209,14 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             for (final pair in [
-              if (widget.shopSlug == null) ('relevance', 'Relevance'),
-              ('newest', 'Newest'),
-              ('price-asc', 'Price: low to high'),
-              ('price-desc', 'Price: high to low'),
-              ('name', 'Name: A–Z'),
+              if (widget.shopSlug == null) ('relevance', 'sort.relevance'),
+              ('newest', 'sort.newest'),
+              ('price-asc', 'sort.priceAsc'),
+              ('price-desc', 'sort.priceDesc'),
+              ('name', 'sort.name'),
             ])
               ListTile(
-                title: Text(pair.$2),
+                title: Text(c.tr(pair.$2)),
                 trailing: filters['sort'] == pair.$1
                     ? const Icon(Icons.check, color: HelaColors.teal)
                     : null,
@@ -243,18 +243,18 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
     Widget content(PageData<Product> data) => Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text('${data.total} products'),
+        Text(context.tr('catalog.count', {'count': data.total})),
         verticalGap(),
         if (data.items.isEmpty)
           EmptyState(
-            title: 'No matching finds',
-            message: 'Try another search or remove a filter.',
+            title: context.tr('catalog.emptyTitle'),
+            message: context.tr('catalog.emptyMessage'),
             action: OutlinedButton(
               onPressed: () => setState(() {
                 filters = {};
                 page = 1;
               }),
-              child: const Text('Clear filters'),
+              child: Text(context.tr('catalog.clear')),
             ),
           )
         else
@@ -267,97 +267,109 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
       ],
     );
     return PageFrame(
-      title: filters['deals'] == 'true'
-          ? 'Offers'
-          : slug != null
-          ? 'Shop products'
-          : filters['q'] != null
-          ? 'Search results'
-          : 'All products',
+      title: context.tr(
+        filters['deals'] == 'true'
+            ? 'catalog.titleOffers'
+            : slug != null
+            ? 'catalog.titleShop'
+            : filters['q'] != null
+            ? 'catalog.titleResults'
+            : 'catalog.titleAll',
+      ),
       actions: const [ShoppingActions()],
-      child: ListView(
-        padding: const EdgeInsets.all(20),
-        children: [
-          if (slug != null) const Text('Products from this shop only'),
-          if (slug != null) ShopTabs(slug: slug, selected: 'products'),
-          TextFormField(
-            initialValue: filters['q'],
-            maxLength: 80,
-            decoration: InputDecoration(
-              hintText: slug == null ? 'Search products' : 'Search this shop',
-              prefixIcon: const Icon(Icons.search),
-              counterText: '',
-            ),
-            textInputAction: TextInputAction.search,
-            onFieldSubmitted: (v) => setState(() {
-              if (v.trim().isEmpty) {
-                filters.remove('q');
-              } else {
-                filters['q'] = v.trim();
-              }
-              page = 1;
-            }),
-          ),
-          verticalGap(12),
-          Row(
-            children: [
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: filterSheet,
-                  icon: const Icon(Icons.tune, size: 18),
-                  label: const Text('Filter'),
+      child: RefreshIndicator(
+        onRefresh: () => path != null
+            ? refreshResource(ref, path)
+            : refreshFuture(ref.refresh(productsProvider(query).future)),
+        child: ListView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20),
+          children: [
+            if (slug != null) Text(context.tr('catalog.shopOnly')),
+            if (slug != null) ShopTabs(slug: slug, selected: 'products'),
+            TextFormField(
+              initialValue: filters['q'],
+              maxLength: 80,
+              decoration: InputDecoration(
+                hintText: context.tr(
+                  slug == null
+                      ? 'catalog.searchHint'
+                      : 'catalog.searchShopHint',
                 ),
+                prefixIcon: const Icon(Icons.search),
+                counterText: '',
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: OutlinedButton.icon(
-                  onPressed: sortSheet,
-                  icon: const Icon(Icons.swap_vert, size: 18),
-                  label: const Text('Sort'),
-                ),
-              ),
-            ],
-          ),
-          if (filters.keys.any((key) => key != 'sort')) ...[
-            verticalGap(8),
-            Wrap(
-              spacing: 6,
-              children: filters.entries
-                  .where((e) => e.key != 'sort')
-                  .map(
-                    (e) => InputChip(
-                      label: Text(
-                        '${label(e.key)}: ${e.value}',
-                        style: const TextStyle(fontSize: 11),
-                      ),
-                      onDeleted: () => setState(() {
-                        filters.remove(e.key);
-                        page = 1;
-                      }),
-                    ),
-                  )
-                  .toList(),
+              textInputAction: TextInputAction.search,
+              onFieldSubmitted: (v) => setState(() {
+                if (v.trim().isEmpty) {
+                  filters.remove('q');
+                } else {
+                  filters['q'] = v.trim();
+                }
+                page = 1;
+              }),
             ),
-          ],
-          verticalGap(12),
-          if (path != null)
-            RemoteView(
-              path: path,
-              builder: (c, data) =>
-                  content(PageData.fromJson(data, Product.fromJson)),
-            )
-          else
-            ref
-                .watch(productsProvider(query))
-                .when(
-                  data: content,
-                  loading: () => const LoadingBlocks(),
-                  error: (e, _) => ErrorState(
-                    e,
-                    retry: () => ref.invalidate(productsProvider(query)),
+            verticalGap(12),
+            Row(
+              children: [
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: filterSheet,
+                    icon: const Icon(Icons.tune, size: 18),
+                    label: Text(context.tr('catalog.filter')),
                   ),
                 ),
-        ],
+                const SizedBox(width: 12),
+                Expanded(
+                  child: OutlinedButton.icon(
+                    onPressed: sortSheet,
+                    icon: const Icon(Icons.swap_vert, size: 18),
+                    label: Text(context.tr('catalog.sort')),
+                  ),
+                ),
+              ],
+            ),
+            if (filters.keys.any((key) => key != 'sort')) ...[
+              verticalGap(8),
+              Wrap(
+                spacing: 6,
+                children: filters.entries
+                    .where((e) => e.key != 'sort')
+                    .map(
+                      (e) => InputChip(
+                        label: Text(
+                          '${label(e.key)}: ${e.value}',
+                          style: const TextStyle(fontSize: 11),
+                        ),
+                        onDeleted: () => setState(() {
+                          filters.remove(e.key);
+                          page = 1;
+                        }),
+                      ),
+                    )
+                    .toList(),
+              ),
+            ],
+            verticalGap(12),
+            if (path != null)
+              RemoteView(
+                path: path,
+                builder: (c, data) =>
+                    content(PageData.fromJson(data, Product.fromJson)),
+              )
+            else
+              ref
+                  .watch(productsProvider(query))
+                  .when(
+                    data: content,
+                    loading: () => const LoadingBlocks(),
+                    error: (e, _) => ErrorState(
+                      e,
+                      retry: () => ref.invalidate(productsProvider(query)),
+                    ),
+                  ),
+          ],
+        ),
       ),
     );
   }

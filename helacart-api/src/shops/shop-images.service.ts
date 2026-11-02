@@ -10,6 +10,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { sanitizeUploadedImage } from '../media/strip-metadata.js';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import type { AuthenticatedRequest } from '../auth/firebase-auth.guard.js';
 import { CatalogService } from '../catalog/catalog.service.js';
@@ -33,7 +34,9 @@ export class ShopImagesService {
     identity: DecodedIdToken,
     request: AuthenticatedRequest,
   ) {
-    await this.catalog.requireSellerMember(sellerId, identity, true);
+    await this.catalog.requireSellerMember(sellerId, identity, true, {
+      ownerOnly: true,
+    });
     if (kind !== 'logo' && kind !== 'cover')
       throw new BadRequestException('Choose logo or cover');
     const mime = request.headers['content-type']
@@ -74,6 +77,7 @@ export class ShopImagesService {
             bytes.toString('ascii', 8, 12) === 'WEBP';
     if (!matches)
       throw new BadRequestException('Image bytes do not match Content-Type');
+    const body = sanitizeUploadedImage(bytes, mime);
     const bucket = this.config.get<string>('R2_BUCKET');
     const account = this.config.get<string>('R2_ACCOUNT_ID');
     const accessKeyId = this.config.get<string>('R2_ACCESS_KEY_ID');
@@ -96,7 +100,7 @@ export class ShopImagesService {
         new PutObjectCommand({
           Bucket: bucket,
           Key: key,
-          Body: bytes,
+          Body: body,
           ContentType: mime,
           CacheControl: 'public, max-age=31536000, immutable',
         }),
@@ -116,7 +120,9 @@ export class ShopImagesService {
     }
   }
   async remove(sellerId: string, kind: string, identity: DecodedIdToken) {
-    await this.catalog.requireSellerMember(sellerId, identity, true);
+    await this.catalog.requireSellerMember(sellerId, identity, true, {
+      ownerOnly: true,
+    });
     if (kind !== 'logo' && kind !== 'cover')
       throw new BadRequestException('Choose logo or cover');
     await this.prisma.seller.update({

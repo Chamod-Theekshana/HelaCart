@@ -169,3 +169,12 @@ export class RejectProductDto {
   @Length(10, 500)
   reason!: string;
 }
+
+export class ApproveProductDto {
+  /** Assigns the product commission rate as part of approval (basis points). */
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  @Max(10000)
+  commissionRateBps?: number;
+}

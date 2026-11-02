@@ -8,6 +8,7 @@ import {
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthService } from '../auth/auth.service.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import { FavoriteAlertDto } from './discovery.dto.js';
 import { activeOffers, discountedMinor } from './pricing.js';
 @Injectable()
@@ -15,6 +16,7 @@ export class FavoriteAlertsService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
+    private readonly notifications: NotificationsService,
   ) {}
   async settings(id: string, identity: DecodedIdToken, dto: FavoriteAlertDto) {
     if (!identity.email_verified)
@@ -167,8 +169,7 @@ export class FavoriteAlertsService {
           await tx.$executeRaw(
             Prisma.sql`UPDATE "ProductFavorite" f SET "observedAvailable"=x.available,"observedPriceMinor"=x.price,"lowestNotifiedMinor"=x.lowest,"nextCheckAt"=NOW()+INTERVAL '1 minute' FROM (VALUES ${Prisma.join(updates.map((r) => Prisma.sql`(${r.id}::uuid,${r.available}::boolean,${r.price}::integer,${r.lowest}::integer)`))}) x(id,available,price,lowest) WHERE f.id=x.id`,
           );
-        if (messages.length)
-          await tx.notification.createMany({ data: messages });
+        if (messages.length) await this.notifications.createMany(tx, messages);
         notifications = messages.length;
         return { processed: ids.length, notifications };
       },

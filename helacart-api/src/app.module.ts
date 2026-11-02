@@ -1,8 +1,6 @@
 import { Module } from '@nestjs/common';
-import { APP_GUARD } from '@nestjs/core';
+import { APP_FILTER, APP_GUARD } from '@nestjs/core';
 import { ConfigModule } from '@nestjs/config';
-import { AppController } from './app.controller.js';
-import { AppService } from './app.service.js';
 import { AuthModule } from './auth/auth.module.js';
 import { validateEnvironment } from './config/environment.js';
 import { RequestLimitGuard } from './config/request-limit.guard.js';
@@ -24,11 +22,17 @@ import { ProductFeedbackModule } from './product-feedback/product-feedback.modul
 import { AccountPermissionsModule } from './account-permissions/account-permissions.module.js';
 import { BusinessToolsModule } from './business-tools/business-tools.module.js';
 import { DiscoveryModule } from './discovery/discovery.module.js';
+import { AuditModule } from './audit/audit.module.js';
+import { PhoneVerificationModule } from './phone-verification/phone-verification.module.js';
+import { AccountModule } from './account/account.module.js';
+import { AppConfigController } from './app-config/app-config.controller.js';
+import { AllExceptionsFilter } from './common/all-exceptions.filter.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true, validate: validateEnvironment }),
     PrismaModule,
+    AuditModule,
     AuthModule,
     SellersModule,
     CatalogModule,
@@ -46,8 +50,13 @@ import { DiscoveryModule } from './discovery/discovery.module.js';
     AccountPermissionsModule,
     BusinessToolsModule,
     DiscoveryModule,
+    PhoneVerificationModule,
+    AccountModule,
   ],
-  controllers: [AppController, HealthController],
-  providers: [AppService, { provide: APP_GUARD, useClass: RequestLimitGuard }],
+  controllers: [HealthController, AppConfigController],
+  providers: [
+    { provide: APP_GUARD, useClass: RequestLimitGuard },
+    { provide: APP_FILTER, useClass: AllExceptionsFilter },
+  ],
 })
 export class AppModule {}

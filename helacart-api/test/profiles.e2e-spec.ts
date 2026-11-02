@@ -25,6 +25,7 @@ describe('Private account and shop profiles', () => {
   const db = {
     user: {
       upsert: vi.fn(),
+      findUnique: vi.fn(),
       update: vi.fn(),
       findUniqueOrThrow: vi.fn(),
       updateMany: vi.fn(),

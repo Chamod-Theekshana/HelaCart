@@ -1,4 +1,5 @@
 import '../../../app/hc.dart';
+import '../../../core/ui/external_links.dart';
 
 String safeDestination(String? destination) {
   if (destination == null ||
@@ -20,7 +21,7 @@ String safeDestination(String? destination) {
     return '/';
   }
   return RegExp(
-        r'^/(?:$|products(?:/[^/]+(?:/reviews)?)?|categories|search|offers|shops(?:/[^/]+(?:/(?:products|reviews))?)?|favorites|cart|checkout|orders(?:/[^/]+(?:/tracking/[^/]+)?)?|order-success/[^/]+|account(?:/(?:profile|addresses(?:/new)?|security(?:/(?:password|email))?|reviews))?|notifications|returns(?:/new/[^/]+)?|refunds|support(?:/[^/]+)?|help)$',
+        r'^/(?:$|products(?:/[^/]+(?:/reviews)?)?|categories|search|offers|shops(?:/[^/]+(?:/(?:products|reviews))?)?|favorites|cart|checkout|orders(?:/[^/]+(?:/tracking/[^/]+)?)?|order-success/[^/]+|account(?:/(?:profile|addresses(?:/new|/[^/]+/edit)?|security(?:/(?:password|email))?|reviews|phone|notification-preferences|privacy))?|notifications|returns(?:/new/[^/]+)?|refunds|support(?:/[^/]+)?|help)$',
       ).hasMatch(uri.path)
       ? destination
       : '/';
@@ -60,36 +61,35 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
     final service = ref.watch(authServiceProvider);
     final next = safeDestination(widget.next);
     return PageFrame(
-      title: reset
-          ? 'Reset password'
-          : register
-          ? 'Create account'
-          : 'Sign in',
+      title: context.tr(
+        reset
+            ? 'auth.resetTitle'
+            : register
+            ? 'auth.registerTitle'
+            : 'auth.signInTitle',
+      ),
       child: ListView(
         padding: const EdgeInsets.all(HelaSpacing.screen),
         children: [
           const Brand(),
           verticalGap(24),
           Text(
-            reset
-                ? 'Let’s get you back in.'
-                : register
-                ? 'A place for your good finds.'
-                : 'Welcome back.',
+            context.tr(
+              reset
+                  ? 'auth.resetHeadline'
+                  : register
+                  ? 'auth.registerHeadline'
+                  : 'auth.signInHeadline',
+            ),
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           verticalGap(10),
           Text(
-            reset
-                ? 'We’ll send a password-reset link to your email.'
-                : 'Your favourite shops, saved finds and orders, together.',
+            context.tr(reset ? 'auth.resetBody' : 'auth.body'),
             style: Theme.of(context).textTheme.bodySmall,
           ),
           verticalGap(24),
-          if (!service.configured)
-            const Notice(
-              'Sign-in needs the mobile Firebase settings. Public shopping screens remain available; see the README for configuration.',
-            ),
+          if (!service.configured) Notice(context.tr('auth.notConfigured')),
           if (sent != null) Notice(sent!),
           Form(
             key: form,
@@ -97,9 +97,9 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
               children: [
                 TextFormField(
                   controller: email,
-                  decoration: const InputDecoration(
-                    labelText: 'Email address',
-                    prefixIcon: Icon(Icons.mail_outline),
+                  decoration: InputDecoration(
+                    labelText: context.tr('auth.email'),
+                    prefixIcon: const Icon(Icons.mail_outline),
                   ),
                   keyboardType: TextInputType.emailAddress,
                   autofillHints: const [AutofillHints.email],
@@ -108,7 +108,7 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                           RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
                               .hasMatch(v.trim())
                       ? null
-                      : 'Enter a valid email.',
+                      : context.tr('auth.emailInvalid'),
                 ),
                 verticalGap(),
                 if (!reset) ...[
@@ -116,10 +116,14 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     controller: password,
                     obscureText: obscure,
                     decoration: InputDecoration(
-                      labelText: 'Password',
-                      helperText: register ? 'At least 6 characters' : null,
+                      labelText: context.tr('auth.password'),
+                      helperText: register
+                          ? context.tr('auth.passwordHelper')
+                          : null,
                       suffixIcon: IconButton(
-                        tooltip: obscure ? 'Show password' : 'Hide password',
+                        tooltip: context.tr(
+                          obscure ? 'auth.showPassword' : 'auth.hidePassword',
+                        ),
                         onPressed: () => setState(() => obscure = !obscure),
                         icon: Icon(
                           obscure
@@ -143,37 +147,36 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                     alignment: Alignment.centerRight,
                     child: TextButton(
                       onPressed: () => context.push('/auth/reset'),
-                      child: const Text('Forgot password?'),
+                      child: Text(context.tr('auth.forgot')),
                     ),
                   ),
                 if (register) ...[
                   TextFormField(
                     controller: confirmation,
                     obscureText: true,
-                    decoration: const InputDecoration(
-                      labelText: 'Confirm password',
+                    decoration: InputDecoration(
+                      labelText: context.tr('auth.confirmPassword'),
                     ),
                     validator: (v) =>
-                        v == password.text ? null : 'Passwords do not match.',
+                        v == password.text ? null : context.tr('auth.mismatch'),
                   ),
                   verticalGap(),
                 ],
                 ActionButton(
-                  label: reset
-                      ? 'Send reset link'
-                      : register
-                      ? 'Create account'
-                      : 'Sign in',
+                  label: context.tr(
+                    reset
+                        ? 'auth.sendReset'
+                        : register
+                        ? 'auth.createAccount'
+                        : 'common.signIn',
+                  ),
                   enabled: service.configured,
                   action: () async {
                     if (!form.currentState!.validate()) return;
+                    final resetSent = context.tr('auth.resetSent');
                     if (reset) {
                       await service.reset(email.text);
-                      if (mounted) {
-                        setState(
-                          () => sent = 'If this email has an account, a password reset link has been sent. Check your inbox and spam folder.',
-                        );
-                      }
+                      if (mounted) setState(() => sent = resetSent);
                       return;
                     }
                     if (register) {
@@ -220,27 +223,39 @@ class _AuthScreenState extends ConsumerState<AuthScreen> {
                   '/auth/${register || reset ? 'sign-in' : 'register'}?next=${Uri.encodeQueryComponent(next)}${widget.favorite == null ? '' : '&favorite=${Uri.encodeQueryComponent(widget.favorite!)}'}',
                 ),
                 child: Text(
-                  register || reset ? 'Back to sign in' : 'Create an account',
+                  context.tr(
+                    register || reset
+                        ? 'auth.backToSignIn'
+                        : 'auth.createAnAccount',
+                  ),
                 ),
               ),
               TextButton(
                 onPressed: () => context.go('/'),
-                child: const Text('Continue browsing'),
+                child: Text(context.tr('auth.continueBrowsing')),
               ),
             ],
           ),
           verticalGap(24),
-          const Panel(
+          Panel(
             child: Row(
               children: [
-                Icon(Icons.payments_outlined, color: HelaColors.teal),
-                SizedBox(width: 12),
-                Expanded(
-                  child: Text('Cash on delivery. Pay when your order arrives.'),
-                ),
+                const Icon(Icons.payments_outlined, color: HelaColors.teal),
+                const SizedBox(width: 12),
+                Expanded(child: Text(context.tr('auth.cod'))),
               ],
             ),
           ),
+          if (register) ...[
+            verticalGap(),
+            Text(
+              context.tr('legal.agree'),
+              textAlign: TextAlign.center,
+              style: Theme.of(context).textTheme.bodySmall,
+            ),
+          ],
+          verticalGap(8),
+          const LegalLinksBar(),
         ],
       ),
     );
@@ -254,7 +269,7 @@ class VerifyEmailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final user = ref.watch(sessionProvider).value;
     return PageFrame(
-      title: 'Verify email',
+      title: context.tr('verify.title'),
       child: ListView(
         padding: const EdgeInsets.all(HelaSpacing.screen),
         children: [
@@ -265,25 +280,24 @@ class VerifyEmailScreen extends ConsumerWidget {
           ),
           verticalGap(24),
           Text(
-            'Check your email',
+            context.tr('verify.headline'),
             style: Theme.of(context).textTheme.headlineSmall,
           ),
           verticalGap(),
           Text(
-            'Open the verification link sent to ${user?.email ?? 'your email address'}, then return here.',
+            context.tr('verify.body', {
+              'email': user?.email ?? context.tr('verify.yourEmail'),
+            }),
           ),
           verticalGap(24),
           ActionButton(
-            label: 'I’ve verified my email',
+            label: context.tr('verify.done'),
             enabled: user != null,
             action: () async {
+              final pending = context.tr('verify.pending');
               await ref.read(authServiceProvider).reload();
               final checked = ref.read(authServiceProvider).session;
-              if (checked?.verified != true) {
-                throw const AppFailure(
-                  'Verification is still pending. Check your inbox and try again.',
-                );
-              }
+              if (checked?.verified != true) throw AppFailure(pending);
               ref.invalidate(profileProvider);
               ref.invalidate(cartProvider);
               if (context.mounted) context.go(safeDestination(next));
@@ -291,23 +305,19 @@ class VerifyEmailScreen extends ConsumerWidget {
           ),
           verticalGap(),
           ActionButton(
-            label: 'Resend verification email',
+            label: context.tr('verify.resend'),
             outlined: true,
             enabled: user != null,
             action: () async {
+              final sentMessage = context.tr('verify.sent');
               await ref.read(authServiceProvider).resend();
-              if (context.mounted) {
-                toast(
-                  context,
-                  'Verification email sent. Check your inbox and spam folder.',
-                );
-              }
+              if (context.mounted) toast(context, sentMessage);
             },
           ),
           verticalGap(),
           TextButton(
             onPressed: () => context.go('/'),
-            child: const Text('Continue browsing'),
+            child: Text(context.tr('auth.continueBrowsing')),
           ),
         ],
       ),

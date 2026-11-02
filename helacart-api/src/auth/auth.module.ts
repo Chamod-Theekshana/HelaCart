@@ -24,6 +24,7 @@ import { AccountAccessService } from './account-access.service.js';
     FirebaseAdminService,
     FirebaseAuthGuard,
     AccountAccessService,
+    ProfilePhotoStorageService,
   ],
 })
 export class AuthModule {}

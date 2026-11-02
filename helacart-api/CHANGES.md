@@ -1,5 +1,64 @@
 # Backend review and corrections
 
+## November 2026 hardening release (2026-11-01)
+
+Implements the shared contract `../docs/API-CHANGES-2026-11.md` (sections 1-12)
+plus backend hardening. Deviations are recorded at the end of that document.
+
+- **Order lifecycle:** `DELIVERY_FAILED` and `RETURNED_TO_SELLER` statuses, one
+  state machine (`src/commerce/order-state.ts`) for seller, buyer, admin and
+  background transitions, required reasons, `statusReason`/`statusChangedAt` on
+  every seller order and `reason` on events. Stock is restored on every
+  transition into CANCELLED or RETURNED_TO_SELLER; commission accrues only on
+  DELIVERED. New buyer `confirm-receipt`, admin `POST /admin/orders/:id/actions`
+  and `GET /admin/orders/attention`; an auto-cancel worker for orders not
+  accepted within `SELLER_ACCEPT_HOURS`.
+- **Commission integrity:** approval requires a product commission rate while
+  the policy is enabled (`COMMISSION_RATE_REQUIRED`), or accepts
+  `commissionRateBps` and records the history in the same transaction; bulk
+  approval enforces the same rule.
+- **COD fraud controls:** Notify.lk SMS OTP verification (HMAC-only storage,
+  rate limits), verified phones, checkout limits (`PHONE_NOT_VERIFIED`,
+  `TOO_MANY_OPEN_ORDERS`, `COD_LIMIT_EXCEEDED`, `SELLER_SUSPENDED`) and
+  `checkoutBlockers` on the cart.
+- **Addresses:** `PATCH /me/addresses/:id`, `isDefault` and `phoneVerified`.
+- **Seller suspension and roles:** admin shop list and APPROVED<->SUSPENDED
+  changes; suspended shops are hidden and their writes return
+  `SELLER_SUSPENDED` (order fulfilment, shipments and support stay open);
+  owner-only routes return `OWNER_ONLY`; `/auth/me` memberships carry
+  `sellerStatus`/`statusReason`.
+- **Notifications:** email (Resend), SMS (Notify.lk) and push (FCM) through the
+  `NotificationDelivery` outbox, written in the same transaction as each in-app
+  notification and delivered by a retrying worker; device registration and
+  channel preferences; invalid FCM tokens are removed.
+- **PDPA:** data export and account deletion with open-order/shop guards.
+- **App configuration, admin audit log, product image domain check and
+  EXIF/GPS/text metadata stripping** (pure TypeScript) for every upload.
+- **Observability:** `x-request-id`, JSON logs in production, a global exception
+  filter mapping Prisma/PostgreSQL errors to safe 4xx responses and logging 5xx
+  with the request id; workers log failures.
+- **Workers:** every interval worker takes a PostgreSQL advisory lock per tick;
+  the reservation expiry loop only runs with `RESERVATIONS_ENABLED=true`.
+- **Performance:** cached Firebase token verification (bounded, <= 60 s), admin
+  guard reuses the verified identity, read-before-write profile sync,
+  `DATABASE_POOL_SIZE`, `pg_trgm` GIN indexes matching the search expressions,
+  capped OFFSET browsing.
+- **Rate limits:** configurable, per token subject behind shared addresses, and
+  `x-helacart-internal` for the storefront server.
+- **Other:** one pending seller application per user, optional `restock` when
+  resolving a return, category/hero edits audited, public `GET /api/v1` hello
+  route removed, stricter environment validation (https CORS in production,
+  all-or-nothing providers).
+- **Infrastructure:** `.github/workflows/api.yml` (Node 24 checks and a
+  PostgreSQL 17 migration job), pinned non-root Docker image with a health
+  check, `scripts/backup-db.mjs` and runbook sections for backups, restore
+  drills, new settings, workers and order-failure procedures.
+- **Migrations:** `20261101000000_hardening_enum_values`,
+  `20261101010000_hardening_release`, `20261101020000_search_trigram_indexes`.
+
+Not included: online payments, seller payouts and courier API integration.
+
+
 ## Findings in the uploaded ZIP
 
 The archive contained a standard NestJS starter, not an existing ecommerce API.

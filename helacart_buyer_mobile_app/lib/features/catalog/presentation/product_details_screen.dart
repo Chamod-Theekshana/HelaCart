@@ -1,3 +1,4 @@
+import '../../../app/deep_links.dart';
 import '../../../app/hc.dart';
 import 'home_screen.dart';
 import 'product_widgets.dart';
@@ -10,10 +11,12 @@ class ProductDetailsScreen extends ConsumerWidget {
       .watch(productProvider(id))
       .when(
         data: (p) => ProductDetails(product: p),
-        loading: () =>
-            const PageFrame(title: 'Product', child: LoadingBlocks()),
+        loading: () => PageFrame(
+          title: context.tr('product.loading'),
+          child: const LoadingBlocks(),
+        ),
         error: (e, _) => PageFrame(
-          title: 'Product unavailable',
+          title: context.tr('product.unavailable'),
           child: ErrorState(
             e,
             retry: () => ref.invalidate(productProvider(id)),
@@ -41,19 +44,25 @@ class _ProductDetailsState extends ConsumerState<ProductDetails> {
     final variant = p.variants.where((v) => v.id == selected).firstOrNull;
     final stock = variant?.availableQuantity ?? 0;
     return PageFrame(
-      title: 'Good find',
+      title: context.tr('product.title'),
       actions: [
         FavoriteHeart(p),
+        ShareLinkButton(
+          key: const ValueKey('share-product'),
+          tooltip: context.tr('share.product'),
+          url: productShareUrl(p.id),
+          text: context.tr('share.productText', {'title': p.title}),
+        ),
         IconButton(
-          tooltip: 'Cart',
+          tooltip: context.tr('actions.cart'),
           onPressed: () => context.push('/cart'),
           icon: const Icon(Icons.shopping_bag_outlined),
         ),
       ],
       bottom: ActionButton(
         label: stock == 0
-            ? 'Currently sold out'
-            : '${p.variants.length > 1 ? 'Choose options' : 'Add to cart'} · ${money(variant?.priceLkrMinor ?? p.displayPrice)}',
+            ? context.tr('product.soldOutAction')
+            : '${context.tr(p.variants.length > 1 ? 'product.chooseOptions' : 'product.addToCart')} · ${money(variant?.priceLkrMinor ?? p.displayPrice)}',
         enabled: stock > 0 && quantity <= stock,
         icon: Icons.shopping_bag_outlined,
         action: () async {
@@ -157,9 +166,9 @@ class _ProductDetailsState extends ConsumerState<ProductDetails> {
           ),
           verticalGap(),
           if (p.variants.length > 1) ...[
-            const Text(
-              'Choose an option',
-              style: TextStyle(fontWeight: FontWeight.w700),
+            Text(
+              context.tr('product.chooseAnOption'),
+              style: const TextStyle(fontWeight: FontWeight.w700),
             ),
             verticalGap(8),
             Wrap(
@@ -170,7 +179,7 @@ class _ProductDetailsState extends ConsumerState<ProductDetails> {
                     (v) => ChoiceChip(
                       selected: selected == v.id,
                       label: Text(
-                        '${v.optionLabel}${v.availableQuantity == 0 ? ' · Sold out' : ''}',
+                        '${v.optionLabel}${v.availableQuantity == 0 ? context.tr('product.soldOutSuffix') : ''}',
                       ),
                       onSelected: (_) => setState(() {
                         selected = v.id;
@@ -184,17 +193,17 @@ class _ProductDetailsState extends ConsumerState<ProductDetails> {
           ],
           Text(
             stock > 0
-                ? '$stock available'
-                : 'This option is currently out of stock',
+                ? context.tr('product.available', {'count': stock})
+                : context.tr('product.outOfStock'),
             style: TextStyle(
               color: stock > 0 ? HelaColors.teal : HelaColors.muted,
             ),
           ),
           Row(
             children: [
-              const Expanded(child: Text('Quantity')),
+              Expanded(child: Text(context.tr('product.quantity'))),
               IconButton(
-                tooltip: 'Decrease quantity',
+                tooltip: context.tr('product.decrease'),
                 onPressed: quantity > 1
                     ? () => setState(() => quantity--)
                     : null,
@@ -202,7 +211,7 @@ class _ProductDetailsState extends ConsumerState<ProductDetails> {
               ),
               Text('$quantity'),
               IconButton(
-                tooltip: 'Increase quantity',
+                tooltip: context.tr('product.increase'),
                 onPressed: quantity < stock && quantity < 100
                     ? () => setState(() => quantity++)
                     : null,
@@ -219,7 +228,7 @@ class _ProductDetailsState extends ConsumerState<ProductDetails> {
                 color: HelaColors.teal,
               ),
               title: Text(p.shopName),
-              subtitle: const Text('Visit this shop'),
+              subtitle: Text(context.tr('product.visitShop')),
               trailing: const Icon(Icons.chevron_right),
               onTap: p.shopSlug.isEmpty
                   ? null
@@ -228,18 +237,18 @@ class _ProductDetailsState extends ConsumerState<ProductDetails> {
                     ),
             ),
           ),
-          const SectionTitle('The details'),
+          SectionTitle(context.tr('product.details')),
           Text(
             p.description?.isNotEmpty == true
                 ? p.description!
-                : 'Explore this find from a HelaCart shop.',
+                : context.tr('product.defaultDescription'),
           ),
           if (p.brand?.isNotEmpty == true) ...[
             verticalGap(),
-            Text('Brand: ${p.brand}'),
+            Text(context.tr('product.brand', {'brand': p.brand})),
           ],
           if (p.specifications.isNotEmpty) ...[
-            const SectionTitle('Specifications'),
+            SectionTitle(context.tr('product.specs')),
             Panel(
               child: Column(
                 children: p.specifications
@@ -266,17 +275,15 @@ class _ProductDetailsState extends ConsumerState<ProductDetails> {
             ),
           ],
           if (p.warranty?.isNotEmpty == true) ...[
-            const SectionTitle('Shop warranty'),
+            SectionTitle(context.tr('product.warranty')),
             Text(p.warranty!),
           ],
           verticalGap(20),
-          const Notice(
-            'Cash on delivery. Final delivery fee is confirmed for your address at checkout.',
-          ),
+          Notice(context.tr('product.codNotice')),
           ListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Product reviews'),
-            subtitle: const Text('Read verified-purchase experiences'),
+            title: Text(context.tr('product.reviews')),
+            subtitle: Text(context.tr('product.reviewsSubtitle')),
             trailing: const Icon(Icons.chevron_right),
             onTap: () => context.push('/products/${p.id}/reviews'),
           ),
@@ -316,7 +323,7 @@ class _VariantSelectionSheetState extends State<VariantSelectionSheet> {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              'Choose your option',
+              context.tr('product.chooseYourOption'),
               style: Theme.of(context).textTheme.titleLarge,
             ),
             verticalGap(),
@@ -338,7 +345,7 @@ class _VariantSelectionSheetState extends State<VariantSelectionSheet> {
                   .map(
                     (v) => ChoiceChip(
                       label: Text(
-                        '${v.optionLabel}${v.availableQuantity == 0 ? ' · Sold out' : ''}',
+                        '${v.optionLabel}${v.availableQuantity == 0 ? context.tr('product.soldOutSuffix') : ''}',
                       ),
                       selected: selected == v.id,
                       onSelected: (_) => setState(() {
@@ -352,14 +359,16 @@ class _VariantSelectionSheetState extends State<VariantSelectionSheet> {
             verticalGap(),
             Text(
               variant.availableQuantity > 0
-                  ? '${variant.availableQuantity} available'
-                  : 'This option is sold out',
+                  ? context.tr('product.available', {
+                      'count': variant.availableQuantity,
+                    })
+                  : context.tr('product.optionSoldOut'),
             ),
             Row(
               children: [
-                const Expanded(child: Text('Quantity')),
+                Expanded(child: Text(context.tr('product.quantity'))),
                 IconButton(
-                  tooltip: 'Decrease quantity',
+                  tooltip: context.tr('product.decrease'),
                   onPressed: quantity > 1
                       ? () => setState(() => quantity--)
                       : null,
@@ -367,7 +376,7 @@ class _VariantSelectionSheetState extends State<VariantSelectionSheet> {
                 ),
                 Text('$quantity'),
                 IconButton(
-                  tooltip: 'Increase quantity',
+                  tooltip: context.tr('product.increase'),
                   onPressed:
                       quantity < variant.availableQuantity && quantity < 100
                       ? () => setState(() => quantity++)
@@ -383,7 +392,7 @@ class _VariantSelectionSheetState extends State<VariantSelectionSheet> {
                       quantity <= variant.availableQuantity
                   ? () => Navigator.pop(context, (variant, quantity))
                   : null,
-              child: const Text('Add to cart'),
+              child: Text(context.tr('product.addToCart')),
             ),
           ],
         ),
@@ -398,14 +407,14 @@ class ProductGalleryScreen extends ConsumerWidget {
   final int initial;
   @override
   Widget build(BuildContext context, WidgetRef ref) => PageFrame(
-    title: 'Product photos',
+    title: context.tr('product.photos'),
     child: ref
         .watch(productProvider(id))
         .when(
           data: (p) => p.imageUrls.isEmpty
-              ? const EmptyState(
-                  title: 'Photo unavailable',
-                  message: 'This shop has not supplied a product photo.',
+              ? EmptyState(
+                  title: context.tr('product.photoUnavailable'),
+                  message: context.tr('product.noPhoto'),
                 )
               : _GalleryPages(
                   key: ValueKey((id, p.imageUrls.length, initial)),
@@ -445,7 +454,12 @@ class _GalleryPagesState extends State<_GalleryPages> {
       children: [
         Padding(
           padding: const EdgeInsets.all(12),
-          child: Text('${i + 1} of ${widget.images.length}'),
+          child: Text(
+            context.tr('product.photoCount', {
+              'index': i + 1,
+              'total': widget.images.length,
+            }),
+          ),
         ),
         Expanded(
           child: InteractiveViewer(

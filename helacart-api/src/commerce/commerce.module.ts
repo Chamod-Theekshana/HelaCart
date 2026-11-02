@@ -9,6 +9,7 @@ import {
   AdminCommerceController,
 } from './commerce.controller.js';
 import { CommerceService } from './commerce.service.js';
+import { OrderAutoCancelWorker } from './order-auto-cancel.worker.js';
 import { NotificationsModule } from '../notifications/notifications.module.js';
 
 @Module({
@@ -24,6 +25,6 @@ import { NotificationsModule } from '../notifications/notifications.module.js';
     SellerCommerceController,
     AdminCommerceController,
   ],
-  providers: [CommerceService],
+  providers: [CommerceService, OrderAutoCancelWorker],
 })
 export class CommerceModule {}

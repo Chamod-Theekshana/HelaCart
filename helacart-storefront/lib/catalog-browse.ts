@@ -11,7 +11,8 @@ export type CatalogFilters = {
   deals?: boolean;
   sort: string;
   page: number;
-  error: string;
+  /** Validation problem with the price filters ("" when valid). */
+  error: "" | "invalidPrice" | "minAboveMax";
 };
 export function catalogFilters(
   params: Record<string, string | string[] | undefined>,
@@ -22,12 +23,12 @@ export function catalogFilters(
     max = value("max"),
     minimum = min ? rupeesToMinor(min) : null,
     maximum = max ? rupeesToMinor(max) : null;
-  const error =
+  const error: CatalogFilters["error"] =
     (min && (minimum === null || minimum > 1e9)) ||
     (max && (maximum === null || maximum > 1e9))
-      ? "Enter valid prices up to Rs. 10,000,000."
+      ? "invalidPrice"
       : minimum !== null && maximum !== null && minimum > maximum
-        ? "Minimum price must not exceed maximum price."
+        ? "minAboveMax"
         : "";
   return {
     q: value("q").trim().slice(0, 80),

@@ -1,5 +1,42 @@
+import 'package:share_plus/share_plus.dart';
+
 import '../../../app/hc.dart';
 import '../../cart/application/cart_actions.dart';
+
+/// Shares a public https product/shop link (Android App Links / iOS universal
+/// links open it in the app; otherwise the web storefront).
+class ShareLinkButton extends StatelessWidget {
+  const ShareLinkButton({
+    super.key,
+    required this.tooltip,
+    required this.url,
+    required this.text,
+  });
+  final String tooltip, text;
+  final Uri url;
+  @override
+  Widget build(BuildContext context) => IconButton(
+    tooltip: tooltip,
+    icon: const Icon(Icons.share_outlined),
+    onPressed: () async {
+      final box = context.findRenderObject();
+      final origin = box is RenderBox && box.hasSize
+          ? box.localToGlobal(Offset.zero) & box.size
+          : null;
+      try {
+        await SharePlus.instance.share(
+          ShareParams(
+            text: '$text\n$url',
+            subject: text,
+            sharePositionOrigin: origin,
+          ),
+        );
+      } catch (_) {
+        if (context.mounted) toast(context, context.tr('legal.openFailed'));
+      }
+    },
+  );
+}
 
 class FavoriteHeart extends ConsumerWidget {
   const FavoriteHeart(this.product, {super.key});
@@ -10,8 +47,8 @@ class FavoriteHeart extends ConsumerWidget {
     final saved = index.value?[product.id];
     return IconButton(
       tooltip: saved == null
-          ? 'Save ${product.title}'
-          : 'Remove from favorites',
+          ? context.tr('product.save', {'title': product.title})
+          : context.tr('product.removeFavorite'),
       style: IconButton.styleFrom(
         padding: const EdgeInsets.all(8),
         foregroundColor: HelaColors.teal,
@@ -38,7 +75,7 @@ class FavoriteHeart extends ConsumerWidget {
         try {
           if (index.hasError) {
             ref.invalidate(favoriteIndexProvider);
-            throw const AppFailure('Refresh favorites and try again.');
+            throw AppFailure(context.tr('product.refreshFavorites'));
           }
           await ref
               .read(repositoryProvider)
@@ -99,13 +136,13 @@ Future<void> addProduct(
               ),
               verticalGap(),
               Text(
-                'Added to your cart',
+                c.tr('product.added'),
                 style: Theme.of(c).textTheme.titleLarge,
                 textAlign: TextAlign.center,
               ),
               verticalGap(8),
               Text(
-                '${product.title}\n${variant.optionLabel} · Quantity $quantity',
+                '${product.title}\n${c.tr('product.addedDetail', {'option': variant.optionLabel, 'quantity': quantity})}',
                 textAlign: TextAlign.center,
               ),
               verticalGap(20),
@@ -114,11 +151,11 @@ Future<void> addProduct(
                   Navigator.pop(c);
                   context.push('/cart');
                 },
-                child: const Text('View cart'),
+                child: Text(c.tr('product.viewCart')),
               ),
               TextButton(
                 onPressed: () => Navigator.pop(c),
-                child: const Text('Continue shopping'),
+                child: Text(c.tr('product.continueShopping')),
               ),
             ],
           ),
@@ -173,7 +210,10 @@ class ProductTile extends ConsumerWidget {
                     borderRadius: BorderRadius.circular(5),
                   ),
                   child: Text(
-                    '${integer(product.promotion!['discountBps']) / 100}% off',
+                    context.tr('product.off', {
+                      'percent':
+                          integer(product.promotion!['discountBps']) / 100,
+                    }),
                     style: const TextStyle(
                       color: HelaColors.teal,
                       fontSize: 10,
@@ -231,7 +271,7 @@ class ProductTile extends ConsumerWidget {
           ],
         ),
         Text(
-          variant == null ? 'Sold out' : 'In stock',
+          context.tr(variant == null ? 'product.soldOut' : 'product.inStock'),
           style: TextStyle(
             fontSize: 11,
             color: variant == null ? HelaColors.muted : HelaColors.teal,
@@ -239,11 +279,13 @@ class ProductTile extends ConsumerWidget {
         ),
         const Spacer(),
         ActionButton(
-          label: product.variants.length > 1
-              ? 'Choose options'
-              : variant == null
-              ? 'View product'
-              : 'Add to bag',
+          label: context.tr(
+            product.variants.length > 1
+                ? 'product.chooseOptions'
+                : variant == null
+                ? 'product.viewProduct'
+                : 'product.addToBag',
+          ),
           compact: true,
           icon: product.variants.length > 1 || variant == null
               ? Icons.arrow_forward
@@ -339,7 +381,7 @@ class ShopCard extends StatelessWidget {
                 ),
                 if (boolean(shop['isVerified']))
                   IconButton(
-                    tooltip: 'Verified shop',
+                    tooltip: context.tr('shop.verified'),
                     onPressed: () => verifiedShopInfo(context),
                     icon: const Icon(
                       Icons.verified_outlined,
@@ -350,7 +392,7 @@ class ShopCard extends StatelessWidget {
             ),
             verticalGap(8),
             Text(
-              string(shop['publicLocation'], 'Sri Lanka'),
+              string(shop['publicLocation'], context.tr('common.sriLanka')),
               style: Theme.of(context).textTheme.bodySmall,
             ),
             verticalGap(8),
@@ -362,15 +404,18 @@ class ShopCard extends StatelessWidget {
               children: [
                 Text(
                   integer(rating['total']) > 0
-                      ? '★ ${rating['average']} (${rating['total']} reviews)'
-                      : 'No reviews yet',
+                      ? context.tr('shop.rating', {
+                          'average': rating['average'],
+                          'total': rating['total'],
+                        })
+                      : context.tr('shop.noReviews'),
                   style: const TextStyle(fontSize: 12),
                 ),
                 TextButton(
                   onPressed: () => context.push(
                     '/shops/${Uri.encodeComponent(string(shop['slug']))}',
                   ),
-                  child: const Text('Visit shop →'),
+                  child: Text(context.tr('shop.visit')),
                 ),
               ],
             ),
@@ -392,12 +437,12 @@ class ShopTabs extends StatelessWidget {
       runSpacing: 8,
       children: [
         for (final entry in const {
-          'products': 'Products',
-          'reviews': 'Reviews',
-          'about': 'About',
+          'products': 'shop.tabProducts',
+          'reviews': 'shop.tabReviews',
+          'about': 'shop.tabAbout',
         }.entries)
           ChoiceChip(
-            label: Text(entry.value),
+            label: Text(context.tr(entry.value)),
             selected: selected == entry.key,
             onSelected: (_) {
               if (entry.key == selected) return;
@@ -427,18 +472,16 @@ Future<void> verifiedShopInfo(BuildContext context) =>
               ),
               verticalGap(),
               Text(
-                'Verified shop',
+                c.tr('shop.verified'),
                 style: Theme.of(c).textTheme.titleLarge,
                 textAlign: TextAlign.center,
               ),
               verticalGap(),
-              const Text(
-                'Shop identity reviewed by HelaCart.\n\nThis is separate from verified-purchase reviews. It does not guarantee a product, delivery date or purchase outcome.',
-              ),
+              Text(c.tr('shop.verifiedBody')),
               verticalGap(20),
               FilledButton(
                 onPressed: () => Navigator.pop(c),
-                child: const Text('Got it'),
+                child: Text(c.tr('shop.gotIt')),
               ),
             ],
           ),

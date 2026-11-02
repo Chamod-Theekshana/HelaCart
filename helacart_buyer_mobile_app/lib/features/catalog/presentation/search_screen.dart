@@ -28,7 +28,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 
   @override
   Widget build(BuildContext context) => PageFrame(
-    title: 'Find a good find',
+    title: context.tr('search.title'),
     child: ListView(
       padding: const EdgeInsets.all(20),
       children: [
@@ -39,10 +39,10 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           textInputAction: TextInputAction.search,
           decoration: InputDecoration(
             counterText: '',
-            hintText: 'Products, brands or shops',
+            hintText: context.tr('search.hint'),
             prefixIcon: const Icon(Icons.search),
             suffixIcon: IconButton(
-              tooltip: 'Clear search',
+              tooltip: context.tr('search.clear'),
               onPressed: () {
                 input.clear();
                 setState(() => query = '');
@@ -59,15 +59,15 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
           },
         ),
         if (query.length < 2)
-          const EmptyState(
-            title: 'What are you looking for?',
-            message: 'Search products, brands, categories and local shops.',
+          EmptyState(
+            title: context.tr('search.emptyTitle'),
+            message: context.tr('search.emptyMessage'),
             icon: Icons.search,
           )
         else ...[
           TextButton(
             onPressed: results,
-            child: Text('See all results for “$query”'),
+            child: Text(context.tr('search.seeAll', {'query': query})),
           ),
           RemoteView(
             path: '/discovery/suggestions?q=${Uri.encodeQueryComponent(query)}',

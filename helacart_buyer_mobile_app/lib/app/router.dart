@@ -2,11 +2,14 @@ import 'dart:async';
 
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'deep_links.dart';
 import 'hc.dart';
 import '../core/ui/buyer_navigation.dart';
 import '../features/account/presentation/account_screen.dart';
+import '../features/account/presentation/account_settings_screens.dart';
 import '../features/account/presentation/addresses_screen.dart';
 import '../features/account/presentation/help_screen.dart';
+import '../features/account/presentation/phone_verification_screen.dart';
 import '../features/after_sales/presentation/returns_screen.dart';
 import '../features/auth/presentation/auth_screen.dart';
 import '../features/cart/presentation/cart_screen.dart';
@@ -18,6 +21,7 @@ import '../features/checkout/presentation/checkout_screen.dart';
 import '../features/favorites/presentation/favorites_screen.dart';
 import '../features/notifications/presentation/notifications_screen.dart';
 import '../features/orders/presentation/orders_screen.dart';
+import '../features/push/push_service.dart';
 import '../features/reviews/presentation/reviews_screen.dart';
 import '../features/shops/presentation/shops_screen.dart';
 import '../features/support/presentation/support_screen.dart';
@@ -26,6 +30,9 @@ final initialLocationProvider = Provider<String>((ref) => '/');
 final routerProvider = Provider<GoRouter>((ref) {
   final router = GoRouter(
     initialLocation: ref.read(initialLocationProvider),
+    // helacart://, helacart:/// and https://<APP_LINK_HOST>/ links arrive
+    // with a scheme; in-app locations do not and are left untouched.
+    redirect: (context, state) => deepLinkRedirect(state.uri),
     routes: [
       StatefulShellRoute.indexedStack(
         builder: (c, s, navigation) => BuyerShell(navigation: navigation),
@@ -195,6 +202,23 @@ final routerProvider = Provider<GoRouter>((ref) {
         builder: (c, s) => const AddAddressScreen(),
       ),
       GoRoute(
+        path: '/account/addresses/:id/edit',
+        builder: (c, s) => EditAddressScreen(id: s.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/account/phone',
+        builder: (c, s) =>
+            PhoneVerificationScreen(phone: s.uri.queryParameters['phone']),
+      ),
+      GoRoute(
+        path: '/account/notification-preferences',
+        builder: (c, s) => const NotificationPreferencesScreen(),
+      ),
+      GoRoute(
+        path: '/account/privacy',
+        builder: (c, s) => const PrivacyScreen(),
+      ),
+      GoRoute(
         path: '/account/security',
         builder: (c, s) => const SecurityScreen(),
       ),
@@ -217,13 +241,13 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/help', builder: (c, s) => const HelpScreen()),
     ],
     errorBuilder: (c, s) => PageFrame(
-      title: 'Page unavailable',
+      title: c.tr('error.pageUnavailable'),
       child: EmptyState(
-        title: 'Let’s find your way back',
-        message: 'This destination is not available in the buyer app.',
+        title: c.tr('error.findWayBack'),
+        message: c.tr('error.destinationUnavailable'),
         action: FilledButton(
           onPressed: () => c.go('/'),
-          child: const Text('Back to Home'),
+          child: Text(c.tr('error.backHome')),
         ),
       ),
     ),
@@ -297,8 +321,12 @@ class _BuyerShellState extends ConsumerState<BuyerShell> {
         }
       },
     );
+    // Fallback only: with push available, new notices arrive by FCM.
     timer = Timer.periodic(const Duration(seconds: 60), (_) {
-      if (mounted && foreground && ref.read(sessionProvider).value != null) {
+      if (mounted &&
+          foreground &&
+          !ref.read(pushAvailableProvider) &&
+          ref.read(sessionProvider).value != null) {
         ref.invalidate(
           resourceProvider((path: '/me/notifications/inbox', private: true)),
         );
@@ -337,7 +365,7 @@ class FirstVisitScreen extends StatelessWidget {
   const FirstVisitScreen({super.key});
   @override
   Widget build(BuildContext context) => PageFrame(
-    title: 'Welcome to HelaCart',
+    title: context.tr('welcome.title'),
     child: ListView(
       padding: const EdgeInsets.all(24),
       children: [
@@ -353,16 +381,14 @@ class FirstVisitScreen extends StatelessWidget {
         ),
         verticalGap(28),
         Text(
-          'Good finds.\nLocal roots.',
+          context.tr('welcome.headline'),
           style: Theme.of(context).textTheme.headlineLarge,
         ),
         verticalGap(),
-        const Text(
-          'Discover everyday favourites from independent shops across Sri Lanka. Pay when your order arrives.',
-        ),
+        Text(context.tr('welcome.body')),
         verticalGap(28),
         ActionButton(
-          label: 'Start exploring',
+          label: context.tr('welcome.start'),
           action: () async {
             await SharedPreferencesAsync().setBool('helacart.welcomed', true);
             if (context.mounted) context.go('/');
@@ -370,11 +396,11 @@ class FirstVisitScreen extends StatelessWidget {
         ),
         TextButton(
           onPressed: () => context.go('/'),
-          child: const Text('Skip for now'),
+          child: Text(context.tr('welcome.skip')),
         ),
         TextButton(
           onPressed: () => context.push('/auth'),
-          child: const Text('Sign in'),
+          child: Text(context.tr('common.signIn')),
         ),
       ],
     ),

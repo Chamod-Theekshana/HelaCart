@@ -1,0 +1,93 @@
+name: API
+
+on:
+  push:
+    branches: [main, master]
+    paths:
+      - 'helacart-api/**'
+      - '.github/workflows/api.yml'
+  pull_request:
+    paths:
+      - 'helacart-api/**'
+      - '.github/workflows/api.yml'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: api-${{ github.ref }}
+  cancel-in-progress: true
+
+defaults:
+  run:
+    working-directory: helacart-api
+
+env:
+  # Offline-safe values: tests mock the database and Firebase; prisma generate
+  # does not connect. They are never real credentials.
+  DATABASE_URL: postgresql://ci:ci@127.0.0.1:5432/helacart_ci
+  DIRECT_URL: postgresql://ci:ci@127.0.0.1:5432/helacart_ci
+  FIREBASE_PROJECT_ID: helacart-ci
+
+jobs:
+  check:
+    name: Typecheck, lint, format and tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: helacart-api/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - run: npx prisma validate
+      - run: npm run typecheck
+      - run: npm run lint
+      - run: npm run format:check
+      - run: npm test
+      - run: npm run test:e2e
+      - run: npm run build
+
+  migrations:
+    name: Migrations apply to PostgreSQL 17
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: ci
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: helacart_ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U ci -d helacart_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: helacart-api/package-lock.json
+      - run: npm ci
+      - run: npx prisma generate
+      - name: Apply every migration to an empty database
+        run: npx prisma migrate deploy
+      - name: Migrations are fully applied
+        run: npx prisma migrate status
+      - name: Schema matches the applied migrations
+        run: >-
+          npx prisma migrate diff
+          --from-config-datasource
+          --to-schema prisma/schema.prisma
+          --exit-code
+        # Raw-SQL-only objects (partial/trigram indexes, triggers, CHECKs) are
+        # not modelled in schema.prisma; report drift without failing the job.
+        continue-on-error: true

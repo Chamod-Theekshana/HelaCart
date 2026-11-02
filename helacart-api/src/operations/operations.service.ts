@@ -130,6 +130,7 @@ export class OperationsService {
     reviewer: DecodedIdToken,
     note: string,
     outcome = 'OTHER',
+    restock = false,
   ) {
     if (!note || note.trim().length < 10)
       throw new BadRequestException('Provide a resolution note');
@@ -140,6 +141,7 @@ export class OperationsService {
         include: {
           items: {
             include: {
+              orderItem: { select: { variantId: true } },
               refunds: {
                 where: { status: { not: 'REJECTED' }, reversal: null },
               },
@@ -148,6 +150,10 @@ export class OperationsService {
         },
       });
       if (!request) throw new NotFoundException('Return request not found');
+      if (restock && outcome === 'REPLACED')
+        throw new BadRequestException(
+          'Restocking applies to returns that were received back, not replacements',
+        );
       const records = request.items.flatMap((item) => item.refunds);
       if (records.some((r) => r.status === 'PENDING'))
         throw new ConflictException(
@@ -179,6 +185,23 @@ export class OperationsService {
       });
       if (!updated.count)
         throw new ConflictException('Approved return request required');
+      // Resolution happens once (APPROVED -> RESOLVED), so stock is never
+      // returned twice. InventoryMovement stays append-only.
+      if (restock)
+        for (const item of request.items) {
+          await tx.productVariant.update({
+            where: { id: item.orderItem.variantId },
+            data: { onHand: { increment: item.quantity } },
+          });
+          await tx.inventoryMovement.create({
+            data: {
+              variantId: item.orderItem.variantId,
+              actorUserId: admin.id,
+              delta: item.quantity,
+              reason: `Return ${returnId} received and restocked`,
+            },
+          });
+        }
       const result = await tx.returnRequest.findUniqueOrThrow({
         where: { id: returnId },
         include: { sellerOrder: { select: { sellerId: true } } },
