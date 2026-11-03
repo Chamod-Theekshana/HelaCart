@@ -157,32 +157,51 @@ class EmptyState extends StatelessWidget {
   final IconData icon;
   final Widget? action;
   @override
-  Widget build(BuildContext context) => Padding(
-    padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
-    child: Column(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        CircleAvatar(
-          radius: 28,
-          backgroundColor: HelaColors.mint,
-          child: Icon(icon, size: 26, color: HelaColors.teal),
-        ),
-        const SizedBox(height: 16),
-        Text(
-          title,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.titleLarge,
-        ),
-        const SizedBox(height: 8),
-        Text(
-          message,
-          textAlign: TextAlign.center,
-          style: Theme.of(context).textTheme.bodySmall,
-        ),
-        if (action != null) ...[const SizedBox(height: 20), action!],
-      ],
-    ),
-  );
+  Widget build(BuildContext context) {
+    final content = Padding(
+      padding: const EdgeInsets.symmetric(vertical: 28, horizontal: 20),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          CircleAvatar(
+            radius: 28,
+            backgroundColor: HelaColors.mint,
+            child: Icon(icon, size: 26, color: HelaColors.teal),
+          ),
+          const SizedBox(height: 16),
+          Text(
+            title,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.titleLarge,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            message,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodySmall,
+          ),
+          if (action != null) ...[const SizedBox(height: 20), action!],
+        ],
+      ),
+    );
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        // Inside a list the height is unbounded: centre horizontally only.
+        if (!constraints.hasBoundedHeight) return Center(child: content);
+        // As a whole page body, centre in the available area. Scrolls instead
+        // of overflowing on short screens or with large text.
+        return SingleChildScrollView(
+          child: ConstrainedBox(
+            constraints: BoxConstraints(
+              minWidth: constraints.hasBoundedWidth ? constraints.maxWidth : 0,
+              minHeight: constraints.maxHeight,
+            ),
+            child: Center(child: content),
+          ),
+        );
+      },
+    );
+  }
 }
 
 class LoadingBlocks extends StatelessWidget {
