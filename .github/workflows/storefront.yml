@@ -23,6 +23,11 @@ jobs:
         working-directory: helacart-storefront
     env:
       NEXT_TELEMETRY_DISABLED: "1"
+      # CI has no API or Firebase project. `next typegen` and `next build` both
+      # load next.config.ts in the production-build phase, so the production
+      # guard is bypassed explicitly for every step.
+      NEXT_PUBLIC_ALLOW_PREVIEW_BUILD: "1"
+      NEXT_PUBLIC_SITE_URL: https://helacart.lk
     steps:
       - uses: actions/checkout@v7.0.1
       - uses: actions/setup-node@v6
@@ -41,8 +46,3 @@ jobs:
         run: node scripts/verify-favorite-intent.mjs
       - name: Build (design preview)
         run: npx next build
-        env:
-          # CI has no API or Firebase project; the production guard in
-          # next.config.ts is bypassed explicitly for this preview build.
-          NEXT_PUBLIC_ALLOW_PREVIEW_BUILD: "1"
-          NEXT_PUBLIC_SITE_URL: https://helacart.lk
