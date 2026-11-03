@@ -14,11 +14,24 @@ abstract final class HelaSpacing {
   static const small = 8.0, item = 12.0, card = 16.0, screen = 20.0;
 }
 
+abstract final class HelaControls {
+  static const primaryHeight = 44.0, secondaryHeight = 40.0;
+  static const touchTarget = 48.0;
+  static const label = TextStyle(
+    fontFamily: 'Inter',
+    fontSize: 13,
+    height: 1.3,
+    letterSpacing: 0,
+    fontWeight: FontWeight.w600,
+  );
+}
+
 /// Compact visual controls retain native 48px touch targets.
 ButtonStyle compactButtonStyle() => FilledButton.styleFrom(
-  minimumSize: const Size(48, 40),
-  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+  minimumSize: const Size(48, HelaControls.secondaryHeight),
+  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
   tapTargetSize: MaterialTapTargetSize.padded,
+  visualDensity: VisualDensity.standard,
 );
 
 ThemeData helacartTheme() {
@@ -93,13 +106,14 @@ ThemeData helacartTheme() {
       foregroundColor: HelaColors.navy,
       surfaceTintColor: Colors.transparent,
       centerTitle: false,
-      toolbarHeight: 60,
+      toolbarHeight: 56,
       titleSpacing: 16,
     ),
     inputDecorationTheme: InputDecorationTheme(
       filled: true,
+      isDense: true,
       fillColor: Colors.white,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
       labelStyle: const TextStyle(fontSize: 14),
       hintStyle: const TextStyle(fontSize: 14, color: HelaColors.muted),
       helperStyle: const TextStyle(fontSize: 12, height: 1.4),
@@ -119,30 +133,26 @@ ThemeData helacartTheme() {
     ),
     filledButtonTheme: FilledButtonThemeData(
       style: FilledButton.styleFrom(
-        minimumSize: const Size(48, 48),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        minimumSize: const Size(48, HelaControls.primaryHeight),
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+        tapTargetSize: MaterialTapTargetSize.padded,
+        visualDensity: VisualDensity.standard,
+        iconSize: 18,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: const TextStyle(
-          fontFamily: 'Inter',
-          fontWeight: FontWeight.w600,
-          fontSize: 13,
-          height: 1.3,
-        ),
+        textStyle: HelaControls.label,
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size(48, 48),
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        minimumSize: const Size(48, HelaControls.secondaryHeight),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        tapTargetSize: MaterialTapTargetSize.padded,
+        visualDensity: VisualDensity.standard,
+        iconSize: 18,
         foregroundColor: HelaColors.teal,
         side: const BorderSide(color: HelaColors.border),
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        textStyle: const TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 13,
-          height: 1.3,
-          fontWeight: FontWeight.w600,
-        ),
+        textStyle: HelaControls.label,
       ),
     ),
     iconButtonTheme: IconButtonThemeData(
@@ -153,14 +163,21 @@ ThemeData helacartTheme() {
     ),
     textButtonTheme: TextButtonThemeData(
       style: TextButton.styleFrom(
-        minimumSize: const Size(48, 40),
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        textStyle: const TextStyle(
-          fontFamily: 'Inter',
-          fontSize: 13,
-          height: 1.3,
-          fontWeight: FontWeight.w600,
-        ),
+        minimumSize: const Size(48, 36),
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        tapTargetSize: MaterialTapTargetSize.padded,
+        visualDensity: VisualDensity.standard,
+        iconSize: 18,
+        textStyle: HelaControls.label,
+      ),
+    ),
+    segmentedButtonTheme: SegmentedButtonThemeData(
+      style: SegmentedButton.styleFrom(
+        minimumSize: const Size(48, HelaControls.secondaryHeight),
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        textStyle: HelaControls.label,
+        tapTargetSize: MaterialTapTargetSize.padded,
+        visualDensity: VisualDensity.standard,
       ),
     ),
     listTileTheme: const ListTileThemeData(

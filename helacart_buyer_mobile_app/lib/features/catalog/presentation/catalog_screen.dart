@@ -276,7 +276,7 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
             ? 'catalog.titleResults'
             : 'catalog.titleAll',
       ),
-      actions: const [ShoppingActions()],
+      actions: const [ShoppingActions(showSearch: false)],
       child: RefreshIndicator(
         onRefresh: () => path != null
             ? refreshResource(ref, path)
@@ -310,22 +310,17 @@ class _CatalogScreenState extends ConsumerState<CatalogScreen> {
               }),
             ),
             verticalGap(12),
-            Row(
+            ResponsiveActions(
               children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: filterSheet,
-                    icon: const Icon(Icons.tune, size: 18),
-                    label: Text(context.tr('catalog.filter')),
-                  ),
+                OutlinedButton.icon(
+                  onPressed: filterSheet,
+                  icon: const Icon(Icons.tune, size: 18),
+                  label: Text(context.tr('catalog.filter')),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: sortSheet,
-                    icon: const Icon(Icons.swap_vert, size: 18),
-                    label: Text(context.tr('catalog.sort')),
-                  ),
+                OutlinedButton.icon(
+                  onPressed: sortSheet,
+                  icon: const Icon(Icons.swap_vert, size: 18),
+                  label: Text(context.tr('catalog.sort')),
                 ),
               ],
             ),

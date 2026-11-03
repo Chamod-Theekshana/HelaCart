@@ -5,7 +5,8 @@ import '../../../core/ui/buyer_navigation.dart';
 import '../../account/presentation/account_screen.dart';
 
 class ShoppingActions extends ConsumerWidget {
-  const ShoppingActions({super.key});
+  const ShoppingActions({super.key, this.showSearch = true});
+  final bool showSearch;
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final count = ref.watch(cartProvider).value?.count ?? 0;
@@ -24,11 +25,12 @@ class ShoppingActions extends ConsumerWidget {
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        IconButton(
-          tooltip: context.tr('actions.search'),
-          onPressed: () => context.push('/search'),
-          icon: const Icon(Icons.search),
-        ),
+        if (showSearch)
+          IconButton(
+            tooltip: context.tr('actions.search'),
+            onPressed: () => context.push('/search'),
+            icon: const Icon(Icons.search),
+          ),
         IconButton(
           tooltip: context.tr('actions.notifications'),
           onPressed: () => context.push('/notifications'),

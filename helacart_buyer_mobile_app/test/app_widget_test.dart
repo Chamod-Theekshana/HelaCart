@@ -258,7 +258,7 @@ void main() {
     tester,
   ) async {
     await openApp(tester, '/products/preview-shirt');
-    await tester.tap(find.textContaining('Choose options ·'));
+    await tester.tap(find.text('Choose options'));
     // The originating action remains busy until the options sheet closes.
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump(const Duration(milliseconds: 500));

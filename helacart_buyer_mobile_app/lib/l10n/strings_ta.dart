@@ -396,7 +396,7 @@ const tamilStrings = <String, String>{
   'checkout.subtotal': 'பொருட்களின் கூட்டுத்தொகை',
   'checkout.total': 'டெலிவரியின் போது செலுத்த வேண்டிய மொத்தம்',
   'checkout.invalid': 'கிடைக்காத பொருட்கள் அல்லது டெலிவரி கட்டுப்பாடுகளைச் சரிசெய்து, பின்னர் விலைக்கணிப்பைப் புதுப்பிக்கவும்.',
-  'checkout.place': 'COD ஆர்டர் செய் · {amount}',
+  'checkout.place': 'COD ஆர்டர் செய்',
   'checkout.changeAddress': 'முகவரியை மாற்று',
   'checkout.review': 'ஆர்டரைச் சரிபார்',
   'checkout.verifyEmailFirst':

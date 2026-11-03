@@ -64,6 +64,8 @@ class DiscoverySearchBar extends StatelessWidget {
                   Expanded(
                     child: Text(
                       context.tr('home.searchHint'),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: const TextStyle(
                         fontSize: 13,
                         color: HelaColors.muted,
@@ -236,9 +238,11 @@ class _TrustLabel extends StatelessWidget {
     children: [
       Icon(icon, size: 17, color: HelaColors.teal),
       const SizedBox(width: 6),
-      Text(
-        label,
-        style: const TextStyle(fontSize: 11, color: HelaColors.muted),
+      Flexible(
+        child: Text(
+          label,
+          style: const TextStyle(fontSize: 11, color: HelaColors.muted),
+        ),
       ),
     ],
   );
@@ -262,10 +266,7 @@ class LocalShopTile extends StatelessWidget {
         padding: const EdgeInsets.all(14),
         child: Row(
           children: [
-            CircleAvatar(
-              backgroundColor: HelaColors.cream,
-              child: Text(string(shop['name'], 'H').substring(0, 1)),
-            ),
+            ShopAvatar(shop, backgroundColor: HelaColors.cream),
             const SizedBox(width: 12),
             Expanded(
               child: Column(

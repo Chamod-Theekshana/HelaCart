@@ -1,3 +1,4 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:share_plus/share_plus.dart';
 
 import '../../../app/hc.dart';
@@ -348,6 +349,33 @@ class ProductGrid extends StatelessWidget {
   );
 }
 
+/// Shop logo, or the shop's initial when there is no logo or it fails to load.
+class ShopAvatar extends StatelessWidget {
+  const ShopAvatar(
+    this.shop, {
+    super.key,
+    this.backgroundColor = HelaColors.mint,
+    this.style,
+  });
+  final Json shop;
+  final Color backgroundColor;
+  final TextStyle? style;
+  @override
+  Widget build(BuildContext context) {
+    final logo = Uri.tryParse(string(shop['logoUrl']));
+    final hasLogo = logo != null && ['http', 'https'].contains(logo.scheme);
+    return CircleAvatar(
+      backgroundColor: backgroundColor,
+      // The initial stays underneath and shows if the logo fails.
+      foregroundImage: hasLogo
+          ? CachedNetworkImageProvider(logo.toString(), maxWidth: 160)
+          : null,
+      onForegroundImageError: hasLogo ? (_, _) {} : null,
+      child: Text(string(shop['name'], 'H').substring(0, 1), style: style),
+    );
+  }
+}
+
 class ShopCard extends StatelessWidget {
   const ShopCard(this.shop, {super.key});
   final Json shop;
@@ -362,14 +390,11 @@ class ShopCard extends StatelessWidget {
           children: [
             Row(
               children: [
-                CircleAvatar(
-                  backgroundColor: HelaColors.mint,
-                  child: Text(
-                    string(shop['name'], 'H')[0],
-                    style: const TextStyle(
-                      color: HelaColors.teal,
-                      fontWeight: FontWeight.w800,
-                    ),
+                ShopAvatar(
+                  shop,
+                  style: const TextStyle(
+                    color: HelaColors.teal,
+                    fontWeight: FontWeight.w800,
                   ),
                 ),
                 const SizedBox(width: 12),

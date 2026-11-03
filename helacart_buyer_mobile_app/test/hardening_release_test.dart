@@ -327,7 +327,7 @@ void main() {
     });
     test('placeholders are filled and English is the fallback', () {
       expect(
-        AppStrings.si.t('checkout.place', {'amount': 'Rs. 13,180.00'}),
+        AppStrings.si.t('cart.each', {'price': 'Rs. 13,180.00'}),
         contains('Rs. 13,180.00'),
       );
       expect(AppStrings.ta.t('no.such.key', const {}, 'Fallback'), 'Fallback');
@@ -468,8 +468,8 @@ void main() {
       await scrollTo(tester, find.text('Review order'));
       await tester.tap(find.text('Review order'));
       await tester.pumpAndSettle();
-      await scrollTo(tester, find.text('Place COD order · Rs. 13,180.00'));
-      await tester.tap(find.text('Place COD order · Rs. 13,180.00'));
+      await scrollTo(tester, find.text('Place COD order'));
+      await tester.tap(find.text('Place COD order'));
       await tester.pumpAndSettle();
       expect(
         find.byKey(const ValueKey('checkout-blocker-TOO_MANY_OPEN_ORDERS')),

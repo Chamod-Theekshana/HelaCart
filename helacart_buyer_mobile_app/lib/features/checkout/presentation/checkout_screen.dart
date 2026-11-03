@@ -470,9 +470,7 @@ class _CheckoutFlowState extends ConsumerState<CheckoutFlow> {
         verticalGap(20),
         if (review) ...[
           ActionButton(
-            label: context.tr('checkout.place', {
-              'amount': money(quote.totalLkrMinor),
-            }),
+            label: context.tr('checkout.place'),
             enabled: valid,
             action: () => place(result),
           ),

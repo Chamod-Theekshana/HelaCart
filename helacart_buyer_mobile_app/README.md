@@ -217,7 +217,7 @@ flutter test
 flutter build apk --debug --target-platform android-arm64,android-x64 --split-per-abi
 ```
 
-The table below records the earlier baseline validation. For the latest web-reference UI revision (161 passing tests, current analysis, native widget renders and rebuilt Android APKs), see [UI revision validation](docs/ui-reference-implementation.md#run). Device and browser baseline checks were not repeated for that UI revision.
+The latest [mobile layout review](docs/ui-layout-review-2026-11.md) covers compact buttons, label wrapping, order/address layouts and 382 passing tests, including real-font checks at 320/360/390px and 1.8× text. The table below records earlier baseline validation; its device and browser checks were not repeated for this layout review. The earlier [web-reference UI revision](docs/ui-reference-implementation.md#run) is also retained for context.
 
 | Check | Result |
 | --- | --- |

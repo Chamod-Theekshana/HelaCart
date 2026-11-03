@@ -130,46 +130,51 @@ class FavoriteProductRow extends ConsumerWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SizedBox(
-              width: 90,
-              height: 90,
-              child: ProductPhoto(p.imageUrls.firstOrNull),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    p.shopName,
-                    style: Theme.of(context).textTheme.bodySmall,
+        LayoutBuilder(
+          builder: (context, box) {
+            final photoSize = box.maxWidth < 280 ? 64.0 : 80.0;
+            return Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SizedBox(
+                  width: photoSize,
+                  height: photoSize,
+                  child: ProductPhoto(p.imageUrls.firstOrNull),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        p.shopName,
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                      InkWell(
+                        onTap: () => context.push('/products/${p.id}'),
+                        child: Text(
+                          p.title,
+                          style: const TextStyle(fontWeight: FontWeight.w600),
+                        ),
+                      ),
+                      verticalGap(6),
+                      Text(
+                        money(p.displayPrice),
+                        style: const TextStyle(
+                          fontWeight: FontWeight.w800,
+                          color: HelaColors.teal,
+                        ),
+                      ),
+                      Text(
+                        variant == null ? 'Sold out' : 'In stock',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
                   ),
-                  InkWell(
-                    onTap: () => context.push('/products/${p.id}'),
-                    child: Text(
-                      p.title,
-                      style: const TextStyle(fontWeight: FontWeight.w700),
-                    ),
-                  ),
-                  verticalGap(6),
-                  Text(
-                    money(p.displayPrice),
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w800,
-                      color: HelaColors.teal,
-                    ),
-                  ),
-                  Text(
-                    variant == null ? 'Sold out' : 'In stock',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
-            ),
-          ],
+                ),
+              ],
+            );
+          },
         ),
         verticalGap(),
         if (p.variants.length > 1 || variant == null)

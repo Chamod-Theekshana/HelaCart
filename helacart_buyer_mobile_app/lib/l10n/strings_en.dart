@@ -393,7 +393,7 @@ const englishStrings = <String, String>{
   'checkout.subtotal': 'Items subtotal',
   'checkout.total': 'Total due on delivery',
   'checkout.invalid': 'Resolve unavailable items or delivery restrictions, then refresh your quote.',
-  'checkout.place': 'Place COD order · {amount}',
+  'checkout.place': 'Place COD order',
   'checkout.changeAddress': 'Change address',
   'checkout.review': 'Review order',
   'checkout.verifyEmailFirst': 'Verify your email before ordering.',

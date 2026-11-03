@@ -29,8 +29,9 @@ class _AfterSalesScreenState extends ConsumerState<AfterSalesScreen> {
             SegmentedButton<bool>(
               segments: const [
                 ButtonSegment(value: false, label: Text('Returns')),
-                ButtonSegment(value: true, label: Text('Refund records')),
+                ButtonSegment(value: true, label: Text('Refunds')),
               ],
+              showSelectedIcon: false,
               selected: {refunds},
               onSelectionChanged: (v) => setState(() {
                 refunds = v.first;
@@ -45,8 +46,11 @@ class _AfterSalesScreenState extends ConsumerState<AfterSalesScreen> {
                   : 'Return selected items from an eligible delivered package in My orders.',
               style: Theme.of(context).textTheme.bodySmall,
             ),
-            DropdownButton<String>(
-              value: status,
+            verticalGap(),
+            DropdownButtonFormField<String>(
+              key: ValueKey('after-sales-status-$refunds'),
+              initialValue: status,
+              decoration: const InputDecoration(labelText: 'Status'),
               isExpanded: true,
               items: [
                 for (final s in [
@@ -66,6 +70,7 @@ class _AfterSalesScreenState extends ConsumerState<AfterSalesScreen> {
                 page = 1;
               }),
             ),
+            verticalGap(),
             RemoteView(
               path: path,
               private: true,

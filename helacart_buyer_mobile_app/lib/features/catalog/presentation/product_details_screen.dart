@@ -59,35 +59,55 @@ class _ProductDetailsState extends ConsumerState<ProductDetails> {
           icon: const Icon(Icons.shopping_bag_outlined),
         ),
       ],
-      bottom: ActionButton(
-        label: stock == 0
-            ? context.tr('product.soldOutAction')
-            : '${context.tr(p.variants.length > 1 ? 'product.chooseOptions' : 'product.addToCart')} · ${money(variant?.priceLkrMinor ?? p.displayPrice)}',
-        enabled: stock > 0 && quantity <= stock,
-        icon: Icons.shopping_bag_outlined,
-        action: () async {
-          Variant chosen = variant!;
-          var count = quantity;
-          if (p.variants.length > 1) {
-            final result = await showModalBottomSheet<(Variant, int)>(
-              context: context,
-              isScrollControlled: true,
-              builder: (c) => VariantSelectionSheet(
-                product: p,
-                selected: selected,
-                quantity: quantity,
-              ),
-            );
-            if (result == null || !context.mounted) return;
-            chosen = result.$1;
-            count = result.$2;
-            setState(() {
-              selected = chosen.id;
-              quantity = count;
-            });
-          }
-          if (context.mounted) await addProduct(context, ref, p, chosen, count);
-        },
+      bottom: OverflowBar(
+        alignment: MainAxisAlignment.spaceBetween,
+        spacing: 12,
+        overflowSpacing: 4,
+        overflowAlignment: OverflowBarAlignment.end,
+        children: [
+          Text(
+            money(variant?.priceLkrMinor ?? p.displayPrice),
+            style: Theme.of(context).textTheme.titleMedium,
+          ),
+          IntrinsicWidth(
+            child: ActionButton(
+              label: stock == 0
+                  ? context.tr('product.soldOutAction')
+                  : context.tr(
+                      p.variants.length > 1
+                          ? 'product.chooseOptions'
+                          : 'product.addToCart',
+                    ),
+              enabled: stock > 0 && quantity <= stock,
+              icon: Icons.shopping_bag_outlined,
+              action: () async {
+                Variant chosen = variant!;
+                var count = quantity;
+                if (p.variants.length > 1) {
+                  final result = await showModalBottomSheet<(Variant, int)>(
+                    context: context,
+                    isScrollControlled: true,
+                    builder: (c) => VariantSelectionSheet(
+                      product: p,
+                      selected: selected,
+                      quantity: quantity,
+                    ),
+                  );
+                  if (result == null || !context.mounted) return;
+                  chosen = result.$1;
+                  count = result.$2;
+                  setState(() {
+                    selected = chosen.id;
+                    quantity = count;
+                  });
+                }
+                if (context.mounted) {
+                  await addProduct(context, ref, p, chosen, count);
+                }
+              },
+            ),
+          ),
+        ],
       ),
       child: ListView(
         padding: const EdgeInsets.all(20),

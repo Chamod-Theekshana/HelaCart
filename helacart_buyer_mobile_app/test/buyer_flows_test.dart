@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:helacart_buyer_mobile_app/app/hc.dart';
 import 'package:helacart_buyer_mobile_app/app/config.dart';
 import 'package:helacart_buyer_mobile_app/app/helacart_app.dart';
+import 'package:helacart_buyer_mobile_app/app/locale.dart';
 import 'package:helacart_buyer_mobile_app/app/router.dart';
 import 'package:helacart_buyer_mobile_app/core/ui/buyer_navigation.dart';
 import 'package:helacart_buyer_mobile_app/features/checkout/presentation/checkout_screen.dart';
@@ -18,8 +19,11 @@ Future<FakeAuth> openBuyer(
   BuyerFixture repo, {
   bool verified = true,
   double scale = 1,
+  double width = 390,
+  double height = 844,
+  Locale locale = const Locale('en'),
 }) async {
-  tester.view.physicalSize = const Size(390, 844);
+  tester.view.physicalSize = Size(width, height);
   tester.view.devicePixelRatio = 1;
   tester.platformDispatcher.textScaleFactorTestValue = scale;
   final auth = FakeAuth(
@@ -34,6 +38,7 @@ Future<FakeAuth> openBuyer(
         authServiceProvider.overrideWithValue(auth),
         repositoryProvider.overrideWithValue(repo),
         initialLocationProvider.overrideWithValue(route),
+        initialLocaleProvider.overrideWithValue(locale),
         checkoutStoreProvider.overrideWithValue(MemoryCheckoutStore()),
       ],
       child: const HelaCartApp(),
@@ -121,7 +126,7 @@ void main() {
       await tester.pumpAndSettle();
       await tapReachable(tester, find.text('Review order'));
       expect(find.text('Review & place order'), findsOneWidget);
-      await tapReachable(tester, find.text('Place COD order · Rs. 13,180.00'));
+      await tapReachable(tester, find.text('Place COD order'));
       expect(find.text('Order placed'), findsOneWidget);
       expect(find.text('Payment successful'), findsNothing);
       final calls = repo.writes

@@ -63,9 +63,9 @@ class PageFrame extends StatelessWidget {
     appBar: AppBar(
       toolbarHeight: brand
           ? 60
-          : (MediaQuery.textScalerOf(context).scale(18) * 2.7 + 12).clamp(
-              60,
-              112,
+          : (MediaQuery.textScalerOf(context).scale(18) * 2.4 + 12).clamp(
+              56,
+              104,
             ),
       leading: leading,
       centerTitle: brand,
@@ -358,12 +358,13 @@ class ActionButton extends ConsumerStatefulWidget {
     this.outlined = false,
     this.compact = false,
     this.textOnly = false,
+    this.destructive = false,
   }) : buttonKey = key,
        super(key: key == null ? null : _ActionButtonKey(key));
   final Key? buttonKey;
   final String label;
   final Future<void> Function() action;
-  final bool enabled, outlined, compact, textOnly;
+  final bool enabled, outlined, compact, textOnly, destructive;
   final IconData? icon;
   @override
   ConsumerState<ActionButton> createState() => _ActionButtonState();
@@ -441,7 +442,9 @@ class _ActionButtonState extends ConsumerState<ActionButton> {
                 style: TextButton.styleFrom(
                   alignment: Alignment.centerLeft,
                   padding: EdgeInsets.zero,
-                  minimumSize: const Size(48, 48),
+                  foregroundColor: widget.destructive
+                      ? HelaColors.danger
+                      : null,
                 ),
                 onPressed: busy || !widget.enabled ? null : run,
                 child: content,
@@ -502,37 +505,17 @@ class _ActionButtonState extends ConsumerState<ActionButton> {
   }
 }
 
-/// Related secondary actions share a row when labels fit, and stack for larger
-/// system text. Each control keeps its own busy/error and ownership handling.
+/// Actions use their natural label widths, wrapping whole controls before
+/// squeezing their text. Each action retains its own busy/error handling.
 class ResponsiveActions extends StatelessWidget {
   const ResponsiveActions({super.key, required this.children});
   final List<Widget> children;
   @override
-  Widget build(BuildContext context) => LayoutBuilder(
-    builder: (context, box) {
-      final stack =
-          box.maxWidth < 280 || MediaQuery.textScalerOf(context).scale(14) > 18;
-      if (stack) {
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            for (var i = 0; i < children.length; i++) ...[
-              if (i > 0) const SizedBox(height: HelaSpacing.small),
-              children[i],
-            ],
-          ],
-        );
-      }
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          for (var i = 0; i < children.length; i++) ...[
-            if (i > 0) const SizedBox(width: HelaSpacing.small),
-            Expanded(child: children[i]),
-          ],
-        ],
-      );
-    },
+  Widget build(BuildContext context) => Wrap(
+    spacing: HelaSpacing.small,
+    runSpacing: 4,
+    crossAxisAlignment: WrapCrossAlignment.center,
+    children: [for (final child in children) IntrinsicWidth(child: child)],
   );
 }
 
@@ -590,8 +573,14 @@ class MoneyRow extends StatelessWidget {
             fontSize: strong ? 18 : 14,
           ),
         );
-        if (MediaQuery.textScalerOf(context).scale(14) > 18 ||
-            box.maxWidth < 260) {
+        final style = DefaultTextStyle.of(context).style;
+        final labelWidth = textWidth(context, title, style);
+        final amountWidth = textWidth(
+          context,
+          money(amount),
+          style.merge(value.style),
+        );
+        if (labelWidth + amountWidth + 12 > box.maxWidth) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [Text(title), const SizedBox(height: 4), value],
@@ -602,7 +591,7 @@ class MoneyRow extends StatelessWidget {
           children: [
             Expanded(child: Text(title)),
             const SizedBox(width: 12),
-            Flexible(child: value),
+            value,
           ],
         );
       },
@@ -621,15 +610,13 @@ class SectionTitle extends StatelessWidget {
       top: more == null ? 20 : 12,
       bottom: more == null ? 10 : 4,
     ),
-    child: Row(
+    child: OverflowBar(
+      alignment: MainAxisAlignment.spaceBetween,
+      spacing: 12,
+      overflowSpacing: 0,
+      overflowAlignment: OverflowBarAlignment.start,
       children: [
-        Expanded(
-          child: Text(
-            title,
-            style: Theme.of(context).textTheme.titleLarge
-                ?.copyWith(fontSize: 18),
-          ),
-        ),
+        Text(title, style: Theme.of(context).textTheme.titleLarge),
         if (more != null)
           TextButton(
             style: TextButton.styleFrom(
@@ -641,6 +628,20 @@ class SectionTitle extends StatelessWidget {
       ],
     ),
   );
+}
+
+/// Measures the actual font and system text size for layouts that must keep
+/// labels and currency amounts together.
+double textWidth(BuildContext context, String text, TextStyle style) {
+  final painter = TextPainter(
+    text: TextSpan(text: text, style: style),
+    textDirection: Directionality.of(context),
+    textScaler: MediaQuery.textScalerOf(context),
+    locale: Localizations.maybeLocaleOf(context),
+  )..layout();
+  final width = painter.width;
+  painter.dispose();
+  return width;
 }
 
 class StatusPill extends StatelessWidget {

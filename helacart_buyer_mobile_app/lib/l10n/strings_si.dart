@@ -393,7 +393,7 @@ const sinhalaStrings = <String, String>{
   'checkout.subtotal': 'භාණ්ඩ උප එකතුව',
   'checkout.total': 'ලැබුණු විට ගෙවිය යුතු මුළු මුදල',
   'checkout.invalid': 'ලබා ගත නොහැකි භාණ්ඩ හෝ බෙදාහැරීමේ සීමා විසඳා, පසුව මිල ගණන් යාවත්කාලීන කරන්න.',
-  'checkout.place': 'COD ඇණවුම කරන්න · {amount}',
+  'checkout.place': 'COD ඇණවුම කරන්න',
   'checkout.changeAddress': 'ලිපිනය වෙනස් කරන්න',
   'checkout.review': 'ඇණවුම සමාලෝචනය කරන්න',
   'checkout.verifyEmailFirst': 'ඇණවුම් කිරීමට පෙර ඔබේ ඊමේලය තහවුරු කරන්න.',

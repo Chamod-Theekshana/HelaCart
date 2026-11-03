@@ -151,13 +151,16 @@ class _OrdersScreenState extends ConsumerState<OrdersScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Row(
+                                    OverflowBar(
+                                      alignment: MainAxisAlignment.spaceBetween,
+                                      spacing: 12,
+                                      overflowSpacing: 6,
+                                      overflowAlignment:
+                                          OverflowBarAlignment.start,
                                       children: [
-                                        Expanded(
-                                          child: Text(
-                                            string(
-                                              object(shop['seller'])['name'],
-                                            ),
+                                        Text(
+                                          string(
+                                            object(shop['seller'])['name'],
                                           ),
                                         ),
                                         StatusPill(string(shop['status'])),
@@ -475,7 +478,8 @@ class PackageSection extends ConsumerWidget {
                   },
                 ),
               ],
-              if (canCancelPackage(status))
+              if (canCancelPackage(status)) ...[
+                verticalGap(8),
                 ActionButton(
                   key: ValueKey('cancel-package-${shop['id']}'),
                   label: context.tr('orders.cancel'),
@@ -500,6 +504,7 @@ class PackageSection extends ConsumerWidget {
                     );
                   },
                 ),
+              ],
               if (status == 'DELIVERED') ...[
                 OutlinedButton(
                   onPressed: () => context.push('/returns/new/${shop['id']}'),

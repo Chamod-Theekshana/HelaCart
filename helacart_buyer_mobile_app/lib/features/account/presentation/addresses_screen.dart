@@ -73,11 +73,10 @@ class AddressesScreen extends ConsumerWidget {
                             row.address.recipient,
                             style: Theme.of(context).textTheme.titleMedium,
                           ),
+                          verticalGap(6),
                           AddressSummary(row),
-                          verticalGap(),
-                          Wrap(
-                            spacing: 8,
-                            runSpacing: 4,
+                          const Divider(height: 20),
+                          ResponsiveActions(
                             children: [
                               TextButton.icon(
                                 key: ValueKey('address-edit-${row.id}'),
@@ -106,43 +105,50 @@ class AddressesScreen extends ConsumerWidget {
                                     context.tr('addresses.verifyPhone'),
                                   ),
                                 ),
+                              if (!row.isDefault)
+                                ActionButton(
+                                  key: ValueKey('address-default-${row.id}'),
+                                  label: context.tr('addresses.setDefault'),
+                                  outlined: true,
+                                  icon: Icons.home_outlined,
+                                  action: () async {
+                                    final done = context.tr(
+                                      'addresses.defaultSet',
+                                    );
+                                    await ref.read(repositoryProvider).write(
+                                      '/me/addresses/${row.id}',
+                                      'PATCH',
+                                      {'isDefault': true},
+                                    );
+                                    ref.invalidate(addressesProvider);
+                                    if (context.mounted) toast(context, done);
+                                  },
+                                ),
+                              ActionButton(
+                                label: context.tr('addresses.remove'),
+                                textOnly: true,
+                                destructive: true,
+                                action: () async {
+                                  if (!await confirm(
+                                    context,
+                                    title: context.tr('addresses.removeTitle'),
+                                    message: context.tr('addresses.removeBody'),
+                                    action: context.tr(
+                                      'addresses.removeConfirm',
+                                    ),
+                                  )) {
+                                    return;
+                                  }
+                                  await ref
+                                      .read(repositoryProvider)
+                                      .write(
+                                        '/me/addresses/${row.id}',
+                                        'DELETE',
+                                      );
+                                  ref.invalidate(addressesProvider);
+                                },
+                              ),
                             ],
-                          ),
-                          if (!row.isDefault)
-                            ActionButton(
-                              key: ValueKey('address-default-${row.id}'),
-                              label: context.tr('addresses.setDefault'),
-                              outlined: true,
-                              icon: Icons.home_outlined,
-                              action: () async {
-                                final done = context.tr('addresses.defaultSet');
-                                await ref.read(repositoryProvider).write(
-                                  '/me/addresses/${row.id}',
-                                  'PATCH',
-                                  {'isDefault': true},
-                                );
-                                ref.invalidate(addressesProvider);
-                                if (context.mounted) toast(context, done);
-                              },
-                            ),
-                          verticalGap(8),
-                          ActionButton(
-                            label: context.tr('addresses.remove'),
-                            outlined: true,
-                            action: () async {
-                              if (!await confirm(
-                                context,
-                                title: context.tr('addresses.removeTitle'),
-                                message: context.tr('addresses.removeBody'),
-                                action: context.tr('addresses.removeConfirm'),
-                              )) {
-                                return;
-                              }
-                              await ref
-                                  .read(repositoryProvider)
-                                  .write('/me/addresses/${row.id}', 'DELETE');
-                              ref.invalidate(addressesProvider);
-                            },
                           ),
                         ],
                       ),
@@ -201,6 +207,7 @@ class AddAddressScreen extends ConsumerStatefulWidget {
 
 class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
   final form = GlobalKey<FormState>();
+  final districtField = GlobalKey<FormFieldState<String>>();
   late final fields = {
     for (final k in [
       'recipient',
@@ -289,7 +296,10 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
         ),
       ),
     );
-    if (result != null && mounted) setState(() => district = result);
+    if (result != null && mounted) {
+      setState(() => district = result);
+      districtField.currentState?.didChange(result);
+    }
   }
 
   @override
@@ -322,13 +332,20 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
                           ? TextInputType.phone
                           : pair.$1 == 'postalCode'
                           ? TextInputType.text
+                          : pair.$1 == 'recipient'
+                          ? TextInputType.name
                           : TextInputType.streetAddress,
+                      textInputAction: TextInputAction.next,
+                      textCapitalization:
+                          pair.$1 == 'phone' || pair.$1 == 'postalCode'
+                          ? TextCapitalization.none
+                          : TextCapitalization.words,
                       decoration: InputDecoration(
                         labelText: context.tr(pair.$2),
                         helperText: pair.$1 == 'phone' && editing != null
                             ? context.tr('addresses.phoneChangeNote')
                             : null,
-                        helperMaxLines: 2,
+                        helperMaxLines: 4,
                       ),
                       validator: (v) {
                         if (pair.$1 == 'line2') {
@@ -364,11 +381,32 @@ class _AddAddressScreenState extends ConsumerState<AddAddressScreen> {
                     ),
                     verticalGap(),
                   ],
-                  OutlinedButton.icon(
-                    onPressed: selectDistrict,
-                    icon: const Icon(Icons.location_on_outlined),
-                    label: Text(
-                      district ?? context.tr('addresses.chooseDistrict'),
+                  FormField<String>(
+                    key: districtField,
+                    initialValue: district,
+                    validator: (value) => value == null
+                        ? context.tr('addresses.districtRequired')
+                        : null,
+                    builder: (field) => Semantics(
+                      button: true,
+                      child: InkWell(
+                        key: const ValueKey('address-district'),
+                        onTap: selectDistrict,
+                        borderRadius: BorderRadius.circular(12),
+                        child: InputDecorator(
+                          isEmpty: district == null,
+                          decoration: InputDecoration(
+                            labelText: context.tr('addresses.chooseDistrict'),
+                            errorText: field.errorText,
+                            prefixIcon: const Icon(
+                              Icons.location_on_outlined,
+                              size: 20,
+                            ),
+                            suffixIcon: const Icon(Icons.expand_more, size: 20),
+                          ),
+                          child: Text(district ?? ''),
+                        ),
+                      ),
                     ),
                   ),
                   CheckboxListTile(
