@@ -1,8 +1,9 @@
 "use client";
 
+import { ProductSpecifications } from "@/components/product-specifications";
 import { useState } from "react";
 import { Box, Search, X } from "lucide-react";
-import { money } from "@/lib/api";
+import { ApiError, money } from "@/lib/api";
 import { useAdmin, useAdminList } from "@/components/admin-provider";
 import {
   AdminBadge,
@@ -33,19 +34,52 @@ export default function AdminProductsPage() {
   const [selected, setSelected] = useState<AdminProduct | null>(null);
   const [decision, setDecision] = useState<"approve" | "reject" | null>(null);
   const [notice, setNotice] = useState("");
+  const [ratePercent, setRatePercent] = useState("");
+  const [rateRequired, setRateRequired] = useState(false);
   const resource = useAdminList<AdminProduct>(
     "products",
     { q: query, status },
     status === "PENDING" ? previewAdminProducts : [],
   );
   const rows = resource.data ?? [];
+  /** Percent (e.g. "12.5") → basis points (1250); null when blank. */
+  function rateBps(): number | null {
+    const value = ratePercent.trim();
+    if (!value) return null;
+    if (!/^\d{1,3}(?:\.\d{1,2})?$/.test(value) || Number(value) > 100)
+      throw new Error("Enter a commission rate between 0 and 100 percent.");
+    return Math.round(Number(value) * 100);
+  }
   async function commit(reason: string) {
     if (!selected || !decision) return;
-    await request(
-      `/admin/products/${selected.id}/${decision}`,
-      "PATCH",
-      decision === "reject" ? { reason } : undefined,
-    );
+    const commissionRateBps = decision === "approve" ? rateBps() : null;
+    if (decision === "approve" && rateRequired && commissionRateBps === null)
+      throw new Error("Enter a commission rate to approve this product.");
+    try {
+      await request(
+        `/admin/products/${selected.id}/${decision}`,
+        "PATCH",
+        decision === "reject"
+          ? { reason }
+          : commissionRateBps !== null &&
+              commissionRateBps !== selected.commissionRateBps
+            ? { commissionRateBps }
+            : undefined,
+      );
+    } catch (cause) {
+      if (
+        cause instanceof ApiError &&
+        cause.code === "COMMISSION_RATE_REQUIRED"
+      ) {
+        setRateRequired(true);
+        throw new Error(
+          "This product has no commission rate and the platform commission policy is enabled. Enter a rate to approve it.",
+        );
+      }
+      throw cause;
+    }
+    setRatePercent("");
+    setRateRequired(false);
     resource.reload();
     setSelected(null);
     setNotice(`Product ${decision === "approve" ? "approved" : "rejected"}.`);
@@ -238,6 +272,7 @@ export default function AdminProductsPage() {
               </div>
               <h3>Description</h3>
               <p className="admin-description">{selected.description}</p>
+              <ProductSpecifications product={selected} />
               <h3>Product details</h3>
               <dl className="admin-detail-list">
                 <dt>Seller</dt>
@@ -299,7 +334,15 @@ export default function AdminProductsPage() {
                       ? "Product must have an image"
                       : undefined
                   }
-                  onClick={() => setDecision("approve")}
+                  onClick={() => {
+                    setRatePercent(
+                      selected.commissionRateBps == null
+                        ? ""
+                        : (selected.commissionRateBps / 100).toString(),
+                    );
+                    setRateRequired(false);
+                    setDecision("approve");
+                  }}
                 >
                   Approve product
                 </button>
@@ -325,7 +368,26 @@ export default function AdminProductsPage() {
           maxLength={500}
           onClose={() => setDecision(null)}
           onConfirm={commit}
-        />
+        >
+          {decision === "approve" && (
+            <label>
+              Commission rate (%){rateRequired ? " — required" : " — optional"}
+              <input
+                inputMode="decimal"
+                value={ratePercent}
+                required={rateRequired}
+                placeholder="e.g. 10 or 12.5"
+                onChange={(event) => setRatePercent(event.target.value)}
+                aria-describedby="commission-rate-help"
+              />
+              <small id="commission-rate-help">
+                {selected.commissionRateBps != null
+                  ? `Current rate ${(selected.commissionRateBps / 100).toFixed(2)}%. Change it here to record a new rate with this approval.`
+                  : "Leave blank to use the platform default. Required when the commission policy is enabled and the product has no rate."}
+              </small>
+            </label>
+          )}
+        </AdminDecision>
       )}
       {resource.pagination}
     </>

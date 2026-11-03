@@ -8,32 +8,37 @@ import {
   useMemo,
   useState,
 } from "react";
-import { api, errorMessage } from "@/lib/api";
+import { errorMessage, userApi } from "@/lib/api";
 import { clientAuth, subscribeToAuth } from "@/lib/firebase";
 import { useShop } from "./shop-provider";
 import { ListPagination, useDebounced } from "./list-controls";
 import { pageOf, type Page } from "@/lib/shops";
 import { queryString } from "@/lib/workspace";
 import {
-  previewOrders,
   previewProducts,
   previewSeller,
   type SellerAccount,
   type SellerApplication,
-  type SellerOrderRecord,
+  type SellerMembership,
   type SellerProduct,
   type SellerProfile,
+  type SellerRole,
 } from "@/lib/seller";
 
 type SellerContext = {
   seller: SellerAccount | null;
   sellers: SellerAccount[];
   applications: SellerApplication[];
+  /** Sample products in design preview (live screens load their own data). */
   products: SellerProduct[];
-  orders: SellerOrderRecord[];
   profile: SellerProfile | null;
+  /** The signed-in member's role in the selected shop (§6). */
+  role: SellerRole | null;
+  isOwner: boolean;
+  /** Admin suspended the selected shop (§5): most writes return 403. */
+  suspended: boolean;
+  statusReason: string | null;
   loading: boolean;
-  dataLoading: boolean;
   error: string;
   isPreview: boolean;
   revision: number;
@@ -45,31 +50,45 @@ type SellerContext = {
 };
 const sellerContext = createContext<SellerContext | null>(null);
 
+const membershipStatus = (membership: SellerMembership) =>
+  membership.sellerStatus ?? membership.seller.status;
+
 export function SellerProvider({ children }: { children: React.ReactNode }) {
   const { user, authReady, isPreview } = useShop();
   const [profile, setProfile] = useState<SellerProfile | null>(null);
   const [applications, setApplications] = useState<SellerApplication[]>([]);
   const [selectedId, setSelectedId] = useState("");
   const products = isPreview ? previewProducts : [];
-  const orders = isPreview ? previewOrders : [];
   const [loading, setLoading] = useState(!isPreview);
   const [revision, setRevision] = useState(0);
   const [error, setError] = useState("");
 
   const visibleProfile = user && profile?.email === user.email ? profile : null;
   const visibleApplications = user ? applications : [];
-  const sellers = useMemo(
+  // Suspended shops stay selectable: read routes, order fulfilment and
+  // support keep working while the shop is suspended (API §5).
+  const memberships = useMemo(
     () =>
       isPreview
-        ? [previewSeller]
-        : (visibleProfile?.memberships
-            .map((row) => row.seller)
-            .filter((row) => row.status === "APPROVED") ?? []),
+        ? [{ role: "OWNER" as const, seller: previewSeller }]
+        : (visibleProfile?.memberships.filter((row) =>
+            ["APPROVED", "SUSPENDED"].includes(membershipStatus(row)),
+          ) ?? []),
     [isPreview, visibleProfile],
+  );
+  const sellers = useMemo(
+    () =>
+      memberships.map((row) => ({
+        ...row.seller,
+        status: membershipStatus(row),
+      })),
+    [memberships],
   );
   const seller =
     sellers.find((row) => row.id === selectedId) ?? sellers[0] ?? null;
-  const dataLoading = false;
+  const membership =
+    memberships.find((row) => row.seller.id === seller?.id) ?? null;
+  const role = membership?.role ?? null;
 
   const request = useCallback(
     async <T,>(path: string, method = "GET", body?: unknown): Promise<T> => {
@@ -77,7 +96,7 @@ export function SellerProvider({ children }: { children: React.ReactNode }) {
         throw new Error("Connect the API to manage real seller data.");
       const current = clientAuth()?.currentUser;
       if (!current) throw new Error("Sign in with your seller account first.");
-      return api<T>(path, { token: await current.getIdToken(), method, body });
+      return userApi<T>(current, path, { method, body });
     },
     [isPreview],
   );
@@ -90,11 +109,15 @@ export function SellerProvider({ children }: { children: React.ReactNode }) {
         setLoading(false);
         return;
       }
-      await current.reload();
-      const token = await current.getIdToken(true);
+      if (!current.emailVerified) {
+        // Only an unverified cached user is reloaded; refresh the token once
+        // when that reload shows a fresh verification.
+        await current.reload();
+        if (current.emailVerified) await current.getIdToken(true);
+      }
       const [nextProfile, nextApplications] = await Promise.all([
-        api<SellerProfile>("/auth/me", { token }),
-        api<SellerApplication[]>("/seller-applications/me", { token }),
+        userApi<SellerProfile>(current, "/auth/me"),
+        userApi<SellerApplication[]>(current, "/seller-applications/me"),
       ]);
       setProfile(nextProfile);
       setApplications(nextApplications);
@@ -129,10 +152,12 @@ export function SellerProvider({ children }: { children: React.ReactNode }) {
     sellers,
     applications: visibleApplications,
     profile: visibleProfile,
-    products: dataLoading ? [] : products,
-    orders: dataLoading ? [] : orders,
+    products,
+    role,
+    isOwner: role === "OWNER",
+    suspended: seller?.status === "SUSPENDED",
+    statusReason: membership?.statusReason ?? null,
     loading,
-    dataLoading,
     error,
     isPreview,
     revision,

@@ -185,8 +185,12 @@ export function ShopReviews({
             </div>
           ) : !user.emailVerified ? (
             <div className={s.notice}>
-              <Link href="/auth">Verify your email</Link> to write a review or
-              report one.
+              <Link
+                href={`/auth?next=${encodeURIComponent(`${shopPath(shop)}#reviews`)}`}
+              >
+                Verify your email
+              </Link>{" "}
+              to write a review or report one.
             </div>
           ) : accessState.key !== accessKey ? (
             <div className={s.notice} role="status">

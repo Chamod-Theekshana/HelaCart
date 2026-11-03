@@ -1,6 +1,7 @@
 # HelaCart project status
 
-Assessment: 2026-10-20. Scope: COD-first marketplace backend and future clients.
+Assessment: 2026-11-01 (November 2026 hardening release). Scope: COD-first
+marketplace backend and its web/mobile clients.
 
 ## Implemented in this package
 
@@ -23,22 +24,37 @@ Assessment: 2026-10-20. Scope: COD-first marketplace backend and future clients.
 - Next.js admin area at `/admin` based on the supplied Stitch reference:
   overview, seller and product approval, categories, read-only orders, returns,
   and COD reconciliation. Protected operations call the existing admin API.
+- API hardening release (contract `docs/API-CHANGES-2026-11.md`): full COD order
+  lifecycle (delivery failed, returned to seller, buyer receipt confirmation,
+  admin order actions, attention queue, auto-cancel of unaccepted orders),
+  commission rate required at approval, SMS OTP phone verification and COD
+  checkout limits, address editing/defaults, seller suspension and owner-only
+  shop actions, email/SMS/push notifications through a retrying outbox, PDPA
+  data export and account deletion, app configuration for force updates and
+  legal links, an admin audit log, upload metadata stripping, request ids, JSON
+  logs, a global error filter, single-replica background workers, trigram search
+  indexes, a CI workflow, a pinned non-root Docker image and a backup script.
+  Web and mobile client support for this contract is being built in parallel.
 
 ## Still needed for a real launch
 
 | Work | State / next action |
 | --- | --- |
-| Live configuration | Apply migration 7 to the existing Neon development branch; set R2 credentials and custom domain; test with real Firebase tokens. |
-| Real COD operations | Agree on return windows, actual refund/replacement actions, seller remittance evidence and payout procedures; validate with pilot sellers. |
-| Clients | Test buyer, seller and admin UIs with a running API and real Firebase users; build the Flutter app if still in scope. |
-| Infrastructure | Hosted environment, TLS domain, secret storage, backup restore, monitoring, rate limits, security and load review. |
-| Expanded commerce | Courier tracking, richer search, stocktaking, discounts/tax rules where needed, seller suspension and reapplication. |
-| Online payments | Gateway and verified callbacks, refunds, commissions, payouts and a proper money ledger if this feature is required. |
+| Verify the hardening release | Run `npm ci && npm run check` on Node 24 (or let CI run) and apply the three `20261101*` migrations to a disposable PostgreSQL 17 database; the release was written where dependencies could not be installed. |
+| Live configuration | Apply all pending migrations to the Neon development branch; set R2, Notify.lk, Resend, OTP secret, internal API token and app-config values; test with real Firebase tokens and devices. |
+| Real COD operations | Agree on return windows, refund/replacement actions, COD limits, phone-verification policy, seller acceptance window and remittance evidence; validate with pilot sellers. |
+| Clients | Finish and test buyer web, seller, admin and Flutter flows for the November contract against a running API with real Firebase users. |
+| Infrastructure | Hosted environment, TLS domain, secret storage, scheduled backups with a tested restore drill, log shipping/alerting, ingress rate limiting, security and load review. |
+| Courier integration | Still to do: courier API booking/tracking webhooks (delivery outcomes are recorded manually today). |
+| Online payments | Still to do: gateway and verified callbacks, automated refunds and a proper money ledger if required. |
+| Seller payouts | Still to do: payout/settlement automation (commission is collected manually today). |
 
 ## Estimate
 
 The defined **COD pilot backend code** is now broadly implemented, including its
-request limits and operating queues. A production-readiness percentage cannot be
+request limits, operating queues, fraud controls, notifications and privacy
+requests; the November 2026 release still needs its first full test and
+migration run on a Node 24/PostgreSQL machine. A production-readiness percentage cannot be
 claimed without verifying deployment, backups, policies, security and real orders
 on the user's infrastructure. The buyer and seller UIs build, but their real
 flows have not been tested against a deployed API. The admin interface builds

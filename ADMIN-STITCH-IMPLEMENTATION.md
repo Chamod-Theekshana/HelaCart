@@ -1,32 +1,28 @@
 # Admin Operations UI from Stitch
 
-The Next.js storefront includes a responsive HelaCart Operations area at `/admin`, adapted from `stitch_helacart_admin_panel_ui.zip`. It uses the existing HelaCart teal, navy, white and pale blue theme.
+The Next.js storefront includes a responsive HelaCart Operations area at `/admin`, adapted from `stitch_helacart_admin_panel_ui.zip`, in the HelaCart teal/navy theme (English only).
 
-## Screens and backend wiring
+## Main screens and backend wiring
 
-| Route | Supported workflow |
-| --- | --- |
-| `/admin` | Live queue counts and recent orders from existing API lists |
-| `/admin/seller-applications` | Review and approve/reject pending sellers with recorded reasons |
-| `/admin/products` | Inspect listing, variants and images; approve/reject submissions |
-| `/admin/categories` | List active categories and create new ones |
-| `/admin/orders` | Inspect latest COD orders and seller order status, read-only |
-| `/admin/returns` | Review, approve/reject, and record resolution notes |
-| `/admin/cod` | Reconcile delivered COD amounts or record a dispute with explanation |
+| Route                                                | Supported workflow                                                                                                                                                                                               |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `/admin`                                             | Live queue counts and recent orders                                                                                                                                                                              |
+| `/admin/seller-applications`                         | Approve/reject sellers and shop verification, with reasons                                                                                                                                                       |
+| `/admin/sellers`                                     | Approved/suspended/pending/rejected sellers; suspend or reinstate with a reason (`GET /admin/sellers`, `PATCH /admin/sellers/:id/status`)                                                                        |
+| `/admin/products`                                    | Inspect listings; approve (optional commission rate in %, sent as `commissionRateBps`; required when the API answers `COMMISSION_RATE_REQUIRED`) or reject                                                       |
+| `/admin/categories`, `/admin/appearance`             | Categories and storefront hero                                                                                                                                                                                   |
+| `/admin/orders`                                      | Order search and detail; per seller order: cancel, mark delivery failed, mark returned, mark delivered with a reason (`POST /admin/orders/:id/actions`); **Needs attention** tab (`GET /admin/orders/attention`) |
+| `/admin/returns`, `/admin/refunds`, `/admin/support` | After-sales workflows                                                                                                                                                                                            |
+| `/admin/commission`                                  | Commission charges, seller payments and holds                                                                                                                                                                    |
+| `/admin/cod`                                         | Record a COD reconciliation (amount, reference, note; a different amount is recorded as disputed)                                                                                                                |
+| `/admin/audit-log`                                   | Administrative audit trail with action filter (`GET /admin/audit-log`)                                                                                                                                           |
 
-API list responses are capped at 50, and text search applies to loaded rows. Stitch mockups for courier dispatch, real payouts, KPI trends and document verification have no matching backend contracts and are not offered as working operations.
+Courier dispatch, real payouts and KPI trends from the mockups have no backend contracts and are not offered.
 
-## Setup in PowerShell
+## Setup
 
-1. Back up your current `C:\HelaCart\helacart-storefront`. Merge this storefront source into that folder, keeping your private `.env.local`.
-2. In the API `.env`, set `ADMIN_FIREBASE_UIDS` to your administrator's Firebase UID, keep the existing API environment settings, and restart the NestJS API.
-3. Set `NEXT_PUBLIC_API_URL=http://localhost:4000/api/v1` and your Firebase browser app settings in storefront `.env.local`. Add `http://localhost:3000` to API `CORS_ORIGINS`.
-4. Run `npm ci`, `npm run build`, then `npm run dev` in the storefront folder.
-5. Open `http://localhost:3000/admin`; sign in with that administrator account and verify the Firebase email.
-6. Test application and product review with pending records, then COD reconciliation with a delivered COD order. Confirm changes via the API and buyer/seller views.
+1. In the API `.env`, set `ADMIN_FIREBASE_UIDS` to your administrator's Firebase UID and restart the API.
+2. In storefront `.env.local`, set `NEXT_PUBLIC_API_URL`, the `NEXT_PUBLIC_FIREBASE_*` values and (for server calls) `HELACART_INTERNAL_API_TOKEN`; add the web origin to API `CORS_ORIGINS`.
+3. `npm ci`, then `npm run dev`; open `/admin`, sign in with the administrator account and verify the email.
 
-This UI update does not require a new migration. The included API source is the prior Seller Center compatible backend. If `NEXT_PUBLIC_API_URL` is empty, `/admin` displays explicitly labelled sample data and disables every write. The API guard verifies the administrator on each protected request; browser navigation does not grant admin access. Do not put an Admin SDK private key or Neon URL in the storefront.
-
-## Validation
-
-`npm run build` passed for all seven admin routes, and `npm run lint` passed with only image optimization warnings. Live Neon/Firebase mutation tests must be run with your configured local services.
+Without `NEXT_PUBLIC_API_URL`, `/admin` shows labelled sample data and disables every write. The API verifies the administrator on each request; the browser UI grants nothing. Never put an Admin SDK key or database URL in the storefront.

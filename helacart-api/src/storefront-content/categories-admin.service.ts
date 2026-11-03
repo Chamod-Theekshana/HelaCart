@@ -1,9 +1,14 @@
 import {
   ConflictException,
   Injectable,
+  Logger,
   NotFoundException,
+  Optional,
 } from '@nestjs/common';
+import type { DecodedIdToken } from 'firebase-admin/auth';
 import { Prisma } from '../generated/prisma/client.js';
+import { AuditService } from '../audit/audit.service.js';
+import { describeError } from '../common/describe-error.js';
 import { PrismaService } from '../prisma/prisma.service.js';
 import type { AuthenticatedRequest } from '../auth/firebase-auth.guard.js';
 import { CategoryListDto, UpdateCategoryDto } from './content.dto.js';
@@ -22,10 +27,33 @@ export const adminCategorySelect = {
 } as const;
 @Injectable()
 export class CategoriesAdminService {
+  private readonly logger = new Logger(CategoriesAdminService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly storage: ContentImageStorageService,
+    @Optional() private readonly audit?: AuditService,
   ) {}
+
+  /** Records who changed a category; an audit failure never undoes the edit. */
+  private async recordEdit(
+    identity: DecodedIdToken | undefined,
+    categoryId: string,
+    details: Record<string, unknown>,
+  ) {
+    if (!identity || !this.audit) return;
+    try {
+      await this.audit.record(this.prisma, await this.audit.actor(identity), {
+        action: 'CATEGORY_UPDATE',
+        subjectType: 'CATEGORY',
+        subjectId: categoryId,
+        details,
+      });
+    } catch (error) {
+      this.logger.error(
+        `Category ${categoryId} audit entry failed: ${describeError(error)}`,
+      );
+    }
+  }
   async list(query: CategoryListDto) {
     const where = {
       ...(query.availability === 'all'
@@ -75,7 +103,7 @@ export class CategoriesAdminService {
       );
     return row;
   }
-  async update(id: string, dto: UpdateCategoryDto) {
+  async update(id: string, dto: UpdateCategoryDto, identity?: DecodedIdToken) {
     const { expectedRevision, ...data } = dto;
     await this.current(id, expectedRevision);
     const result = await this.prisma.category.updateMany({
@@ -90,12 +118,17 @@ export class CategoriesAdminService {
       throw new ConflictException(
         'Category changed. Reload categories and try again.',
       );
+    await this.recordEdit(identity, id, {
+      operation: 'UPDATE',
+      fields: Object.keys(data),
+      revision: expectedRevision + 1,
+    });
     return this.prisma.category.findUniqueOrThrow({
       where: { id },
       select: adminCategorySelect,
     });
   }
-  async remove(id: string, revision: number) {
+  async remove(id: string, revision: number, identity?: DecodedIdToken) {
     const row = await this.current(id, revision);
     try {
       const result = await this.prisma.category.deleteMany({
@@ -116,9 +149,19 @@ export class CategoriesAdminService {
       throw error;
     }
     await this.storage.cleanup(row.imageStorageKey);
+    await this.recordEdit(identity, id, {
+      operation: 'DELETE',
+      slug: row.slug,
+      name: row.name,
+    });
     return { removed: true };
   }
-  async image(id: string, revision: number, request?: AuthenticatedRequest) {
+  async image(
+    id: string,
+    revision: number,
+    request?: AuthenticatedRequest,
+    identity?: DecodedIdToken,
+  ) {
     const row = await this.current(id, revision);
     const uploaded = request
       ? await this.storage.upload(request, `categories/${id}`)
@@ -141,6 +184,10 @@ export class CategoriesAdminService {
       throw error;
     }
     await this.storage.cleanup(row.imageStorageKey);
+    await this.recordEdit(identity ?? request?.user, id, {
+      operation: uploaded ? 'IMAGE_UPLOAD' : 'IMAGE_REMOVE',
+      revision: revision + 1,
+    });
     return this.prisma.category.findUniqueOrThrow({
       where: { id },
       select: adminCategorySelect,

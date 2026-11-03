@@ -1,3 +1,4 @@
+import { AccountAccessService } from '../src/auth/account-access.service.js';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
@@ -18,7 +19,7 @@ describe('Admin shop verification boundaries', () => {
     reason: 'Reviewed front and back identity photos.',
   };
   const database = {
-    user: { upsert: vi.fn() },
+    user: { upsert: vi.fn(), findUnique: vi.fn() },
     seller: {
       updateMany: vi.fn(),
       findUnique: vi.fn(),
@@ -33,6 +34,8 @@ describe('Admin shop verification boundaries', () => {
     const fixture = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
       .useValue(database)
+      .overrideProvider(AccountAccessService)
+      .useValue({ assertActive: async () => {} })
       .overrideProvider(FirebaseAdminService)
       .useValue(firebase)
       .compile();

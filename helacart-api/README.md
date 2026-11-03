@@ -20,7 +20,8 @@ Sri Lankan goods marketplace. This is a working NestJS/Neon COD pilot backend; r
   and approve/reject submitted products; shoppers can browse approved listings.
 - Existing products gain a default variant with their original SKU and price; approved sellers
   can add options and adjust stock. Public listings show available quantity per variant.
-- Internal reservation operations for future payment methods have a periodic expiry worker.
+- Internal reservation operations for future payment methods; their expiry worker is
+  disabled unless `RESERVATIONS_ENABLED=true` (COD checkout deducts stock directly).
 - Buyer addresses and carts, seller configured delivery fee, atomic multi-seller COD
   checkout, order snapshots, cancellations and seller fulfillment status history.
 - Environment validation, port 4000, configurable binding and CORS origins.
@@ -29,12 +30,24 @@ Sri Lankan goods marketplace. This is a working NestJS/Neon COD pilot backend; r
 - Unit and HTTP tests that never connect to Neon.
 - R2-backed authenticated product image uploads, private in-app notifications, admin-reviewed returns and append-only COD reconciliation records.
 - No placeholder Observe credentials, telemetry SDK or unused Mau deploy command.
+- November 2026 hardening release (contract: `../docs/API-CHANGES-2026-11.md`):
+  full COD order lifecycle with `DELIVERY_FAILED`/`RETURNED_TO_SELLER`, buyer
+  receipt confirmation, admin order actions and an attention queue, automatic
+  cancellation of unaccepted orders, commission rate required at approval,
+  SMS OTP phone verification and COD checkout limits, address editing/defaults,
+  seller suspension, owner-only shop actions, email/SMS/push delivery through a
+  database outbox, PDPA data export and account deletion, app configuration,
+  an append-only admin audit log, metadata stripping for uploaded images,
+  request ids, JSON logs, a global error filter and single-replica workers.
 
 Firebase identity verification is implemented. Registration, login, password reset and
-verification-email screens belong in the future web and Flutter clients and use Firebase
-client SDKs. There is no seller team-management or online payment gateway yet.
-Every current seller product route checks membership and the seller ID; writes also
-require approved seller status. Apply the same policy to future seller-scoped routes.
+verification-email screens live in the web and Flutter clients and use Firebase
+client SDKs. There is no online payment gateway, payout automation or courier API yet.
+Every seller route checks membership and the seller ID through
+`CatalogService.requireSellerMember`; writes require an approved shop (a suspended
+shop gets 403 `SELLER_SUSPENDED`, except order status/shipment updates and support
+replies), and owner-only actions pass `{ ownerOnly: true }` (403 `OWNER_ONLY`).
+Apply the same policy to future seller-scoped routes.
 
 ## Requirements
 
@@ -119,7 +132,6 @@ Expected local addresses:
 
 | Route | Meaning |
 | --- | --- |
-| http://localhost:4000/api/v1 | HelaCart API identifier |
 | http://localhost:4000/api/v1/health | Process liveness; does not query the DB |
 | http://localhost:4000/api/v1/health/ready | Runs SELECT 1 through Prisma |
 | http://localhost:4000/api/v1/auth/me | Verifies a Firebase token and syncs the profile |
@@ -138,6 +150,18 @@ Expected local addresses:
 | http://localhost:4000/api/v1/me/orders | Buyer order history |
 | http://localhost:4000/api/v1/sellers/:sellerId/orders | Seller fulfillment queue |
 | http://localhost:4000/api/v1/admin/orders | Admin order queue |
+| http://localhost:4000/api/v1/admin/orders/attention | Stuck or soon auto-cancelled seller orders |
+| http://localhost:4000/api/v1/admin/sellers | Shop list and suspension (`PATCH :id/status`) |
+| http://localhost:4000/api/v1/admin/audit-log | Append-only admin decision log |
+| http://localhost:4000/api/v1/me/phone-verifications | SMS OTP phone verification |
+| http://localhost:4000/api/v1/me/devices | Push device registration |
+| http://localhost:4000/api/v1/me/notification-preferences | Push/email/SMS opt-outs |
+| http://localhost:4000/api/v1/me/data-export | PDPA personal data export |
+| http://localhost:4000/api/v1/app-config | Public force-update, legal and support settings |
+
+The old `GET /api/v1` "HelaCart API" identifier route was removed; use
+`/api/v1/health`. Every response carries an `x-request-id` header. Field-level
+details of the November 2026 routes are in `../docs/API-CHANGES-2026-11.md`.
 
 Successful readiness response:
 
@@ -358,8 +382,10 @@ Positions start at `1` for extra variants and are unique per product. Public pro
 responses contain `variants[].availableQuantity` (stock on hand minus reserved stock).
 
 The reservation service remains internal for a future online payment flow. Its
-one-minute expiry loop cleans up stale holds. COD checkout immediately deducts stock
-and creates the order atomically; it does not create a temporary reservation.
+one-minute expiry loop only runs with `RESERVATIONS_ENABLED=true`. COD checkout
+immediately deducts stock and creates the order atomically; it does not create a
+temporary reservation. Cancelling a seller order or marking it `RETURNED_TO_SELLER`
+restores its stock with an inventory movement.
 
 ### Cash on Delivery checkout (PowerShell)
 
@@ -453,8 +479,10 @@ if ($inbox.Count) {
 }
 ```
 
-A buyer can request one return per delivered seller order. The buyer supplies a reason;
-an admin reviews and resolves it manually. There is no automatic restocking or refund.
+A buyer can request item returns for a delivered seller order. The buyer supplies a
+reason; an admin reviews and resolves it manually. Refunds are recorded, not paid, by
+HelaCart. When the goods are physically back, resolve with `"restock": true` to put
+the returned units back into stock (once per return).
 
 ```powershell
 $sellerOrderId = $order.sellerOrders[0].id
@@ -516,7 +544,17 @@ before a larger launch.
 | GOOGLE_APPLICATION_CREDENTIALS | Absolute path to the private Admin JSON for local use |
 | ADMIN_FIREBASE_UIDS | Comma-separated Firebase UIDs granted admin review access; required in production |
 | R2_ACCOUNT_ID / R2_ACCESS_KEY_ID / R2_SECRET_ACCESS_KEY | Server-side R2 access; configure all or none |
-| R2_BUCKET / R2_PUBLIC_BASE_URL | R2 bucket and public HTTPS custom domain |
+| R2_BUCKET / R2_PUBLIC_BASE_URL | R2 bucket and public HTTPS custom domain; product `imageUrls` must be on this domain |
+| R2_PRIVATE_BUCKET | Separate private bucket for identity documents, receipts, profile and review photos |
+| DATABASE_POOL_SIZE | pg connections per API process (default 10) |
+| INTERNAL_API_TOKEN, RATE_LIMIT_* | Storefront server-to-server token and request limits |
+| SELLER_ACCEPT_HOURS, MAX_OPEN_COD_ORDERS, MAX_COD_ORDER_LKR_MINOR, REQUIRE_PHONE_VERIFICATION | COD lifecycle and fraud controls |
+| NOTIFY_LK_*, OTP_SECRET, RESEND_*, PUSH_NOTIFICATIONS_ENABLED | SMS, OTP, email and push providers (optional, all-or-nothing) |
+| APP_*, LEGAL_*, SUPPORT_* | `GET /app-config` values |
+| AUTH_TOKEN_CACHE_SECONDS, LOG_LEVEL, RESERVATIONS_ENABLED | Token cache, production log detail, reservation loop |
+
+`.env.example` documents every variable with its default; `OPERATIONS-RUNBOOK.md`
+explains the operational effect of each new setting.
 
 CORS values must not contain paths, wildcards or trailing slashes.
 CORS is browser access policy, not authentication. Cookie credentials are disabled;
@@ -546,6 +584,7 @@ LAN IP rather than localhost. The Android emulator commonly reaches the host at
 | npm run db:migrate -- --name describe_change | Create/apply a new migration in development |
 | npm run db:status | Check migration status |
 | npm run db:studio | Inspect database with Prisma Studio |
+| npm run db:backup | `pg_dump` custom-format backup using DIRECT_URL (see runbook) |
 
 The Prisma client is generated into src/generated/prisma and is not included in
 the archive or Git. Build and relevant start/test commands regenerate it.
@@ -571,8 +610,13 @@ or migrate reset.
 | src/catalog/ | Categories, seller-scoped product workflows, admin moderation and public reads |
 | src/commerce/ | Cart, checkout and fulfillment |
 | src/media/ | Authenticated R2 image upload |
-| src/notifications/ | Private inbox |
+| src/notifications/ | Private inbox, channel matrix, outbox delivery worker, devices and preferences |
 | src/operations/ | Returns and COD reconciliation |
+| src/common/ | Request ids, JSON logger, global exception filter, advisory-lock workers, error codes |
+| src/audit/ | Admin audit log |
+| src/phone-verification/ | SMS OTP verification |
+| src/account/ | PDPA data export and account deletion |
+| src/app-config/ | Public mobile/legal configuration |
 | prisma/schema.prisma | Database models |
 | prisma/migrations/ | Versioned SQL migrations |
 | prisma.config.ts | CLI database configuration |
@@ -582,7 +626,8 @@ User IDs and seller IDs are UUIDs. Users may belong to multiple sellers.
 Each user/seller membership pair is unique. Sellers default to PENDING.
 Foreign keys prevent deleting users/sellers that still have memberships.
 There is no public admin privilege or role-assignment endpoint. Admin rights come from
-the server-only UID allowlist and a fresh, non-revoked, email-verified Firebase token.
+the server-only UID allowlist and a non-revoked, email-verified Firebase token
+(verified with revocation checking and cached for at most `AUTH_TOKEN_CACHE_SECONDS`).
 
 ## Troubleshooting
 
@@ -636,14 +681,16 @@ Do not commit .env, node_modules, dist, generated clients or database credential
 
 ## Before a production marketplace launch
 
-Next work: seller suspension/reapplication and team management; online payments, automated refunds and payouts, client applications and courier integration.
-Also add rate limits, authenticated API auditing, deployment monitoring and backup
-restore drills. These are future features, not implied by this starter's health checks.
+Still to do: online payments, automated refunds and seller payouts, and courier API
+integration. Before launch also run the restore drill from `OPERATIONS-RUNBOOK.md`,
+connect the JSON logs to monitoring/alerting, put an ingress rate limiter in front
+of multiple replicas, and test SMS/email/push with real provider accounts.
 
 ## COD pilot launch safeguards
 
 The API limits traffic per client address to 180 requests per minute. Checkout,
-return and product-image write attempts share a 20-per-minute limit. This
+return and product-image write attempts share a 20-per-minute limit (configurable
+with `RATE_LIMIT_*`; authenticated callers are bucketed per address and token subject). This
 in-process safeguard is not shared between API replicas: apply a Cloudflare or
 other ingress limit before scaling beyond one instance. If there is exactly
 one trusted proxy and direct access is blocked, set `TRUST_PROXY_HOPS=1`; keep
@@ -664,8 +711,11 @@ $codPage = Invoke-RestMethod -Uri "$base/admin/cod/reconciliation-queue/page?lim
 $codPage.items
 ```
 
-A Dockerfile is included for staging/production builds. Migrations run
-separately with `npm run db:deploy` before a release. `OPERATIONS-RUNBOOK.md`
+A Dockerfile (pinned Node 24 base, non-root, `HEALTHCHECK` on `/api/v1/health`)
+is included for staging/production builds. Migrations run separately with
+`npm run db:deploy` before a release. CI (`.github/workflows/api.yml`) runs
+typecheck, lint, format, unit and HTTP tests and applies every migration to a
+PostgreSQL 17 service. `OPERATIONS-RUNBOOK.md`
 contains the rollout, daily queue and recovery steps. This backend still
 requires real hosting, private keys, verified backup restoration and real COD
 operating procedures before public launch.

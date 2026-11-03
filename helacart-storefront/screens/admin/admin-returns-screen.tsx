@@ -1,6 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useState } from "react";
+import Link from "next/link";
+import { PageQueryBridge } from "@/components/page-query-bridge";
+import { ReturnResolutionDialog } from "@/components/return-resolution-dialog";
+import { RefundCard } from "@/components/returns-workspace";
 import { RotateCcw, Search } from "lucide-react";
 import { money } from "@/lib/api";
 import { useAdmin, useAdminList } from "@/components/admin-provider";
@@ -18,7 +22,7 @@ import {
   type AdminReturn,
 } from "@/lib/admin";
 
-type ReturnStatus = AdminReturn["status"];
+type ReturnStatus = AdminReturn["status"] | "ALL";
 export default function AdminReturnsPage() {
   const { request, isPreview } = useAdmin();
   const [status, setStatus] = useState<ReturnStatus>("PENDING");
@@ -28,18 +32,27 @@ export default function AdminReturnsPage() {
     null,
   );
   const [notice, setNotice] = useState("");
+  const [target, setTarget] = useState<AdminReturn | null>(null);
+  const applyQuery = useCallback((params: URLSearchParams) => {
+    const id = params.get("return");
+    if (id) {
+      setQuery(id);
+      setSelectedId(id);
+      setStatus("ALL");
+    }
+  }, []);
   const resource = useAdminList<AdminReturn>(
     "returns",
     { q: query, status },
-    status === "PENDING" ? previewAdminReturns : [],
+    status === "PENDING" || status === "ALL" ? previewAdminReturns : [],
   );
   const shown = resource.data ?? [];
   const selected =
     shown.find((row) => row.id === selectedId) ?? shown[0] ?? null;
   async function commit(note: string) {
-    if (!selected || !action) return;
+    if (!target || !action) return;
     await request(
-      `/admin/returns/${selected.id}/${action}`,
+      `/admin/returns/${target.id}/${action}`,
       "PATCH",
       action === "resolve"
         ? { note }
@@ -55,6 +68,7 @@ export default function AdminReturnsPage() {
   }
   return (
     <>
+      <PageQueryBridge onChange={applyQuery} />
       <AdminHeading
         eyebrow="FULFILMENT / CUSTOMER CASES"
         title="Returns"
@@ -63,20 +77,20 @@ export default function AdminReturnsPage() {
       <AdminFeedback error={resource.error} notice={notice} />
       <div className="admin-card admin-return-toolbar">
         <div className="admin-tabs" role="group" aria-label="Return status">
-          {(["PENDING", "APPROVED", "REJECTED", "RESOLVED"] as const).map(
-            (value) => (
-              <button
-                key={value}
-                className={value === status ? "active" : ""}
-                onClick={() => {
-                  setStatus(value);
-                  setSelectedId("");
-                }}
-              >
-                {value.toLowerCase()}
-              </button>
-            ),
-          )}
+          {(
+            ["PENDING", "APPROVED", "REJECTED", "RESOLVED", "ALL"] as const
+          ).map((value) => (
+            <button
+              key={value}
+              className={value === status ? "active" : ""}
+              onClick={() => {
+                setStatus(value);
+                setSelectedId("");
+              }}
+            >
+              {value.toLowerCase()}
+            </button>
+          ))}
         </div>
         <div className="admin-toolbar">
           <label className="admin-search">
@@ -164,8 +178,17 @@ export default function AdminReturnsPage() {
                 <p className="admin-description">{selected.reason}</p>
               </div>
               <div className="admin-detail-section">
-                <h3>Purchased items</h3>
-                {selected.sellerOrder.items.map((item) => (
+                <h3>Requested items</h3>
+                {(selected.items?.length
+                  ? selected.items.map((item) => ({
+                      id: item.id,
+                      productTitle: item.orderItem.productTitle,
+                      sku: item.orderItem.sku,
+                      quantity: item.quantity,
+                      lineLkrMinor: item.baseMinor,
+                    }))
+                  : selected.sellerOrder.items
+                ).map((item) => (
                   <div className="admin-line" key={item.id}>
                     <span>
                       <strong>{item.productTitle}</strong>
@@ -176,6 +199,14 @@ export default function AdminReturnsPage() {
                     <b>{money(item.lineLkrMinor)}</b>
                   </div>
                 ))}
+                {selected.items
+                  ?.flatMap((i) => i.refunds)
+                  .map((record) => (
+                    <RefundCard key={record.id} record={record} />
+                  ))}
+                <Link className="text-link" href="/admin/refunds">
+                  Review buyer refund records
+                </Link>
               </div>
               {(selected.reviewReason || selected.resolutionNote) && (
                 <div className="admin-detail-section">
@@ -198,14 +229,20 @@ export default function AdminReturnsPage() {
                   <button
                     className="admin-danger-outline"
                     disabled={isPreview}
-                    onClick={() => setAction("reject")}
+                    onClick={() => {
+                      setTarget(selected);
+                      setAction("reject");
+                    }}
                   >
                     Reject return
                   </button>
                   <button
                     className="primary-btn"
                     disabled={isPreview}
-                    onClick={() => setAction("approve")}
+                    onClick={() => {
+                      setTarget(selected);
+                      setAction("approve");
+                    }}
                   >
                     Approve request
                   </button>
@@ -216,7 +253,10 @@ export default function AdminReturnsPage() {
                   <button
                     className="primary-btn"
                     disabled={isPreview}
-                    onClick={() => setAction("resolve")}
+                    onClick={() => {
+                      setTarget(selected);
+                      setAction("resolve");
+                    }}
                   >
                     Record resolution
                   </button>
@@ -234,41 +274,38 @@ export default function AdminReturnsPage() {
           )}
         </aside>
       </div>
-      {action && selected && (
+      {action && action !== "resolve" && target && (
         <AdminDecision
           title={
-            action === "resolve"
-              ? "Resolve return case?"
-              : action === "reject"
-                ? "Reject return request?"
-                : "Approve return request?"
+            action === "reject"
+              ? "Reject return request?"
+              : "Approve return request?"
           }
           description={
             action === "approve"
-              ? "Approve this return for operational follow-up. This action does not issue a refund."
-              : action === "resolve"
-                ? "Record the outcome of this approved return case."
-                : "Give the buyer a clear reason for the decision."
+              ? "Approve the selected item quantities for operational follow-up."
+              : "Give the buyer a clear reason for the decision."
           }
-          label={
-            action === "resolve"
-              ? "Record resolution"
-              : action === "reject"
-                ? "Reject return"
-                : "Approve return"
-          }
+          label={action === "reject" ? "Reject return" : "Approve return"}
           dangerous={action === "reject"}
-          noteLabel={
-            action === "resolve"
-              ? "Resolution note"
-              : action === "reject"
-                ? "Rejection reason"
-                : undefined
-          }
+          noteLabel={action === "reject" ? "Rejection reason" : undefined}
           minLength={10}
           maxLength={1000}
           onClose={() => setAction(null)}
           onConfirm={commit}
+        />
+      )}
+      {action === "resolve" && target && (
+        <ReturnResolutionDialog
+          id={target.id}
+          request={request}
+          onClose={() => setAction(null)}
+          onSaved={() => {
+            resource.reload();
+            setNotice(
+              "Return outcome recorded with the refund verification status.",
+            );
+          }}
         />
       )}
       {resource.pagination}

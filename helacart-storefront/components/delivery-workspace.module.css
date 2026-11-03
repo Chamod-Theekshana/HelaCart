@@ -1,0 +1,170 @@
+.workspace {
+  display: grid;
+  gap: 22px;
+  min-width: 0;
+}
+.card,
+.tracking {
+  min-width: 0;
+  border: 1px solid #e1e8ef;
+  border-radius: 14px;
+  background: #fff;
+  padding: 22px;
+}
+.heading {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.heading h2 {
+  font-size: 19px;
+  margin: 0;
+}
+.heading:has(> svg) {
+  justify-content: flex-start;
+  color: #00847d;
+}
+.muted {
+  color: #68788c;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.form {
+  display: grid;
+  gap: 18px;
+  min-width: 0;
+}
+.form fieldset {
+  border: 0;
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 18px;
+}
+.form label {
+  display: grid;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+}
+.form input,
+.form select,
+.form textarea {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #d6e1e8;
+  border-radius: 8px;
+  padding: 11px 12px;
+  background: #fff;
+  color: #183047;
+  font: inherit;
+}
+.form small {
+  font-weight: 400;
+  color: #68788c;
+  line-height: 1.6;
+}
+.grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 18px;
+}
+.toolbar {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+.rules {
+  display: grid;
+  gap: 12px;
+}
+.rule {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  align-items: end;
+  padding: 16px;
+  border: 1px solid #e1e8ef;
+  border-radius: 10px;
+}
+.rule label {
+  min-width: 0;
+}
+.dialog {
+  width: calc(100% - 28px);
+  max-width: 540px;
+  max-height: 90dvh;
+  overflow: auto;
+  border: 1px solid #dce5ed;
+  border-radius: 16px;
+  padding: 24px;
+  color: #172c42;
+}
+.dialog::backdrop {
+  background: #10293c80;
+}
+.tracking {
+  margin: 16px 0;
+  background: #f7fbfb;
+  padding: 18px;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.tracking p {
+  margin: 12px 0;
+}
+.reference {
+  overflow-wrap: anywhere;
+}
+.timeline {
+  list-style: none;
+  padding: 0 0 0 12px;
+  border-left: 2px solid #c7e7e3;
+  display: grid;
+  gap: 14px;
+  margin: 16px 0 0;
+}
+.timeline li {
+  display: grid;
+  gap: 2px;
+}
+.timeline span {
+  color: #68788c;
+  font-size: 12px;
+}
+.quote {
+  border: 1px solid #d5e8e4;
+  border-radius: 10px;
+  padding: 14px;
+  background: #f5fbf9;
+  margin: 12px 0;
+  font-size: 13px;
+  line-height: 1.7;
+}
+.quote strong {
+  display: block;
+}
+.quote p {
+  margin: 5px 0;
+}
+.quote[aria-live] {
+  min-height: 42px;
+}
+@media (max-width: 600px) {
+  .grid,
+  .rule {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .card {
+    padding: 18px;
+  }
+  .dialog {
+    padding: 20px;
+  }
+  .rule button {
+    justify-self: start;
+  }
+}

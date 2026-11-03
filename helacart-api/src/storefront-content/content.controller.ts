@@ -46,14 +46,16 @@ export class AdminCategoriesController {
   @Patch(':id') @Header('Cache-Control', 'no-store') update(
     @Param('id', uuid) id: string,
     @Body() dto: UpdateCategoryDto,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.categories.update(id, dto);
+    return this.categories.update(id, dto, req.user);
   }
   @Delete(':id') @Header('Cache-Control', 'no-store') remove(
     @Param('id', uuid) id: string,
     @Body() dto: ContentRevisionDto,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.categories.remove(id, dto.expectedRevision);
+    return this.categories.remove(id, dto.expectedRevision, req.user);
   }
   @Post(':id/image') @Header('Cache-Control', 'no-store') image(
     @Param('id', uuid) id: string,
@@ -65,8 +67,9 @@ export class AdminCategoriesController {
   @Delete(':id/image') @Header('Cache-Control', 'no-store') removeImage(
     @Param('id', uuid) id: string,
     @Body() dto: ContentRevisionDto,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.categories.image(id, dto.expectedRevision);
+    return this.categories.image(id, dto.expectedRevision, undefined, req.user);
   }
 }
 @Controller('admin/storefront/hero')
@@ -78,8 +81,9 @@ export class AdminHeroController {
   }
   @Patch() @Header('Cache-Control', 'no-store') update(
     @Body() dto: UpdateHeroDto,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.hero.update(dto);
+    return this.hero.update(dto, req.user);
   }
   @Post('publish') @Header('Cache-Control', 'no-store') publish(
     @Body() dto: ContentRevisionDto,
@@ -97,7 +101,8 @@ export class AdminHeroController {
   @Delete('images/:kind') @Header('Cache-Control', 'no-store') removeImage(
     @Param('kind') kind: string,
     @Body() dto: ContentRevisionDto,
+    @Req() req: AuthenticatedRequest,
   ) {
-    return this.hero.image(kind, dto.expectedRevision);
+    return this.hero.image(kind, dto.expectedRevision, undefined, req.user);
   }
 }

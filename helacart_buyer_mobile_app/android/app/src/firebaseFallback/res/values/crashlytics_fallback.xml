@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Added only when android/app/google-services.json is absent (see build.gradle.kts).
+     Lets development builds that initialise Firebase from dart-defines start without
+     the Crashlytics Gradle plugin's build ID. Crash collection stays disabled there. -->
+<resources>
+    <bool name="com.crashlytics.RequireBuildId">false</bool>
+</resources>

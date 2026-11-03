@@ -13,6 +13,12 @@ import { previewAdminSummary, type AdminSummary } from "@/lib/workspace";
 import { money } from "@/lib/api";
 import { useAdminResource, useAdminList } from "@/components/admin-provider";
 import {
+  emptyPage,
+  previewPayments,
+  type CommissionPayment,
+} from "@/lib/commission";
+import type { Page } from "@/lib/shops";
+import {
   AdminBadge,
   AdminEmpty,
   AdminFeedback,
@@ -20,14 +26,12 @@ import {
 } from "@/components/admin-ui";
 import {
   dateTime,
-  previewAdminCod,
   previewAdminOrders,
   previewAdminProducts,
   previewAdminReturns,
   previewApplications,
   shortId,
   type AdminApplication,
-  type AdminCod,
   type AdminOrder,
   type AdminProduct,
   type AdminReturn,
@@ -53,7 +57,10 @@ export default function AdminOverview() {
     { status: "PENDING", limit: "2" },
     previewAdminReturns,
   );
-  const cod = useAdminList<AdminCod>("cod", { limit: "2" }, previewAdminCod);
+  const cod = useAdminResource<Page<CommissionPayment>>(
+    "/admin/commission/payments?status=PENDING&limit=2",
+    emptyPage(previewPayments),
+  );
   const orders = useAdminList<AdminOrder>(
     "orders",
     { limit: "5" },
@@ -98,11 +105,11 @@ export default function AdminOverview() {
       detail: "Requests awaiting decision",
     },
     {
-      href: "/admin/cod",
-      title: "COD unreconciled",
-      count: summary.data?.unreconciledCollections,
+      href: "/admin/commission",
+      title: "Commission payments",
+      count: cod.data?.total,
       icon: Wallet,
-      detail: "Delivered collections in queue",
+      detail: "Seller bank payments awaiting verification",
     },
   ];
   return (
@@ -112,8 +119,8 @@ export default function AdminOverview() {
         <div>
           <strong>Operations overview</strong>
           <p>
-            Review current moderation and COD queues. Counts cover all matching
-            records across the marketplace.
+            Review current moderation and commission queues. Counts cover all
+            matching records across the marketplace.
           </p>
         </div>
       </div>
@@ -185,22 +192,25 @@ export default function AdminOverview() {
                 <ArrowRight size={16} />
               </Link>
             ))}
-            {(cod.data ?? []).slice(0, 2).map((row) => (
-              <Link key={row.id} href="/admin/cod">
+            {(cod.data?.items ?? []).slice(0, 2).map((row) => (
+              <Link key={row.id} href="/admin/commission">
                 <span className="admin-list-icon">
                   <Wallet size={19} />
                 </span>
                 <span>
-                  <strong>COD reconciliation {shortId(row.id)}</strong>
-                  <small>{money(row.totalLkrMinor)} expected</small>
+                  <strong>Commission payment {row.reference}</strong>
+                  <small>{money(row.amountMinor)} awaiting verification</small>
                 </span>
                 <ArrowRight size={16} />
               </Link>
             ))}
             {!loading &&
-              ![applications.data, products.data, returns.data, cod.data].some(
-                (rows) => rows?.length,
-              ) &&
+              ![
+                applications.data,
+                products.data,
+                returns.data,
+                cod.data?.items,
+              ].some((rows) => rows?.length) &&
               !error && (
                 <AdminEmpty message="No pending items in the loaded queues." />
               )}

@@ -129,28 +129,45 @@ export function ShopCard({
     </article>
   );
 }
+export type PaginationLabels = {
+  label: string;
+  previous: string;
+  next: string;
+  /** Text such as "Page {page} of {pages}" with both placeholders. */
+  pageOf: string;
+};
+const englishPagination: PaginationLabels = {
+  label: "Pagination",
+  previous: "Previous",
+  next: "Next",
+  pageOf: "Page {page} of {pages}",
+};
 export function Pagination({
   page,
   pages,
   href,
+  labels = englishPagination,
 }: {
   page: number;
   pages: number;
   href: (page: number) => string;
+  labels?: PaginationLabels;
 }) {
   return pages > 1 ? (
-    <nav className={s.pagination} aria-label="Pagination">
+    <nav className={s.pagination} aria-label={labels.label}>
       {page > 1 && (
         <Link className="outline-btn" href={href(page - 1)}>
-          Previous
+          {labels.previous}
         </Link>
       )}
       <span>
-        Page {page} of {pages}
+        {labels.pageOf
+          .replace("{page}", String(page))
+          .replace("{pages}", String(pages))}
       </span>
       {page < pages && (
         <Link className="outline-btn" href={href(page + 1)}>
-          Next
+          {labels.next}
         </Link>
       )}
     </nav>

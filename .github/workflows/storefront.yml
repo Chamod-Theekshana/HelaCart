@@ -1,0 +1,48 @@
+name: Storefront
+
+on:
+  workflow_dispatch:
+  push:
+    paths: ["helacart-storefront/**", ".github/workflows/storefront.yml"]
+  pull_request:
+    paths: ["helacart-storefront/**", ".github/workflows/storefront.yml"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: storefront-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: helacart-storefront
+    env:
+      NEXT_TELEMETRY_DISABLED: "1"
+      # CI has no API or Firebase project. `next typegen` and `next build` both
+      # load next.config.ts in the production-build phase, so the production
+      # guard is bypassed explicitly for every step.
+      NEXT_PUBLIC_ALLOW_PREVIEW_BUILD: "1"
+      NEXT_PUBLIC_SITE_URL: https://helacart.lk
+    steps:
+      - uses: actions/checkout@v7.0.1
+      - uses: actions/setup-node@v6
+        with:
+          node-version: "24"
+          cache: npm
+          cache-dependency-path: helacart-storefront/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - name: Generate Next.js types
+        # Writes next-env.d.ts (CSS modules, images) and route types for tsc.
+        run: npx next typegen
+      - name: Typecheck
+        run: npx tsc --noEmit
+      - name: Sign-in redirect and favourite intent checks
+        run: node scripts/verify-favorite-intent.mjs
+      - name: Build (design preview)
+        run: npx next build

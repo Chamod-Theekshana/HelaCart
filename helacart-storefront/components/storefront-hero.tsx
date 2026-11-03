@@ -1,8 +1,10 @@
+"use client";
 import Link from "next/link";
 import { ArrowRight, Banknote, MapPin, Truck } from "lucide-react";
 import styles from "./storefront-hero.module.css";
 import { defaultHero, type HeroContent } from "@/lib/storefront-content";
 import { HeroPicture } from "./hero-picture";
+import { useT } from "./language-provider";
 
 export function StorefrontHero({
   hasCategories = true,
@@ -15,6 +17,7 @@ export function StorefrontHero({
   preview?: boolean;
   previewMobile?: boolean;
 }) {
+  const t = useT();
   const Heading = preview ? "h2" : "h1";
   const id = preview ? "hero-preview-heading" : "storefront-hero-heading";
   return (
@@ -46,7 +49,7 @@ export function StorefrontHero({
                   href="#categories"
                   tabIndex={preview ? -1 : undefined}
                 >
-                  Explore categories
+                  {t("hero.exploreCategories")}
                 </a>
               ) : (
                 <Link
@@ -54,7 +57,7 @@ export function StorefrontHero({
                   href="/shops"
                   tabIndex={preview ? -1 : undefined}
                 >
-                  Discover shops
+                  {t("hero.discoverShops")}
                 </Link>
               )}
             </div>
@@ -69,22 +72,22 @@ export function StorefrontHero({
           </div>
         </div>
       </div>
-      <div className={styles.benefits} aria-label="Shopping with HelaCart">
+      <div className={styles.benefits} aria-label={t("hero.benefitsLabel")}>
         {[
           {
             icon: Banknote,
-            title: "Cash on delivery",
-            description: "Pay when your order arrives",
+            title: t("trust.cod.title"),
+            description: t("trust.cod.text"),
           },
           {
             icon: MapPin,
-            title: "Discover local shops",
-            description: "Independent sellers across Sri Lanka",
+            title: t("hero.localShops.title"),
+            description: t("hero.localShops.text"),
           },
           {
             icon: Truck,
-            title: "Delivery fees shown upfront",
-            description: "See every fee before you order",
+            title: t("hero.fees.title"),
+            description: t("hero.fees.text"),
           },
         ].map(({ icon: BenefitIcon, title, description }) => {
           return (

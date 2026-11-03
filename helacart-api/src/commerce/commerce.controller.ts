@@ -4,6 +4,7 @@ import {
   Delete,
   Get,
   Header,
+  HttpCode,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -11,6 +12,7 @@ import {
   Put,
   Req,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import {
   FirebaseAuthGuard,
@@ -19,10 +21,17 @@ import {
 import { AdminGuard } from '../sellers/admin.guard.js';
 import {
   AddressDto,
+  AdminOrderActionDto,
+  AttentionQueryDto,
+  BuyerCancelDto,
+  UpdateAddressDto,
   CartQuantityDto,
   CheckoutDto,
   DeliveryFeeDto,
   SellerOrderStatusDto,
+  CartQuoteDto,
+  DeliverySettingsDto,
+  ShipmentDto,
 } from './commerce.dto.js';
 import { CommerceService } from './commerce.service.js';
 
@@ -44,6 +53,15 @@ export class BuyerCommerceController {
   ) {
     return this.commerce.addAddress(request.user, dto);
   }
+  @Patch('addresses/:addressId')
+  @Header('Cache-Control', 'no-store')
+  updateAddress(
+    @Req() request: AuthenticatedRequest,
+    @Param('addressId', uuid) id: string,
+    @Body() dto: UpdateAddressDto,
+  ) {
+    return this.commerce.updateAddress(request.user, id, dto);
+  }
   @Delete('addresses/:addressId')
   @Header('Cache-Control', 'no-store')
   removeAddress(
@@ -54,8 +72,9 @@ export class BuyerCommerceController {
   }
   @Get('cart') @Header('Cache-Control', 'no-store') cart(
     @Req() request: AuthenticatedRequest,
+    @Query() query: CartQuoteDto,
   ) {
-    return this.commerce.cart(request.user);
+    return this.commerce.cart(request.user, query.addressId);
   }
   @Put('cart/items/:variantId') @Header('Cache-Control', 'no-store') setItem(
     @Req() request: AuthenticatedRequest,
@@ -95,8 +114,24 @@ export class BuyerCommerceController {
     @Req() request: AuthenticatedRequest,
     @Param('orderId', uuid) orderId: string,
     @Param('sellerOrderId', uuid) sellerOrderId: string,
+    @Body() dto: BuyerCancelDto,
   ) {
-    return this.commerce.buyerCancel(request.user, orderId, sellerOrderId);
+    return this.commerce.buyerCancel(
+      request.user,
+      orderId,
+      sellerOrderId,
+      dto?.reason,
+    );
+  }
+  @Post('orders/:orderId/seller-orders/:sellerOrderId/confirm-receipt')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  confirmReceipt(
+    @Req() request: AuthenticatedRequest,
+    @Param('orderId', uuid) orderId: string,
+    @Param('sellerOrderId', uuid) sellerOrderId: string,
+  ) {
+    return this.commerce.confirmReceipt(request.user, orderId, sellerOrderId);
   }
 }
 
@@ -104,6 +139,38 @@ export class BuyerCommerceController {
 @UseGuards(FirebaseAuthGuard)
 export class SellerCommerceController {
   constructor(private readonly commerce: CommerceService) {}
+  @Get('delivery-settings')
+  @Header('Cache-Control', 'private, no-store')
+  settings(
+    @Param('sellerId', uuid) sellerId: string,
+    @Req() request: AuthenticatedRequest,
+  ) {
+    return this.commerce.deliverySettings(sellerId, request.user);
+  }
+  @Put('delivery-settings')
+  @Header('Cache-Control', 'private, no-store')
+  saveSettings(
+    @Param('sellerId', uuid) sellerId: string,
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: DeliverySettingsDto,
+  ) {
+    return this.commerce.setDeliverySettings(sellerId, request.user, dto);
+  }
+  @Patch('orders/:sellerOrderId/shipment')
+  @Header('Cache-Control', 'private, no-store')
+  shipment(
+    @Param('sellerId', uuid) sellerId: string,
+    @Param('sellerOrderId', uuid) sellerOrderId: string,
+    @Req() request: AuthenticatedRequest,
+    @Body() dto: ShipmentDto,
+  ) {
+    return this.commerce.updateShipment(
+      sellerId,
+      sellerOrderId,
+      request.user,
+      dto,
+    );
+  }
   @Patch('delivery-settings') @Header('Cache-Control', 'no-store') delivery(
     @Param('sellerId', uuid) sellerId: string,
     @Req() request: AuthenticatedRequest,
@@ -144,5 +211,20 @@ export class AdminCommerceController {
   constructor(private readonly commerce: CommerceService) {}
   @Get() @Header('Cache-Control', 'no-store') orders() {
     return this.commerce.adminOrders();
+  }
+  @Get('attention') @Header('Cache-Control', 'no-store') attention(
+    @Query() query: AttentionQueryDto,
+  ) {
+    return this.commerce.attention(query);
+  }
+  @Post(':sellerOrderId/actions')
+  @HttpCode(200)
+  @Header('Cache-Control', 'no-store')
+  action(
+    @Req() request: AuthenticatedRequest,
+    @Param('sellerOrderId', uuid) sellerOrderId: string,
+    @Body() dto: AdminOrderActionDto,
+  ) {
+    return this.commerce.adminAction(request.user, sellerOrderId, dto);
   }
 }

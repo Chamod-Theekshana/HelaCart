@@ -1,3 +1,4 @@
+import { browseCatalog } from '../discovery/catalog-query.js';
 import {
   BadRequestException,
   Injectable,
@@ -6,8 +7,13 @@ import {
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import { Prisma } from '../generated/prisma/client.js';
 import { PrismaService } from '../prisma/prisma.service.js';
-import { CatalogService, publicProduct } from '../catalog/catalog.service.js';
-import { ShopPageDto, ShopProductsDto, UpdateShopDto, UpdateShopBusinessDto } from './shops.dto.js';
+import { CatalogService } from '../catalog/catalog.service.js';
+import {
+  ShopPageDto,
+  ShopProductsDto,
+  UpdateShopDto,
+  UpdateShopBusinessDto,
+} from './shops.dto.js';
 
 export const shopSelect = {
   id: true,
@@ -175,43 +181,7 @@ export class ShopsService {
         'Minimum price must not exceed maximum price',
       );
     const shop = await this.approved(slug);
-    const where: Prisma.ProductWhereInput = {
-      sellerId: shop.id,
-      seller: { status: 'APPROVED' },
-      status: 'APPROVED',
-      category: {
-        isActive: true,
-        ...(query.category ? { slug: query.category } : {}),
-      },
-      ...(query.q ? { title: { contains: query.q, mode: 'insensitive' } } : {}),
-      priceLkrMinor: {
-        ...(query.minPrice !== undefined ? { gte: query.minPrice } : {}),
-        ...(query.maxPrice !== undefined ? { lte: query.maxPrice } : {}),
-      },
-    };
-    const orderBy: Prisma.ProductOrderByWithRelationInput[] =
-      query.sort === 'price-asc'
-        ? [{ priceLkrMinor: 'asc' }, { id: 'asc' }]
-        : query.sort === 'price-desc'
-          ? [{ priceLkrMinor: 'desc' }, { id: 'asc' }]
-          : query.sort === 'name'
-            ? [{ title: 'asc' }, { id: 'asc' }]
-            : [{ createdAt: 'desc' }, { id: 'asc' }];
-    const [items, total] = await Promise.all([
-      this.prisma.product.findMany({
-        where,
-        select: publicProduct,
-        orderBy,
-        skip: (query.page - 1) * query.limit,
-        take: query.limit,
-      }),
-      this.prisma.product.count({ where }),
-    ]);
-    return paginated(
-      items.map((item) => this.catalog.withAvailability(item)),
-      total,
-      query,
-    );
+    return browseCatalog(this.prisma, this.catalog, query, shop.id);
   }
 
   async privateProfile(sellerId: string, identity: DecodedIdToken) {
@@ -222,17 +192,28 @@ export class ShopsService {
     });
   }
 
-  async updateBusiness(sellerId: string, identity: DecodedIdToken, dto: UpdateShopBusinessDto) {
-    await this.catalog.requireSellerMember(sellerId, identity, true);
+  async updateBusiness(
+    sellerId: string,
+    identity: DecodedIdToken,
+    dto: UpdateShopBusinessDto,
+  ) {
+    await this.catalog.requireSellerMember(sellerId, identity, true, {
+      ownerOnly: true,
+    });
     return this.prisma.seller.update({
       where: { id: sellerId, status: 'APPROVED' },
-      data: { contactPhone: dto.contactPhone, pickupAddress: dto.pickupAddress },
+      data: {
+        contactPhone: dto.contactPhone,
+        pickupAddress: dto.pickupAddress,
+      },
       select: privateShopSelect,
     });
   }
 
   async update(sellerId: string, identity: DecodedIdToken, dto: UpdateShopDto) {
-    await this.catalog.requireSellerMember(sellerId, identity, true);
+    await this.catalog.requireSellerMember(sellerId, identity, true, {
+      ownerOnly: true,
+    });
     return this.prisma.seller.update({
       where: { id: sellerId, status: 'APPROVED' },
       data: {

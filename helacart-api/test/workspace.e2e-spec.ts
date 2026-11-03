@@ -1,3 +1,4 @@
+import { AccountAccessService } from '../src/auth/account-access.service.js';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
@@ -15,7 +16,8 @@ describe('Package 1 read APIs and buyer cancellation', () => {
     partId = '44a84ea8-e101-467f-b6ec-3c54cf953348',
     variantId = '0daa6d81-a735-436d-afad-1a999c283a9e';
   const db = {
-    user: { upsert: vi.fn() },
+    promotion: { findMany: async () => [] },
+    user: { upsert: vi.fn(), findUnique: vi.fn() },
     seller: { count: vi.fn(), findMany: vi.fn() },
     sellerMember: { findUnique: vi.fn(), findMany: vi.fn() },
     product: { count: vi.fn(), findMany: vi.fn(), groupBy: vi.fn() },
@@ -38,7 +40,9 @@ describe('Package 1 read APIs and buyer cancellation', () => {
       findMany: vi.fn(),
       create: vi.fn(),
       createMany: vi.fn(),
+      createManyAndReturn: vi.fn(),
     },
+    notificationDelivery: { createMany: vi.fn() },
     buyerAddress: { count: vi.fn() },
     shopReviewReport: { count: vi.fn() },
     $queryRaw: vi.fn(),
@@ -49,6 +53,8 @@ describe('Package 1 read APIs and buyer cancellation', () => {
     const fixture = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
       .useValue(db)
+      .overrideProvider(AccountAccessService)
+      .useValue({ assertActive: async () => {} })
       .overrideProvider(FirebaseAdminService)
       .useValue(firebase)
       .compile();
@@ -164,8 +170,11 @@ describe('Package 1 read APIs and buyer cancellation', () => {
       expect.objectContaining({
         include: expect.objectContaining({
           sellerOrders: expect.objectContaining({
-            include: expect.objectContaining({
-              returnRequest: { select: { id: true, status: true } },
+            select: expect.objectContaining({
+              returnRequests: {
+                select: { id: true, status: true },
+                orderBy: { createdAt: 'desc' },
+              },
               events: expect.any(Object),
             }),
           }),
@@ -205,7 +214,7 @@ describe('Package 1 read APIs and buyer cancellation', () => {
     expect(db.sellerOrder.count).toHaveBeenCalledWith({
       where: {
         order: { buyerId },
-        status: { notIn: ['DELIVERED', 'CANCELLED'] },
+        status: { notIn: ['DELIVERED', 'CANCELLED', 'RETURNED_TO_SELLER'] },
       },
     });
   });
@@ -302,10 +311,11 @@ describe('Package 1 read APIs and buyer cancellation', () => {
       .expect(200);
     const query = db.$queryRaw.mock.calls[0][0] as Prisma.Sql;
     expect(query.sql).toContain('LATERAL');
-    expect(query.sql).toContain('offer.available=TRUE');
-    expect(query.sql).toContain('"status"=\'APPROVED\'');
+    expect(query.sql).toContain('offer.available');
+    expect(query.sql).toContain("p.status='APPROVED'");
     expect(query.sql).not.toContain('drop table');
-    expect(query.values).toContain('drop table');
+    expect(query.values).toContain('%drop%');
+    expect(query.values).toContain('%table%');
     expect(query.values.slice(-2)).toEqual([20, 60]);
   });
   it('rejects invalid public filters and inverted prices', async () => {
@@ -358,8 +368,11 @@ describe('Package 1 read APIs and buyer cancellation', () => {
   it('cancels only an owned PLACED delivery, restores stock and records history', async () => {
     db.sellerOrder.findFirst.mockResolvedValue({
       id: partId,
+      orderId,
+      sellerId,
       status: 'PLACED',
       items: [{ variantId, quantity: 2 }],
+      order: { buyerId },
     });
     db.sellerOrder.updateMany.mockResolvedValue({ count: 1 });
     db.sellerOrder.findUniqueOrThrow.mockResolvedValue({
@@ -368,6 +381,14 @@ describe('Package 1 read APIs and buyer cancellation', () => {
       order: { buyerId },
     });
     db.sellerMember.findMany.mockResolvedValue([{ userId: buyerId }]);
+    db.notification.create.mockResolvedValue({
+      id: 'buyer-notice',
+      userId: buyerId,
+      type: 'ORDER_UPDATED',
+    });
+    db.notification.createManyAndReturn.mockResolvedValue([
+      { id: 'seller-notice', userId: buyerId, type: 'ORDER_UPDATED' },
+    ]);
     await request(app.getHttpServer())
       .patch(`/api/v1/me/orders/${orderId}/seller-orders/${partId}/cancel`)
       .auth('buyer', { type: 'bearer' })

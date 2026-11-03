@@ -25,6 +25,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:status": "prisma migrate status",
     "db:studio": "prisma studio",
+    "db:backup": "node scripts/backup-db.mjs",
     "pretest": "npm run prisma:generate",
     "test": "vitest run",
     "test:watch": "vitest",

@@ -1,4 +1,5 @@
 "use client";
+import {variantNeedsStock} from "@/lib/seller";
 
 import { useState } from "react";
 import Link from "next/link";
@@ -32,10 +33,10 @@ export default function SellerProductsPage() {
       (stock === "ALL" ||
         (stock === "LOW"
           ? row.variants.some(
-              (variant) => variant.onHand - variant.reserved <= 5,
+              (variant) => variantNeedsStock(variant),
             )
           : row.variants.every(
-              (variant) => variant.onHand - variant.reserved > 5,
+              (variant) => !variantNeedsStock(variant),
             ))) &&
       `${row.title} ${row.sku} ${row.category.name}`
         .toLowerCase()
@@ -270,7 +271,7 @@ export default function SellerProductsPage() {
                     <td
                       className={
                         row.variants.some(
-                          (variant) => variant.onHand - variant.reserved <= 5,
+                          (variant) => variantNeedsStock(variant),
                         )
                           ? "seller-low"
                           : ""

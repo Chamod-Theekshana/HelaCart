@@ -11,6 +11,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { sanitizeUploadedImage } from './strip-metadata.js';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import type { AuthenticatedRequest } from '../auth/firebase-auth.guard.js';
 import { CatalogService } from '../catalog/catalog.service.js';
@@ -77,9 +78,10 @@ export class ProductImagesService {
         throw new BadRequestException('Image must be at most 5 MB');
       chunks.push(bytes);
     }
-    const body = Buffer.concat(chunks);
-    if (!this.matches(type, body))
+    const raw = Buffer.concat(chunks);
+    if (!this.matches(type, raw))
       throw new BadRequestException('Image bytes do not match Content-Type');
+    const body = sanitizeUploadedImage(raw, type);
     const client = new S3Client({
       region: 'auto',
       endpoint: `https://${account}.r2.cloudflarestorage.com`,

@@ -2,6 +2,9 @@ import type { Product } from "./types";
 export type FavoriteRef = { id: string; productId: string | null };
 export type FavoriteSummary = { items: FavoriteRef[]; total: number };
 export type FavoriteItem = FavoriteRef & {
+  priceAlerts?: boolean;
+  restockAlerts?: boolean;
+  alertVersion?: number;
   createdAt: string;
   title: string;
   sellerName: string;
@@ -58,20 +61,55 @@ export function clearFavoriteIntent(productId: string, userId: string) {
       sessionStorage.removeItem(storageKey);
   } catch {}
 }
+const exactDestinations = new Set([
+  "/",
+  "/cart",
+  "/checkout",
+  "/orders",
+  "/favorites",
+  "/account",
+  "/seller",
+  "/admin",
+  "/products",
+  "/shops",
+]);
+const destinationPrefixes = [
+  "/account/",
+  "/seller/",
+  "/admin/",
+  "/products/",
+  "/shops/",
+  "/legal/",
+];
+/**
+ * Where to send a buyer after sign-in. Only same-origin relative paths on the
+ * allow-list are accepted; anything else (absolute URLs, protocol-relative
+ * `//host`, backslashes, control characters, dot segments, the auth page
+ * itself) falls back to `/account` so `?next=` cannot become an open redirect.
+ */
 export function safeSignInDestination(value: string | null) {
+  const fallback = "/account";
   if (
     !value ||
+    value.length > 2048 ||
     !value.startsWith("/") ||
     value.startsWith("//") ||
-    /[\\\u0000-\u001f]/.test(value)
+    /[\\\u0000-\u001f\u007f]/.test(value)
   )
-    return "/account";
+    return fallback;
   const path = value.split(/[?#]/)[0];
-  return path === "/" ||
-    path === "/admin" ||
-    path === "/account" ||
-    path === "/favorites" ||
-    /^\/(products|shops)(\/[^/]*)?$/.test(path)
+  if (/(?:^|\/)\.{1,2}(?:\/|$)/.test(path) || /%2e|%2f|%5c/i.test(path))
+    return fallback;
+  return exactDestinations.has(path) ||
+    destinationPrefixes.some(
+      (prefix) => path.startsWith(prefix) && path.length > prefix.length,
+    )
     ? value
-    : "/account";
+    : fallback;
+}
+/** `/auth` link that returns to `next` (path + query) after sign-in. */
+export function signInHref(next?: string | null) {
+  return next && !next.startsWith("/auth")
+    ? `/auth?next=${encodeURIComponent(next)}`
+    : "/auth";
 }

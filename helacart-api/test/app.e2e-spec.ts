@@ -1,3 +1,4 @@
+import { AccountAccessService } from '../src/auth/account-access.service.js';
 import { Test } from '@nestjs/testing';
 import { Body, Controller, type INestApplication, Post } from '@nestjs/common';
 import { IsString } from 'class-validator';
@@ -78,9 +79,14 @@ describe('API HTTP behavior (database mocked)', () => {
     imageUrls: productDraft.imageUrls,
   };
   const database = {
+    promotion: { findMany: async () => [] },
     checkConnection: vi.fn(),
-    user: { upsert: vi.fn() },
+    // findUnique returns undefined (no profile yet), so profiles are upserted.
+    user: { upsert: vi.fn(), findUnique: vi.fn() },
+    commissionPolicy: { findUnique: vi.fn() },
+    adminAuditLog: { create: vi.fn() },
     seller: {
+      count: vi.fn(),
       create: vi.fn(),
       findMany: vi.fn(),
       updateMany: vi.fn(),
@@ -143,6 +149,7 @@ describe('API HTTP behavior (database mocked)', () => {
     notification: { findMany: vi.fn(), updateMany: vi.fn() },
     returnRequest: { findMany: vi.fn() },
     $queryRaw: vi.fn(),
+    $executeRaw: vi.fn(),
     $transaction: vi.fn(),
   };
   const firebase = { verifyIdToken: vi.fn() };
@@ -170,6 +177,8 @@ describe('API HTTP behavior (database mocked)', () => {
     })
       .overrideProvider(PrismaService)
       .useValue(database)
+      .overrideProvider(AccountAccessService)
+      .useValue({ assertActive: async () => {} })
       .overrideProvider(FirebaseAdminService)
       .useValue(firebase)
       .compile();
@@ -186,6 +195,9 @@ describe('API HTTP behavior (database mocked)', () => {
     database.checkConnection.mockReset().mockResolvedValue(undefined);
     database.user.upsert.mockReset();
     database.user.upsert.mockResolvedValue({ id: userId });
+    database.user.findUnique.mockReset();
+    database.commissionPolicy.findUnique.mockReset();
+    database.adminAuditLog.create.mockReset();
     for (const mock of Object.values(database.seller)) mock.mockReset();
     database.sellerReview.create.mockReset();
     database.sellerMember.findUnique.mockReset();
@@ -252,6 +264,84 @@ describe('API HTTP behavior (database mocked)', () => {
 
   it('does not expose an unversioned health route', async () => {
     await request(app.getHttpServer()).get('/health').expect(404);
+  });
+
+  it('no longer serves the public hello route', async () => {
+    await request(app.getHttpServer()).get('/api/v1').expect(404);
+    await request(app.getHttpServer()).get('/api/v1/').expect(404);
+  });
+
+  it('echoes a safe x-request-id and generates one otherwise', async () => {
+    const echoed = await request(app.getHttpServer())
+      .get('/api/v1/health')
+      .set('x-request-id', 'mobile-req_42')
+      .expect(200);
+    expect(echoed.headers['x-request-id']).toBe('mobile-req_42');
+    const generated = await request(app.getHttpServer())
+      .get('/api/v1/missing-route')
+      .set('x-request-id', 'not valid!')
+      .expect(404);
+    expect(generated.headers['x-request-id']).toMatch(/^[0-9a-f-]{36}$/);
+    expect(generated.body).toMatchObject({ statusCode: 404 });
+  });
+
+  it('serves cacheable public app configuration', async () => {
+    const response = await request(app.getHttpServer())
+      .get('/api/v1/app-config')
+      .expect(200);
+    expect(response.headers['cache-control']).toBe('public, max-age=300');
+    expect(response.body).toEqual({
+      android: {
+        minimumVersion: '1.0.0',
+        latestVersion: '1.0.0',
+        storeUrl:
+          'https://play.google.com/store/apps/details?id=com.helacart.buyer',
+      },
+      ios: {
+        minimumVersion: '1.0.0',
+        latestVersion: '1.0.0',
+        storeUrl: 'https://apps.apple.com/app/id0000000000',
+      },
+      legal: {
+        privacyUrl: 'https://helacart.lk/legal/privacy',
+        termsUrl: 'https://helacart.lk/legal/terms',
+        returnsUrl: 'https://helacart.lk/legal/returns',
+      },
+      support: { email: 'support@helacart.lk', phone: '' },
+    });
+  });
+
+  it('keeps new admin routes behind the admin guard and validates bodies', async () => {
+    firebase.verifyIdToken.mockResolvedValue(owner);
+    for (const [method, path] of [
+      ['get', '/api/v1/admin/audit-log'],
+      ['get', '/api/v1/admin/sellers'],
+      ['get', '/api/v1/admin/orders/attention'],
+    ] as const)
+      await request(app.getHttpServer())
+        [method](path)
+        .set('Authorization', 'Bearer seller-token')
+        .expect(403);
+    await request(app.getHttpServer())
+      .post(`/api/v1/admin/orders/${productId}/actions`)
+      .set('Authorization', 'Bearer seller-token')
+      .send({ action: 'CANCEL', reason: 'Fraud report' })
+      .expect(403);
+    firebase.verifyIdToken.mockResolvedValue(administrator);
+    await request(app.getHttpServer())
+      .post(`/api/v1/admin/orders/${productId}/actions`)
+      .set('Authorization', 'Bearer admin-token')
+      .send({ action: 'REFUND', reason: 'Fraud report' })
+      .expect(400);
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/sellers/${sellerId}/status`)
+      .set('Authorization', 'Bearer admin-token')
+      .send({ status: 'REJECTED', reason: 'Policy breach' })
+      .expect(400);
+    await request(app.getHttpServer())
+      .get('/api/v1/admin/orders/attention?days=61')
+      .set('Authorization', 'Bearer admin-token')
+      .expect(400);
   });
 
   it('allows configured browser origins and sends security headers', async () => {
@@ -358,7 +448,7 @@ describe('API HTTP behavior (database mocked)', () => {
       .expect({ ...profile, hasPhoto: false })
       .expect('Cache-Control', 'no-store');
 
-    expect(firebase.verifyIdToken).toHaveBeenCalledWith('valid-token');
+    expect(firebase.verifyIdToken).toHaveBeenCalledWith('valid-token', true);
     expect(database.user.upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { firebaseUid: 'firebase-user-1' },
@@ -979,6 +1069,38 @@ describe('API HTTP behavior (database mocked)', () => {
         reason: null,
       },
     });
+    expect(database.adminAuditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        actorId: userId,
+        action: 'PRODUCT_APPROVE',
+        subjectId: productId,
+      }),
+    });
+  });
+
+  it('requires a commission rate when approving under an enabled policy', async () => {
+    firebase.verifyIdToken.mockResolvedValue(administrator);
+    database.product.findUnique.mockResolvedValue({
+      status: 'PENDING',
+      imageUrls: productDraft.imageUrls,
+      commissionRateBps: null,
+      commissionVersion: 0,
+    });
+    database.commissionPolicy.findUnique.mockResolvedValue({ enabled: true });
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/products/${productId}/approve`)
+      .set('Authorization', 'Bearer admin-token')
+      .send({})
+      .expect(409)
+      .expect(({ body }) => {
+        expect(body.code).toBe('COMMISSION_RATE_REQUIRED');
+      });
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/products/${productId}/approve`)
+      .set('Authorization', 'Bearer admin-token')
+      .send({ commissionRateBps: 10001 })
+      .expect(400);
+    expect(database.product.updateMany).not.toHaveBeenCalled();
   });
 
   it('requires a reason for rejection and disallows repeated reviews', async () => {

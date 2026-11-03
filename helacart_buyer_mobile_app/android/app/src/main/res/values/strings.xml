@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">HelaCart</string>
+    <!-- Default FCM channel; created in MainActivity and referenced from the manifest. -->
+    <string name="default_notification_channel_id" translatable="false">helacart_updates</string>
+    <string name="default_notification_channel_name">Order and account updates</string>
+    <string name="default_notification_channel_description">Order progress, returns, support replies and saved-item alerts.</string>
+</resources>

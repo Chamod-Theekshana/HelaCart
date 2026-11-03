@@ -16,7 +16,8 @@ export class PrismaService
     super({
       adapter: new PrismaPg({
         connectionString: config.getOrThrow<string>('DATABASE_URL'),
-        max: 5,
+        // Size against the Neon pooler limit: replicas x DATABASE_POOL_SIZE.
+        max: config.get<number>('DATABASE_POOL_SIZE') ?? 10,
         connectionTimeoutMillis: 15000,
         idleTimeoutMillis: 30000,
         statement_timeout: 10000,
