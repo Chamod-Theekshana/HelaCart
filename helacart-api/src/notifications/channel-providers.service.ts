@@ -3,8 +3,7 @@ import { ConfigService } from '@nestjs/config';
 import { FirebaseAdminService } from '../auth/firebase-admin.service.js';
 
 export type SendResult =
-  | { ok: true }
-  | { ok: false; retryable: boolean; error: string };
+  { ok: true } | { ok: false; retryable: boolean; error: string };
 
 export type PushResult = SendResult & {
   /** Tokens FCM reported as unregistered/invalid; the caller removes them. */

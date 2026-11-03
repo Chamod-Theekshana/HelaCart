@@ -58,8 +58,7 @@ export class UpdateAddressDto {
   @Length(5, 200)
   line1?: string;
   @IsOptional() @Transform(trim) @IsString() @Length(1, 200) line2?:
-    | string
-    | null;
+    string | null;
   @ValidateIf(present)
   @Transform(trim)
   @IsString()

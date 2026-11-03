@@ -801,8 +801,7 @@ export class CommerceService {
                   error.meta?.code ??
                     (
                       error.meta?.driverAdapterError as
-                        | { cause?: { originalCode?: unknown } }
-                        | undefined
+                        { cause?: { originalCode?: unknown } } | undefined
                     )?.cause?.originalCode,
                 ),
               )))
