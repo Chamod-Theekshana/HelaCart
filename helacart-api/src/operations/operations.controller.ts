@@ -89,7 +89,13 @@ export class AdminOperationsController {
     @Param('id', uuid) id: string,
     @Body() dto: ResolveReturnDto,
   ) {
-    return this.operations.resolveReturn(id, request.user, dto.note);
+    return this.operations.resolveReturn(
+      id,
+      request.user,
+      dto.note,
+      dto.outcome,
+      dto.restock === true,
+    );
   }
   @Get('cod/reconciliation-queue')
   @Header('Cache-Control', 'no-store')

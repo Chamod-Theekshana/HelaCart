@@ -1,0 +1,195 @@
+.search {
+  position: relative;
+}
+.suggestions {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  right: 0;
+  z-index: 80;
+  max-height: 360px;
+  overflow: auto;
+  background: #fff;
+  border: 1px solid #d8e6df;
+  border-radius: 14px;
+  box-shadow: 0 12px 30px #173f3020;
+  padding: 10px;
+  min-width: 0;
+}
+.suggestions a {
+  display: block;
+  padding: 10px 12px;
+  color: #173d31;
+  border-radius: 8px;
+  text-decoration: none;
+  overflow-wrap: anywhere;
+}
+.suggestions a:hover,
+.suggestions a[data-active="true"] {
+  background: #eaf5ef;
+}
+.suggestions small {
+  display: block;
+  color: #6a7d72;
+  font-size: 0.75rem;
+  margin-top: 4px;
+}
+.suggestions p {
+  padding: 8px 12px;
+  margin: 0;
+  color: #61766c;
+  font-size: 0.8rem;
+}
+.offer {
+  display: inline-block;
+  background: #e5f5ec;
+  color: #176347;
+  border: 1px solid #c9e6d6;
+  padding: 4px 8px;
+  border-radius: 7px;
+  font-size: 0.73rem;
+  font-weight: 700;
+}
+.oldPrice {
+  font-size: 0.8rem;
+  color: #718078;
+  font-weight: 400;
+  margin-right: 8px;
+}
+.recommendations {
+  margin: 32px 0;
+  min-width: 0;
+}
+.recommendations h2 {
+  margin: 8px 0;
+}
+.recommendations p {
+  color: #63786e;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+.recommendGrid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 18px;
+  margin-top: 20px;
+}
+.alertBox {
+  border: 1px solid #dae7df;
+  border-radius: 12px;
+  background: #fff;
+  padding: 13px;
+  margin: 12px 0;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.alertBox label {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.82rem;
+  line-height: 1.5;
+}
+.alertBox input {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
+}
+.error {
+  padding: 10px;
+  background: #fff0ee;
+  color: #94342f;
+  border-radius: 9px;
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+}
+.notice {
+  padding: 12px;
+  background: #eef7f2;
+  color: #285d47;
+  border-radius: 10px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.promotionForm {
+  display: grid;
+  gap: 15px;
+}
+.promotionForm label {
+  display: grid;
+  gap: 7px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+.promotionForm input,
+.promotionForm select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #ccdcd3;
+  border-radius: 9px;
+  padding: 11px;
+  background: white;
+  color: #214536;
+  font: inherit;
+}
+.formGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 15px;
+}
+.promotionCard {
+  padding: 20px;
+  border: 1px solid #dbe7df;
+  border-radius: 14px;
+  background: white;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.promotionCard h3 {
+  margin: 0 0 12px;
+}
+.promotionCard p {
+  font-size: 0.88rem;
+  line-height: 1.65;
+  color: #5e7669;
+}
+.promotionActions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.history {
+  font-size: 0.8rem;
+  line-height: 1.6;
+  margin-top: 15px;
+}
+.history summary {
+  cursor: pointer;
+}
+.history p {
+  border-top: 1px solid #e1e9e4;
+  padding: 8px 0;
+}
+.dealDetail {
+  margin: 12px 0;
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+@media (max-width: 900px) {
+  .recommendGrid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 12px;
+  }
+}
+@media (max-width: 620px) {
+  .recommendGrid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .formGrid {
+    grid-template-columns: 1fr;
+  }
+}

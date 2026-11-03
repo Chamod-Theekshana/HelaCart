@@ -11,3 +11,5 @@ secrets
 firebase-admin*.json
 *service-account*.json
 src/generated/prisma
+backups
+*.dump

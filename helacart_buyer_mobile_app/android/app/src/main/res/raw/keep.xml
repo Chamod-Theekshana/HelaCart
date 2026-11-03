@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Keep resources read reflectively by Firebase when shrinkResources is on
+     (Crashlytics build id/mapping id are injected by the Crashlytics Gradle
+     plugin; Firebase options by the google-services plugin). -->
+<resources xmlns:tools="http://schemas.android.com/tools"
+    tools:keep="@string/com.crashlytics.android.build_id,@string/com.google.firebase.crashlytics.mapping_file_id,@string/google_app_id,@string/gcm_defaultSenderId,@string/google_api_key,@string/project_id,@string/default_notification_channel_id,@drawable/ic_stat_helacart,@drawable/splash_logo,@mipmap/ic_launcher_foreground,@mipmap/ic_launcher_monochrome" />

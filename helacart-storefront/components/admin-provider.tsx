@@ -7,7 +7,7 @@ import {
   useEffect,
   useState,
 } from "react";
-import { api, errorMessage, hasApi } from "@/lib/api";
+import { errorMessage, hasApi, userApi } from "@/lib/api";
 import { clientAuth, hasFirebase } from "@/lib/firebase";
 import { useShop } from "./shop-provider";
 import { ListPagination, useDebounced } from "./list-controls";
@@ -41,11 +41,8 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
         );
       const current = clientAuth()?.currentUser;
       if (!current) throw new Error("Sign in again to continue.");
-      return api<T>(path, {
-        method,
-        body,
-        token: await current.getIdToken(true),
-      });
+      // Cached ID token; refreshed once only if the API answers 401.
+      return userApi<T>(current, path, { method, body });
     },
     [],
   );
@@ -53,8 +50,14 @@ export function AdminProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!authReady || isPreview || !user || !hasFirebase) return;
     let active = true;
-    user
-      .reload()
+    // Reload only an unverified cached user; refresh the token once if that
+    // reload shows the email has just been verified.
+    (user.emailVerified
+      ? Promise.resolve()
+      : user.reload().then(async () => {
+          if (user.emailVerified) await user.getIdToken(true);
+        })
+    )
       .then(() => request("/admin/seller-applications?status=PENDING"))
       .then(() => {
         if (active) setChecked({ uid: user.uid, access: "allowed", error: "" });
@@ -174,5 +177,109 @@ export function useAdminList<T>(
         label={`${kind} pages`}
       />
     ),
+  };
+}
+
+/**
+ * Cursor-paged admin list (`{ items, nextCursor }`) with "Load more".
+ * `path` carries the filters; `cursor` is appended for later pages.
+ */
+export function useAdminCursorList<T extends { id: string }>(
+  path: string,
+  sample: T[],
+) {
+  const { isPreview, access, request } = useAdmin();
+  const { user } = useShop();
+  const [revision, setRevision] = useState(0);
+  const key = `${user?.uid}:${path}:${revision}`;
+  const [state, setState] = useState<{
+    key: string;
+    items: T[];
+    nextCursor: string | null;
+    error: string;
+    loadingMore: boolean;
+  }>({ key: "", items: [], nextCursor: null, error: "", loadingMore: false });
+  const page = useCallback(
+    (cursor: string | null) =>
+      request<{ items: T[]; nextCursor: string | null }>(
+        cursor
+          ? `${path}${path.includes("?") ? "&" : "?"}cursor=${encodeURIComponent(cursor)}`
+          : path,
+      ),
+    [path, request],
+  );
+  useEffect(() => {
+    if (isPreview || access !== "allowed") return;
+    let active = true;
+    page(null)
+      .then((result) => {
+        if (active)
+          setState({
+            key,
+            items: result.items,
+            nextCursor: result.nextCursor,
+            error: "",
+            loadingMore: false,
+          });
+      })
+      .catch((cause) => {
+        if (active)
+          setState({
+            key,
+            items: [],
+            nextCursor: null,
+            error: errorMessage(cause),
+            loadingMore: false,
+          });
+      });
+    return () => {
+      active = false;
+    };
+  }, [key, page, access, isPreview]);
+  const current = state.key === key ? state : null;
+  async function loadMore() {
+    if (!current?.nextCursor || current.loadingMore) return;
+    setState((before) => ({ ...before, loadingMore: true }));
+    try {
+      const result = await page(current.nextCursor);
+      setState((before) =>
+        before.key === key
+          ? {
+              ...before,
+              items: [
+                ...before.items,
+                ...result.items.filter(
+                  (row) => !before.items.some((old) => old.id === row.id),
+                ),
+              ],
+              nextCursor: result.nextCursor,
+              loadingMore: false,
+            }
+          : before,
+      );
+    } catch (cause) {
+      setState((before) => ({
+        ...before,
+        loadingMore: false,
+        error: errorMessage(cause),
+      }));
+    }
+  }
+  /** Replaces one row in place after an action (e.g. suspend). */
+  function replace(row: T) {
+    setState((before) => ({
+      ...before,
+      items: before.items.map((old) => (old.id === row.id ? row : old)),
+    }));
+  }
+  return {
+    items: isPreview ? sample : (current?.items ?? []),
+    loading: !isPreview && !current,
+    error: isPreview ? "" : (current?.error ?? ""),
+    hasMore: !isPreview && Boolean(current?.nextCursor),
+    loadingMore: Boolean(current?.loadingMore),
+    loadMore,
+    replace,
+    reload: () => setRevision((value) => value + 1),
   };
 }

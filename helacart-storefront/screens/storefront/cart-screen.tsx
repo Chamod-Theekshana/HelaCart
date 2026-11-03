@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -20,11 +20,22 @@ import { useShop } from "@/components/shop-provider";
 import { ProductCard } from "@/components/product-card";
 import { CartFeedback } from "@/components/cart-feedback";
 import { StorefrontImage } from "@/components/storefront-image";
+import { SignInLink } from "@/components/sign-in-link";
+import { useT } from "@/components/language-provider";
 import { shopPath } from "@/lib/shops";
 
 export default function CartPage() {
-  const { cart, user, isPreview, setQuantity, cartLoading, cartError } =
-    useShop();
+  const t = useT();
+  const {
+    cart,
+    user,
+    isPreview,
+    isGuestCart,
+    setQuantity,
+    refreshCart,
+    cartLoading,
+    cartError,
+  } = useShop();
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const rows = cart?.items ?? [];
@@ -32,6 +43,10 @@ export default function CartPage() {
     (acc[item.sellerId] ??= []).push(item);
     return acc;
   }, {});
+  // Guest carts re-read live prices and stock each time the cart opens.
+  useEffect(() => {
+    if (isGuestCart) void refreshCart().catch(() => undefined);
+  }, [isGuestCart, refreshCart]);
   async function change(id: string, quantity: number) {
     setBusy(id);
     setError("");
@@ -43,21 +58,25 @@ export default function CartPage() {
       setBusy("");
     }
   }
+  const checkoutReady =
+    cart?.canCheckout && !cartLoading && !cartError && !busy;
   return (
     <div className="container cart-page">
-      <Breadcrumbs items={[{ label: "Shopping Cart" }]} />
+      <Breadcrumbs items={[{ label: t("cart.title") }]} />
       <div className="page-title">
         <div>
-          <span className="section-kicker">YOUR FINDS</span>
+          <span className="section-kicker">{t("cart.kicker")}</span>
           <h1>
-            Your Shopping Cart{" "}
+            {t("cart.title")}{" "}
             <span className="title-count">
-              {rows.length} {rows.length === 1 ? "item" : "items"}
+              {t(rows.length === 1 ? "cart.itemOne" : "cart.itemMany", {
+                count: rows.length,
+              })}
             </span>
           </h1>
         </div>
         <Link className="text-link" href="/products">
-          Continue shopping <ArrowRight size={17} />
+          {t("cart.continue")} <ArrowRight size={17} />
         </Link>
       </div>
       {error && (
@@ -67,20 +86,18 @@ export default function CartPage() {
       )}
       <CartFeedback />
       {isPreview && (
+        <div className="message info">{t("cart.previewNotice")}</div>
+      )}
+      {isGuestCart && !user && (
         <div className="message info">
-          This cart shows sample products for design preview. Checkout is
-          disabled until the backend is connected.
+          {t("cart.guestNotice")}{" "}
+          <SignInLink next="/checkout">{t("auth.signIn")}</SignInLink>
         </div>
       )}
-      {!isPreview && !user && (
+      {isGuestCart && user && !user.emailVerified && (
         <div className="message info">
-          Sign in to view your saved cart. <Link href="/auth">Sign in</Link>
-        </div>
-      )}
-      {!isPreview && user && !user.emailVerified && (
-        <div className="message info">
-          Verify your email to load your cart.{" "}
-          <Link href="/auth">Check verification</Link>
+          {t("cart.verifyNotice")}{" "}
+          <SignInLink next="/cart">{t("cart.checkVerification")}</SignInLink>
         </div>
       )}
       {rows.length ? (
@@ -97,11 +114,11 @@ export default function CartPage() {
                           (isPreview
                             ? (demoProducts.find(
                                 (product) => product.seller.slug === sellerId,
-                              )?.seller.name ?? "Local seller")
-                            : "Local shop")}
+                              )?.seller.name ?? t("cart.localSeller"))
+                            : t("cart.localShop"))}
                       </strong>
                     </Link>
-                    <small>Seller items</small>
+                    <small>{t("cart.sellerItems")}</small>
                   </div>
                 </div>
                 {(items ?? []).map((item) => (
@@ -122,7 +139,7 @@ export default function CartPage() {
                     </div>
                     <div className="cart-product-info">
                       <Link href={`/products/${item.productId}`}>
-                        {item.title}
+                        {item.title || t("cart.unavailableItem")}
                       </Link>
                       <small>
                         {Object.values(item.optionValues || {}).join(" · ") ||
@@ -137,24 +154,28 @@ export default function CartPage() {
                         }
                       >
                         {!item.available
-                          ? "Unavailable"
+                          ? t("product.unavailable")
                           : item.availableQuantity === 0
-                            ? "Out of stock"
+                            ? t("product.outOfStock")
                             : item.availableQuantity < item.quantity
-                              ? `Only ${item.availableQuantity} available`
-                              : "In stock"}
+                              ? t("product.available", {
+                                  count: item.availableQuantity,
+                                })
+                              : t("product.inStock")}
                       </span>
                       <button
                         className="remove-link"
                         disabled={Boolean(busy)}
                         onClick={() => change(item.variantId, 0)}
                       >
-                        <Trash2 size={14} /> Remove
+                        <Trash2 size={14} /> {t("cart.remove")}
                       </button>
                     </div>
                     <div className="cart-row-controls">
                       <strong>
-                        {money(item.priceLkrMinor * item.quantity)}
+                        {item.available
+                          ? money(item.priceLkrMinor * item.quantity)
+                          : "—"}
                       </strong>
                       <div className="qty-control">
                         <button
@@ -166,7 +187,7 @@ export default function CartPage() {
                           onClick={() =>
                             change(item.variantId, item.quantity - 1)
                           }
-                          aria-label={`Decrease ${item.title}`}
+                          aria-label={t("cart.decrease", { title: item.title })}
                         >
                           <Minus size={14} />
                         </button>
@@ -181,7 +202,7 @@ export default function CartPage() {
                           onClick={() =>
                             change(item.variantId, item.quantity + 1)
                           }
-                          aria-label={`Increase ${item.title}`}
+                          aria-label={t("cart.increase", { title: item.title })}
                         >
                           <Plus size={14} />
                         </button>
@@ -192,73 +213,68 @@ export default function CartPage() {
                 <div className="cart-group-foot">
                   <Truck size={15} />
                   {isPreview
-                    ? "Delivery is shown in the live cart."
-                    : items[0]?.shippingConfigured
-                      ? `Delivery: ${money(items[0].shippingFeeLkrMinor ?? 0)} · charged once for this shop.`
-                      : "This shop has not configured delivery yet."}
+                    ? t("cart.deliveryPreview")
+                    : isGuestCart
+                      ? t("cart.deliveryAfterSignIn")
+                      : items[0]?.shippingConfigured
+                        ? t("cart.deliveryEstimate", {
+                            fee: money(items[0].shippingFeeLkrMinor ?? 0),
+                          })
+                        : t("cart.deliveryMissing")}
                 </div>
               </section>
             ))}
           </div>
           <aside className="panel order-summary">
-            <h2>Order Summary</h2>
+            <h2>{t("cart.summary")}</h2>
             <div className="summary-row">
-              <span>Items subtotal</span>
+              <span>{t("cart.subtotal")}</span>
               <strong>{money(cart?.subtotalLkrMinor ?? 0)}</strong>
             </div>
             <div className="summary-row">
-              <span>Delivery</span>
+              <span>{t("cart.estimatedDelivery")}</span>
               <strong>
                 {isPreview
-                  ? "Calculated on live cart"
-                  : money(cart?.shippingLkrMinor ?? 0)}
+                  ? t("cart.deliveryLive")
+                  : isGuestCart
+                    ? t("cart.deliveryAtCheckout")
+                    : money(cart?.shippingLkrMinor ?? 0)}
               </strong>
             </div>
             <div className="summary-total">
-              <span>Total</span>
+              <span>{t("cart.estimatedTotal")}</span>
               <strong>{money(cart?.totalLkrMinor ?? 0)}</strong>
             </div>
             <div className="cod-note">
               <Banknote size={21} />
               <span>
-                <strong>Cash on Delivery</strong>
-                <small>Pay when the order arrives.</small>
+                <strong>{t("trust.cod.title")}</strong>
+                <small>{t("cart.codText")}</small>
               </span>
             </div>
-            {!isPreview && !cart?.canCheckout && (
-              <p className="small-warning">
-                Checkout will become available when all items are in stock and
-                each seller has configured delivery.
-              </p>
+            {!isPreview && !isGuestCart && !cart?.canCheckout && (
+              <p className="small-warning">{t("cart.checkoutLater")}</p>
             )}
             {isPreview ? (
               <Link className="primary-btn full" href="/checkout">
-                Preview checkout <ArrowRight size={17} />
+                {t("cart.previewCheckout")} <ArrowRight size={17} />
               </Link>
-            ) : user ? (
+            ) : user?.emailVerified ? (
               <Link
-                className={`primary-btn full ${cart?.canCheckout && !cartLoading && !cartError && !busy ? "" : "disabled-link"}`}
-                aria-disabled={
-                  !cart?.canCheckout ||
-                  cartLoading ||
-                  Boolean(cartError) ||
-                  Boolean(busy)
-                }
-                href={
-                  cart?.canCheckout && !cartLoading && !cartError && !busy
-                    ? "/checkout"
-                    : "/cart"
-                }
+                className={`primary-btn full ${checkoutReady ? "" : "disabled-link"}`}
+                aria-disabled={!checkoutReady}
+                href={checkoutReady ? "/checkout" : "/cart"}
               >
-                Proceed to COD Checkout <ArrowRight size={17} />
+                {t("cart.proceed")} <ArrowRight size={17} />
               </Link>
             ) : (
-              <Link className="primary-btn full" href="/auth">
-                Sign in to checkout <ArrowRight size={17} />
-              </Link>
+              <SignInLink className="primary-btn full" next="/checkout">
+                {t(user ? "cart.verifyToCheckout" : "cart.signInToCheckout")}{" "}
+                <ArrowRight size={17} />
+              </SignInLink>
             )}
             <Link className="outline-btn full" href="/products">
-              Continue shopping
+              {t("cart.continue")}
             </Link>
           </aside>
         </div>
@@ -267,10 +283,10 @@ export default function CartPage() {
         !cartError && (
           <div className="empty-panel cart-empty">
             <ShoppingBag size={39} />
-            <h2>Your cart is empty</h2>
-            <p>Start exploring local finds and add something you love.</p>
+            <h2>{t("cart.empty.title")}</h2>
+            <p>{t("cart.empty.text")}</p>
             <Link className="primary-btn" href="/products">
-              Browse products <ArrowRight size={17} />
+              {t("cart.empty.action")} <ArrowRight size={17} />
             </Link>
           </div>
         )
@@ -279,8 +295,8 @@ export default function CartPage() {
         <section className="home-section">
           <div className="section-heading">
             <div>
-              <span className="section-kicker">MORE TO DISCOVER</span>
-              <h2>Frequently browsed together</h2>
+              <span className="section-kicker">{t("cart.moreKicker")}</span>
+              <h2>{t("cart.moreTitle")}</h2>
             </div>
           </div>
           <div className="product-grid">

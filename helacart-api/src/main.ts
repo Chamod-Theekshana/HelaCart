@@ -3,9 +3,21 @@ import { ConfigService } from '@nestjs/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module.js';
 import { configureApp } from './configure-app.js';
+import { JsonLogger } from './common/json-logger.js';
+import { describeError } from './common/describe-error.js';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  // ConfigModule has loaded .env by the time AppModule is imported.
+  const app = await NestFactory.create(AppModule, {
+    logger:
+      process.env.NODE_ENV === 'production'
+        ? new JsonLogger(
+            process.env.LOG_LEVEL === 'debug'
+              ? ['log', 'error', 'warn', 'fatal', 'debug', 'verbose']
+              : ['log', 'error', 'warn', 'fatal'],
+          )
+        : undefined,
+  });
   configureApp(app);
   app.enableShutdownHooks();
   const config = app.get(ConfigService);
@@ -15,10 +27,14 @@ async function bootstrap() {
   Logger.log(`HelaCart API listening on ${host}:${port}/api/v1`, 'Bootstrap');
 }
 
-await bootstrap().catch(() => {
-  // Do not print connection strings or raw driver errors at this boundary.
+await bootstrap().catch((error: unknown) => {
+  // describeError redacts connection strings; never print raw driver errors.
   Logger.error(
-    'API startup failed. Check configuration and database connectivity.',
+    `API startup failed. Check configuration and database connectivity. ${
+      error instanceof Error && error.message.startsWith('Invalid environment')
+        ? error.message
+        : describeError(error)
+    }`,
     'Bootstrap',
   );
   process.exitCode = 1;

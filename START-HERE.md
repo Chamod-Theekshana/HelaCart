@@ -1,3 +1,12 @@
+# Start here
+
+> **November 2026 hardening release.** Read `docs/API-CHANGES-2026-11.md`
+> (the shared API contract and its implementation notes) and the change
+> report PDF delivered with this archive. Nothing in this release has been
+> compiled yet: run the checks listed in the report's "What you need to do
+> before launch" section first. Payments, seller payouts and courier API
+> integration are still out of scope.
+
 # Start here: HelaCart COD backend update
 
 1. Back up your current `C:\HelaCart\helacart-api` source and development database.

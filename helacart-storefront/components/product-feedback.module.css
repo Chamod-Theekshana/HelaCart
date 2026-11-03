@@ -1,0 +1,373 @@
+.section {
+  margin: 36px 0;
+  padding: 28px;
+  border: 1px solid var(--border, #dce7e4);
+  border-radius: 20px;
+  background: var(--surface, #fff);
+  min-width: 0;
+  color: var(--ink, #153b35);
+}
+.heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.heading h2,
+.heading h3 {
+  margin: 0;
+}
+.muted {
+  color: #61756e;
+  font-size: 0.9rem;
+  line-height: 1.7;
+}
+.summary {
+  display: grid;
+  grid-template-columns: 160px minmax(0, 1fr);
+  gap: 26px;
+  margin-bottom: 24px;
+  align-items: center;
+}
+.average {
+  font-size: 2.8rem;
+  display: block;
+}
+.stars {
+  color: #967015;
+  letter-spacing: 2px;
+  white-space: nowrap;
+}
+.bar {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) 36px;
+  gap: 10px;
+  align-items: center;
+  font-size: 0.85rem;
+  margin: 6px 0;
+}
+.bar progress {
+  width: 100%;
+  height: 9px;
+  accent-color: #167563;
+}
+.filters {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  align-items: end;
+  margin: 18px 0;
+}
+.filters label,
+.fields label,
+.form label {
+  display: grid;
+  gap: 7px;
+  font-size: 0.85rem;
+}
+.filters select,
+.filters input,
+.fields input,
+.fields textarea,
+.form textarea,
+.form input,
+.form select {
+  width: 100%;
+  min-width: 0;
+  border: 1px solid #ccdcd6;
+  border-radius: 10px;
+  padding: 11px 12px;
+  background: white;
+  color: #183c34;
+  font: inherit;
+}
+.filters label {
+  flex: 1;
+  min-width: 120px;
+}
+.list {
+  display: grid;
+  gap: 16px;
+}
+.review {
+  border: 1px solid #e0e9e5;
+  border-radius: 14px;
+  padding: 20px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+.review p {
+  white-space: pre-wrap;
+  line-height: 1.75;
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  font-size: 0.85rem;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: #e9f6ef;
+  color: #1b6047;
+  border-radius: 20px;
+  padding: 4px 9px;
+  font-size: 0.75rem;
+}
+.reply {
+  border-left: 3px solid #27806b;
+  padding: 12px 16px;
+  background: #f3f8f5;
+  border-radius: 0 10px 10px 0;
+  margin-top: 14px;
+}
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 14px;
+}
+.form {
+  display: grid;
+  gap: 14px;
+  background: #f5f9f6;
+  border: 1px solid #d9e7df;
+  border-radius: 14px;
+  padding: 20px;
+  margin: 20px 0;
+  min-width: 0;
+}
+.starPicker {
+  display: flex;
+  gap: 5px;
+  border: 0;
+  padding: 0;
+  margin: 0;
+}
+.starPicker legend {
+  font-size: 0.85rem;
+  margin-bottom: 8px;
+}
+.starPicker button {
+  background: white;
+  border: 1px solid #d9e4de;
+  border-radius: 8px;
+  padding: 9px;
+  cursor: pointer;
+  color: #62736c;
+}
+.starPicker button[aria-pressed="true"] {
+  color: #91680e;
+  border-color: #a7893c;
+  background: #fcf7e7;
+}
+.status {
+  padding: 14px;
+  background: #f3f7f4;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  line-height: 1.6;
+}
+.error {
+  color: #8f2525;
+  background: #fff1f0;
+  border-radius: 10px;
+  padding: 12px;
+  overflow-wrap: anywhere;
+}
+.pagination {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  justify-content: flex-end;
+  flex-wrap: wrap;
+  margin-top: 20px;
+}
+.fields {
+  border: 1px solid #dae5df;
+  border-radius: 14px;
+  padding: 20px;
+  margin: 20px 0;
+  min-width: 0;
+  display: grid;
+  gap: 14px;
+}
+.fields legend {
+  font-weight: 700;
+  padding: 0 8px;
+}
+.fields p {
+  margin: 0;
+  color: #61756e;
+  font-size: 0.85rem;
+}
+.specRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 10px;
+  align-items: end;
+  min-width: 0;
+}
+.specifications {
+  margin: 20px 0;
+  min-width: 0;
+}
+.specifications dl {
+  margin: 0;
+}
+.specifications dl > div {
+  display: grid;
+  grid-template-columns: minmax(100px, 1fr) 2fr;
+  gap: 16px;
+  padding: 13px 0;
+  border-bottom: 1px solid #e3eae7;
+  overflow-wrap: anywhere;
+}
+.specifications dt {
+  font-weight: 600;
+  color: #61756e;
+}
+.specifications dd {
+  margin: 0;
+  white-space: pre-wrap;
+}
+.warranty {
+  margin-top: 20px;
+  padding: 18px;
+  background: #f1f7f4;
+  border-radius: 12px;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.warranty h3 {
+  margin-top: 0;
+}
+.dialog {
+  width: min(520px, calc(100% - 28px));
+  border: 1px solid #d9e7df;
+  border-radius: 20px;
+  padding: 24px;
+  color: #183c34;
+  max-height: 85dvh;
+  overflow: auto;
+}
+.dialog::backdrop {
+  background: #102f29aa;
+}
+.dialog h2 {
+  margin-top: 0;
+}
+.dialog form {
+  display: grid;
+  gap: 16px;
+}
+.dialog textarea {
+  width: 100%;
+  border: 1px solid #ccdcd6;
+  border-radius: 10px;
+  padding: 12px;
+  font: inherit;
+}
+.accountGrid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+}
+.history {
+  margin-top: 16px;
+  font-size: 0.85rem;
+  line-height: 1.6;
+}
+.history summary {
+  cursor: pointer;
+}
+.history p {
+  padding: 10px 0;
+  border-bottom: 1px solid #e1e8e4;
+}
+.specifications p {
+  white-space: pre-wrap;
+}
+.detailsText {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+}
+.zoom {
+  width: min(900px, calc(100% - 24px));
+  padding: 16px;
+  border: 0;
+  border-radius: 16px;
+}
+.zoom::backdrop {
+  background: #0e2523dd;
+}
+.zoom img {
+  width: 100%;
+  max-height: 75dvh;
+  object-fit: contain;
+}
+.zoom button {
+  margin-bottom: 12px;
+}
+.zoomTrigger {
+  width: 100%;
+  height: 100%;
+  display: block;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: zoom-in;
+}
+.zoomTrigger > img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+.permissions {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+.permissions th,
+.permissions td {
+  text-align: left;
+  padding: 12px;
+  border-bottom: 1px solid #dbe6df;
+  overflow-wrap: anywhere;
+}
+@media (max-width: 650px) {
+  .section {
+    padding: 18px;
+    margin: 24px 0;
+  }
+  .summary {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+  .specRow {
+    grid-template-columns: 1fr;
+  }
+  .accountGrid {
+    grid-template-columns: 1fr;
+  }
+  .review,
+  .form,
+  .fields {
+    padding: 15px;
+  }
+  .specifications dl > div {
+    grid-template-columns: 1fr;
+    gap: 5px;
+  }
+  .starPicker button {
+    padding: 7px;
+  }
+  .dialog {
+    padding: 18px;
+  }
+}

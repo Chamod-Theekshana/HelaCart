@@ -90,7 +90,9 @@ export class UpdateShopDto {
 }
 
 export class UpdateShopBusinessDto {
-  @Transform(trim) @IsString() @Length(7, 25)
+  @Transform(trim)
+  @IsString()
+  @Length(7, 25)
   @Matches(/^\+?[\d ()-]{7,25}$/)
   contactPhone!: string;
   @Transform(trim) @IsString() @Length(10, 500) pickupAddress!: string;

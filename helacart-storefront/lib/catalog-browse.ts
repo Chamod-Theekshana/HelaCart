@@ -8,9 +8,11 @@ export type CatalogFilters = {
   min: string;
   max: string;
   inStock: boolean;
+  deals?: boolean;
   sort: string;
   page: number;
-  error: string;
+  /** Validation problem with the price filters ("" when valid). */
+  error: "" | "invalidPrice" | "minAboveMax";
 };
 export function catalogFilters(
   params: Record<string, string | string[] | undefined>,
@@ -21,12 +23,12 @@ export function catalogFilters(
     max = value("max"),
     minimum = min ? rupeesToMinor(min) : null,
     maximum = max ? rupeesToMinor(max) : null;
-  const error =
+  const error: CatalogFilters["error"] =
     (min && (minimum === null || minimum > 1e9)) ||
     (max && (maximum === null || maximum > 1e9))
-      ? "Enter valid prices up to Rs. 10,000,000."
+      ? "invalidPrice"
       : minimum !== null && maximum !== null && minimum > maximum
-        ? "Minimum price must not exceed maximum price."
+        ? "minAboveMax"
         : "";
   return {
     q: value("q").trim().slice(0, 80),
@@ -34,9 +36,14 @@ export function catalogFilters(
     min,
     max,
     inStock: value("inStock") === "true",
-    sort: ["newest", "price-asc", "price-desc", "name"].includes(value("sort"))
+    deals: value("deals") === "true",
+    sort: ["newest", "price-asc", "price-desc", "name", "relevance"].includes(
+      value("sort"),
+    )
       ? value("sort")
-      : "newest",
+      : value("q")
+        ? "relevance"
+        : "newest",
     page: /^\d+$/.test(value("page"))
       ? Math.max(1, Math.min(10000, Number(value("page"))))
       : 1,
@@ -54,6 +61,7 @@ export function catalogApiQuery(filters: CatalogFilters) {
       ? (rupeesToMinor(filters.max) ?? undefined)
       : undefined,
     inStock: filters.inStock,
+    deals: filters.deals,
     sort: filters.sort,
     page: filters.page,
     limit: 20,
@@ -64,7 +72,7 @@ export function catalogHref(
   overrides: Partial<CatalogFilters> = {},
 ) {
   const next = { ...filters, ...overrides };
-  return `/products?${queryString({ q: next.q, category: next.category, min: next.min, max: next.max, inStock: next.inStock ? "true" : undefined, sort: next.sort, page: next.page })}`;
+  return `/products?${queryString({ q: next.q, category: next.category, min: next.min, max: next.max, inStock: next.inStock ? "true" : undefined, deals: next.deals ? "true" : undefined, sort: next.sort, page: next.page })}`;
 }
 export function previewCatalog(filters: CatalogFilters) {
   const products = demoProducts
@@ -78,6 +86,7 @@ export function previewCatalog(filters: CatalogFilters) {
     }))
     .filter(
       (product) =>
+        (!filters.deals || Boolean(product.promotion)) &&
         (!filters.q ||
           product.title.toLowerCase().includes(filters.q.toLowerCase())) &&
         (!filters.category || product.category.slug === filters.category) &&

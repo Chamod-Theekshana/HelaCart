@@ -7,6 +7,7 @@ import type { Page } from "@/lib/shops";
 import { catalogHref, type CatalogFilters } from "@/lib/catalog-browse";
 import { Pagination } from "./shop-ui";
 import { ProductCard } from "./product-card";
+import { useT } from "./language-provider";
 export function GlobalCatalog({
   initial,
   categories,
@@ -18,6 +19,7 @@ export function GlobalCatalog({
   filters: CatalogFilters;
   failed: boolean;
 }) {
+  const t = useT();
   const [filtersOpen, setFiltersOpen] = useState(false);
   return (
     <>
@@ -28,51 +30,54 @@ export function GlobalCatalog({
           onClick={() => setFiltersOpen((value) => !value)}
         >
           <Filter size={17} />
-          Filters
+          {t("catalog.filters")}
         </button>
         <div className="active-filter-list">
-          {filters.q && <span>Search: {filters.q}</span>}
+          {filters.q && (
+            <span>{t("catalog.searchChip", { q: filters.q })}</span>
+          )}
           {filters.category && (
             <span>
               {categories.find((row) => row.slug === filters.category)?.name ??
                 filters.category}
             </span>
           )}
-          {filters.inStock && <span>In stock</span>}
+          {filters.inStock && <span>{t("product.inStock")}</span>}
         </div>
         <label>
-          Sort by{" "}
+          {t("catalog.sortBy")}{" "}
           <select
             form="catalog-filters"
             name="sort"
             defaultValue={filters.sort}
             onChange={(event) => event.currentTarget.form?.requestSubmit()}
           >
-            <option value="newest">Newest first</option>
-            <option value="price-asc">Price: low to high</option>
-            <option value="price-desc">Price: high to low</option>
-            <option value="name">Product name</option>
+            <option value="relevance">{t("catalog.sort.relevance")}</option>
+            <option value="newest">{t("catalog.sort.newest")}</option>
+            <option value="price-asc">{t("catalog.sort.priceAsc")}</option>
+            <option value="price-desc">{t("catalog.sort.priceDesc")}</option>
+            <option value="name">{t("catalog.sort.name")}</option>
           </select>
         </label>
       </div>
       <div className="catalog-layout">
         <aside className={`filter-sidebar ${filtersOpen ? "open" : ""}`}>
           <div className="filter-sidebar-title">
-            <strong>Filters</strong>
+            <strong>{t("catalog.filters")}</strong>
             <button
               onClick={() => setFiltersOpen(false)}
-              aria-label="Close filters"
+              aria-label={t("catalog.closeFilters")}
             >
               <X size={18} />
             </button>
           </div>
           <section>
-            <h3>Categories</h3>
+            <h3>{t("nav.categories")}</h3>
             <Link
               className={!filters.category ? "selected" : ""}
               href={catalogHref(filters, { category: "", page: 1 })}
             >
-              All products
+              {t("nav.allProducts")}
             </Link>
             {categories.map((row) => (
               <Link
@@ -92,7 +97,18 @@ export function GlobalCatalog({
             <input type="hidden" name="q" value={filters.q} />
             <input type="hidden" name="category" value={filters.category} />
             <section>
-              <h3>Availability</h3>
+              <label className="check-row">
+                <input
+                  type="checkbox"
+                  name="deals"
+                  value="true"
+                  defaultChecked={filters.deals}
+                />
+                {t("catalog.offersOnly")}
+              </label>
+            </section>
+            <section>
+              <h3>{t("catalog.availability")}</h3>
               <label className="check-row">
                 <input
                   type="checkbox"
@@ -100,11 +116,11 @@ export function GlobalCatalog({
                   value="true"
                   defaultChecked={filters.inStock}
                 />
-                In stock
+                {t("product.inStock")}
               </label>
             </section>
             <section>
-              <h3>Price range (LKR)</h3>
+              <h3>{t("catalog.priceRange")}</h3>
               <div className="price-range">
                 <input
                   name="min"
@@ -113,8 +129,8 @@ export function GlobalCatalog({
                   max="10000000"
                   step="0.01"
                   defaultValue={filters.min}
-                  placeholder="Min"
-                  aria-label="Minimum price"
+                  placeholder={t("catalog.min")}
+                  aria-label={t("catalog.minAria")}
                 />
                 <input
                   name="max"
@@ -123,33 +139,37 @@ export function GlobalCatalog({
                   max="10000000"
                   step="0.01"
                   defaultValue={filters.max}
-                  placeholder="Max"
-                  aria-label="Maximum price"
+                  placeholder={t("catalog.max")}
+                  aria-label={t("catalog.maxAria")}
                 />
               </div>
             </section>
             <button className="primary-btn" type="submit">
-              Apply filters
+              {t("catalog.apply")}
             </button>
             <Link className="text-link filter-clear" href="/products">
-              Clear filters
+              {t("catalog.clear")}
             </Link>
           </form>
         </aside>
         <div className="catalog-results">
           <div className="results-summary">
-            <strong>{initial.total} matching products</strong>
-            <span>{initial.items.length} on this page</span>
+            <strong>{t("catalog.matching", { count: initial.total })}</strong>
+            <span>{t("catalog.onPage", { count: initial.items.length })}</span>
           </div>
           {filters.error && (
             <div className="message error" role="alert">
-              {filters.error}
+              {t(
+                filters.error === "minAboveMax"
+                  ? "catalog.error.minAboveMax"
+                  : "catalog.error.invalidPrice",
+              )}
             </div>
           )}
           {failed && (
             <div className="message error" role="alert">
-              Products could not be loaded.{" "}
-              <Link href={catalogHref(filters)}>Try again</Link>
+              {t("catalog.loadError")}{" "}
+              <Link href={catalogHref(filters)}>{t("common.tryAgain")}</Link>
             </div>
           )}
           {initial.items.length ? (
@@ -163,10 +183,10 @@ export function GlobalCatalog({
             !filters.error && (
               <div className="empty-panel">
                 <Search size={30} />
-                <h2>No matching products</h2>
-                <p>Try another search or change your filters.</p>
+                <h2>{t("catalog.empty.title")}</h2>
+                <p>{t("catalog.empty.text")}</p>
                 <Link className="outline-btn" href="/products">
-                  Browse all products
+                  {t("catalog.empty.action")}
                 </Link>
               </div>
             )
@@ -175,6 +195,12 @@ export function GlobalCatalog({
             page={initial.page}
             pages={initial.pages}
             href={(page) => catalogHref(filters, { page })}
+            labels={{
+              label: t("pagination.label"),
+              previous: t("pagination.previous"),
+              next: t("pagination.next"),
+              pageOf: t("pagination.pageOf"),
+            }}
           />
         </div>
       </div>

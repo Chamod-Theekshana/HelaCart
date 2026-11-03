@@ -1,0 +1,11 @@
+{
+  "APP_ENV": "production",
+  "API_URL": "https://api.helacart.lk/api/v1",
+  "APP_LINK_HOST": "helacart.lk",
+  "FIREBASE_API_KEY": "",
+  "FIREBASE_APP_ID": "",
+  "FIREBASE_MESSAGING_SENDER_ID": "",
+  "FIREBASE_PROJECT_ID": "",
+  "FIREBASE_AUTH_DOMAIN": "",
+  "FIREBASE_IOS_BUNDLE_ID": "com.helacart.buyer"
+}

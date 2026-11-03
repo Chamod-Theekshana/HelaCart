@@ -7,6 +7,7 @@ import { FavoritesService } from './favorites.service.js';
 describe('Product favorites', () => {
   const identity = { uid: 'buyer', email_verified: false } as DecodedIdToken;
   const db = {
+    promotion: { findMany: async () => [] },
     productFavorite: {
       findMany: vi.fn(),
       findUnique: vi.fn(),

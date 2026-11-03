@@ -1,6 +1,8 @@
+import { Recommendations } from "@/components/recommendations";
 import Link from "next/link";
 import { ArrowRight, ChevronDown, PackageCheck, Store } from "lucide-react";
 import { api, hasApi } from "@/lib/api";
+import { getT } from "@/lib/i18n/server";
 import { demoCategories, demoProducts } from "@/lib/demo";
 import type { Category, Product } from "@/lib/types";
 import { pageOf, previewShops, type Page, type PublicShop } from "@/lib/shops";
@@ -21,7 +23,8 @@ import s from "@/components/storefront-home.module.css";
 
 export default async function HomePage() {
   let productsFailed = false;
-  const [list, categories, shops, hero] = await Promise.all([
+  const [{ t }, list, categories, shops, hero] = await Promise.all([
+    getT(),
     hasApi
       ? api<Page<Product>>("/catalog/products?limit=8&sort=newest").catch(
           () => {
@@ -55,6 +58,11 @@ export default async function HomePage() {
   return (
     <div className={s.home}>
       <StorefrontHero hasCategories={categories.length > 0} content={hero} />
+      {hasApi && (
+        <div className="container">
+          <Recommendations />
+        </div>
+      )}
       {categories.length > 0 && (
         <section
           id="categories"
@@ -63,9 +71,9 @@ export default async function HomePage() {
           aria-labelledby="categories-heading"
         >
           <div className={s.heading}>
-            <h2 id="categories-heading">Shop by category</h2>
+            <h2 id="categories-heading">{t("home.categories")}</h2>
             <Link className={s.moreLink} href="/products">
-              All categories
+              {t("home.allCategories")}
               <ArrowRight size={16} />
             </Link>
           </div>
@@ -96,17 +104,17 @@ export default async function HomePage() {
       )}
       <section className={s.section} aria-labelledby="new-arrivals-heading">
         <div className={s.heading}>
-          <h2 id="new-arrivals-heading">New arrivals</h2>
+          <h2 id="new-arrivals-heading">{t("home.newArrivals")}</h2>
           <Link className={s.moreLink} href="/products?sort=newest">
-            Browse new arrivals
+            {t("home.browseNew")}
             <ArrowRight size={16} />
           </Link>
         </div>
         {productsFailed ? (
           <div className={s.empty} role="alert">
             <PackageCheck size={28} />
-            <h3>Our shelves need a moment.</h3>
-            <p>We couldn&apos;t load the products. Please try again.</p>
+            <h3>{t("home.loadError.title")}</h3>
+            <p>{t("home.loadError.text")}</p>
             <StorefrontRetry />
           </div>
         ) : list.items.length ? (
@@ -118,10 +126,10 @@ export default async function HomePage() {
         ) : (
           <div className={s.empty}>
             <Store size={28} />
-            <h3>Good things are on their way.</h3>
-            <p>Discover our shops while they get their shelves ready.</p>
+            <h3>{t("home.empty.title")}</h3>
+            <p>{t("home.empty.text")}</p>
             <Link className="outline-btn" href="/shops">
-              Discover shops
+              {t("hero.discoverShops")}
             </Link>
           </div>
         )}
@@ -129,7 +137,7 @@ export default async function HomePage() {
       {collections.length > 0 && (
         <section
           className={`${s.section} ${s.collections}`}
-          aria-label="Explore collections"
+          aria-label={t("home.collections")}
         >
           {collections.map((category) => {
             const p = categoryPresentation(category);
@@ -140,11 +148,11 @@ export default async function HomePage() {
                 className={s.collection}
               >
                 <div className={s.collectionCopy}>
-                  <span className={s.eyebrow}>Collection</span>
+                  <span className={s.eyebrow}>{t("home.collection")}</span>
                   <h2>{p.title}</h2>
                   <p>{p.description}</p>
                   <span className={s.moreLink}>
-                    Shop the collection
+                    {t("home.shopCollection")}
                     <ArrowRight size={16} />
                   </span>
                 </div>
@@ -164,9 +172,9 @@ export default async function HomePage() {
       {shops.items.length > 0 && (
         <section className={s.section} aria-labelledby="shops-heading">
           <div className={s.heading}>
-            <h2 id="shops-heading">Discover shops</h2>
+            <h2 id="shops-heading">{t("hero.discoverShops")}</h2>
             <Link className={s.moreLink} href="/shops">
-              All shops
+              {t("home.allShops")}
               <ArrowRight size={16} />
             </Link>
           </div>
@@ -183,11 +191,11 @@ export default async function HomePage() {
             <Store size={25} />
           </span>
           <div>
-            <h2 id="sell-heading">Sell on HelaCart</h2>
-            <p>Open your shop and reach customers across Sri Lanka.</p>
+            <h2 id="sell-heading">{t("home.sell.title")}</h2>
+            <p>{t("home.sell.text")}</p>
           </div>
           <Link href="/seller/apply">
-            Open your shop
+            {t("footer.openShop")}
             <ArrowRight size={16} />
           </Link>
         </div>
@@ -197,37 +205,33 @@ export default async function HomePage() {
         className={`${s.section} ${s.help}`}
         aria-labelledby="help-heading"
       >
-        <h2 id="help-heading">A little help before you shop</h2>
+        <h2 id="help-heading">{t("home.help.title")}</h2>
         <div className={s.answers}>
           <details>
             <summary>
-              How does cash on delivery work?
+              {t("home.help.codQ")}
               <ChevronDown size={17} />
             </summary>
-            <p>
-              Choose your products, add a delivery address and review the total.
-              Pay when your order arrives.
-            </p>
+            <p>{t("home.help.codA")}</p>
           </details>
           <details>
             <summary>
-              Can I buy from different shops?
+              {t("home.help.shopsQ")}
               <ChevronDown size={17} />
             </summary>
-            <p>
-              Yes. Each shop handles its part of your order. Delivery is charged
-              once per shop and shown before you confirm.
-            </p>
+            <p>{t("home.help.shopsA")}</p>
           </details>
           <details>
             <summary>
-              Where can I track an order or return?
+              {t("home.help.trackQ")}
               <ChevronDown size={17} />
             </summary>
             <p>
-              Follow deliveries in <Link href="/orders">My orders</Link> and
-              eligible return requests in{" "}
-              <Link href="/account/returns">My Returns</Link>.
+              {t("home.help.trackA1")}{" "}
+              <Link href="/orders">{t("account.nav.orders")}</Link>{" "}
+              {t("home.help.trackA2")}{" "}
+              <Link href="/account/returns">{t("account.nav.returns")}</Link>
+              {t("home.help.trackA3")}
             </p>
           </details>
         </div>

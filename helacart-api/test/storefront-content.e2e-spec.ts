@@ -1,3 +1,4 @@
+import { AccountAccessService } from '../src/auth/account-access.service.js';
 import { Test } from '@nestjs/testing';
 import type { INestApplication } from '@nestjs/common';
 import type { Server } from 'node:http';
@@ -49,7 +50,8 @@ describe('Category management and storefront publishing HTTP boundaries', () => 
     publishedByUserId?: string;
   } | null;
   const database = {
-    user: { upsert: vi.fn() },
+    user: { upsert: vi.fn(), findUnique: vi.fn() },
+    adminAuditLog: { create: vi.fn() },
     category: {
       create: vi.fn(),
       findUnique: vi.fn(),
@@ -73,6 +75,8 @@ describe('Category management and storefront publishing HTTP boundaries', () => 
     const fixture = await Test.createTestingModule({ imports: [AppModule] })
       .overrideProvider(PrismaService)
       .useValue(database)
+      .overrideProvider(AccountAccessService)
+      .useValue({ assertActive: async () => {} })
       .overrideProvider(FirebaseAdminService)
       .useValue(firebase)
       .overrideProvider(ContentImageStorageService)
@@ -228,6 +232,22 @@ describe('Category management and storefront publishing HTTP boundaries', () => 
         isActive: false,
         revision: { increment: 1 },
       },
+    });
+  });
+  it('records the administrator who edited a category', async () => {
+    await request(app.getHttpServer())
+      .patch(`/api/v1/admin/categories/${id}`)
+      .auth('admin-uid', { type: 'bearer' })
+      .send(categoryDto)
+      .expect(200);
+    expect(database.adminAuditLog.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        actorId: userId,
+        actorEmail: 'admin-uid@example.com',
+        action: 'CATEGORY_UPDATE',
+        subjectType: 'CATEGORY',
+        subjectId: id,
+      }),
     });
   });
   it('rejects slug changes and forged image URLs', async () => {

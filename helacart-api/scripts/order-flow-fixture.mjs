@@ -9,7 +9,9 @@ import {PrismaClient} from '../dist/generated/prisma/client.js';
 export async function isolatedOrderDatabase(){
  const schema='helacart_order_audit_'+randomUUID().replaceAll('-','').slice(0,16);
  const connectionString=process.env.DIRECT_URL||process.env.DATABASE_URL;
- const control=new Client({connectionString,connectionTimeoutMillis:15000});await control.connect();let created=false;
+ const control=new Client({connectionString,connectionTimeoutMillis:15000});
+ control.on('error',()=>{});
+ await control.connect();let created=false;
  try{
   await control.query('BEGIN');await control.query(`CREATE SCHEMA "${schema}"`);await control.query(`SET LOCAL search_path TO "${schema}"`);
   const migrationRoot=new URL('../prisma/migrations/',import.meta.url);
@@ -17,8 +19,27 @@ export async function isolatedOrderDatabase(){
   for(const name of entries){const sql=(await readFile(new URL(name+'/migration.sql',migrationRoot),'utf8')).replace(/CREATE SCHEMA IF NOT EXISTS "public";/g,'');await control.query(sql);}
   await control.query('COMMIT');created=true;
  }catch(error){await control.query('ROLLBACK').catch(()=>{});await control.end();throw error;}
+ // Do not hold an idle control socket throughout a long audit. Neon or a
+ // network intermediary can close it before cleanup; use a fresh connection.
+ await control.end().catch(()=>{});
  const prisma=new PrismaClient({adapter:new PrismaPg({connectionString,options:`-c search_path=${schema}`,max:5,connectionTimeoutMillis:15000,statement_timeout:15000},{schema})});
- const close=async()=>{await prisma.$disconnect();if(created&&/^helacart_order_audit_[a-f0-9]{16}$/.test(schema)){await control.query(`DROP SCHEMA "${schema}" CASCADE`);created=false;}await control.end();};
+ const close=async()=>{
+  await prisma.$disconnect().finally(async()=>{
+   if(!created)return;
+   if(!/^helacart_order_audit_[a-f0-9]{16}$/.test(schema))throw Error('Refusing an unsafe audit schema cleanup');
+   for(let attempt=0;attempt<2;attempt++){
+    const cleanup=new Client({connectionString,connectionTimeoutMillis:15000,statement_timeout:15000});cleanup.on('error',()=>{});
+    try{
+     await cleanup.connect();
+     await cleanup.query(`DROP SCHEMA IF EXISTS "${schema}" CASCADE`);
+     const remaining=await cleanup.query('SELECT 1 FROM pg_namespace WHERE nspname=$1',[schema]);
+     if(remaining.rowCount)throw Error('Audit schema cleanup could not be verified');
+     created=false;break;
+    }catch(error){if(attempt===1)throw error;}
+    finally{await cleanup.end().catch(()=>{});}
+   }
+  });
+ };
  try{await prisma.$connect();const [scope]=await prisma.$queryRaw`SELECT current_schema() AS schema`;if(scope.schema!==schema)throw new Error('Order audit schema routing could not be verified');return {prisma,schema,close};}catch(error){await close();throw error;}
 }
 

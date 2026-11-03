@@ -4,6 +4,7 @@ import { api, errorMessage } from "@/lib/api";
 import type { Page } from "@/lib/shops";
 import { useShop } from "./shop-provider";
 import s from "./list-controls.module.css";
+import { useT } from "./language-provider";
 export function ListPagination({
   data,
   onPage,
@@ -15,36 +16,35 @@ export function ListPagination({
   loading?: boolean;
   label?: string;
 }) {
+  const t = useT();
   if (!data) return null;
   const empty = data.page > data.pages || !data.total;
   const start = empty ? 0 : (data.page - 1) * data.pageSize + 1,
     end = empty ? 0 : Math.min(data.page * data.pageSize, data.total);
   return (
     <nav className={s.pagination} aria-label={label}>
-      <span>
-        {start}–{end} of {data.total}
-      </span>
+      <span>{t("pagination.range", { start, end, total: data.total })}</span>
       <div>
         <button
           type="button"
           disabled={loading || data.page <= 1}
           onClick={() => onPage(data.page - 1)}
         >
-          Previous
+          {t("pagination.previous")}
         </button>
         <span>
-          Page {data.page} of {data.pages}
+          {t("pagination.pageOf", { page: data.page, pages: data.pages })}
         </span>
         <button
           type="button"
           disabled={loading || data.page >= data.pages}
           onClick={() => onPage(data.page + 1)}
         >
-          Next
+          {t("pagination.next")}
         </button>
         {data.page > data.pages && (
           <button type="button" onClick={() => onPage(data.pages)}>
-            Last page
+            {t("pagination.last")}
           </button>
         )}
       </div>

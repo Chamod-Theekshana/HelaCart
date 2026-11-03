@@ -14,6 +14,7 @@ import {
 } from '../generated/prisma/client.js';
 import { AuthService } from '../auth/auth.service.js';
 import { PrismaService } from '../prisma/prisma.service.js';
+import { apiError } from '../common/api-error.js';
 import { CreateSellerApplicationDto } from './dto/create-seller-application.dto.js';
 import { adminVerificationSelect } from './shop-verification.service.js';
 import { ApproveSellerApplicationDto } from './dto/approve-seller-application.dto.js';
@@ -70,6 +71,7 @@ export class SellerApplicationsService {
     }
     this.documents.validate(files);
     const profile = await this.auth.getOrCreateProfile(identity);
+    await this.assertNoPendingApplication(this.prisma, profile.id);
     if (
       await this.prisma.seller.findUnique({
         where: { slug: dto.slug },
@@ -80,20 +82,28 @@ export class SellerApplicationsService {
     const sellerId = randomUUID();
     const uploaded = await this.documents.upload(sellerId, files);
     try {
-      return await this.prisma.seller.create({
-        data: {
-          id: sellerId,
-          name: dto.name,
-          slug: dto.slug,
-          description: dto.description || null,
-          contactPhone: dto.contactPhone,
-          pickupAddress: dto.pickupAddress,
-          identityDocumentType: dto.identityDocumentType,
-          documents: { create: uploaded },
-          members: { create: { userId: profile.id, role: 'OWNER' } },
+      return await this.prisma.$transaction(
+        async (tx) => {
+          // Serialise this user's applications so two requests cannot both pass.
+          await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtextextended(${`seller-application:${profile.id}`}, 0))`;
+          await this.assertNoPendingApplication(tx, profile.id);
+          return tx.seller.create({
+            data: {
+              id: sellerId,
+              name: dto.name,
+              slug: dto.slug,
+              description: dto.description || null,
+              contactPhone: dto.contactPhone,
+              pickupAddress: dto.pickupAddress,
+              identityDocumentType: dto.identityDocumentType,
+              documents: { create: uploaded },
+              members: { create: { userId: profile.id, role: 'OWNER' } },
+            },
+            select: sellerDetails,
+          });
         },
-        select: sellerDetails,
-      });
+        { timeout: 15_000, maxWait: 10_000 },
+      );
     } catch (error) {
       await this.documents.remove(uploaded);
       if (
@@ -104,6 +114,25 @@ export class SellerApplicationsService {
       }
       throw error;
     }
+  }
+
+  /** A user may have only one application awaiting review (409 otherwise). */
+  private async assertNoPendingApplication(
+    db: Pick<Prisma.TransactionClient, 'seller'>,
+    userId: string,
+  ) {
+    const pending = await db.seller.count({
+      where: {
+        status: SellerStatus.PENDING,
+        members: { some: { userId, role: 'OWNER' } },
+      },
+    });
+    if (pending > 0)
+      throw apiError(
+        409,
+        'APPLICATION_ALREADY_PENDING',
+        'You already have a shop application awaiting review',
+      );
   }
 
   async mine(identity: DecodedIdToken) {

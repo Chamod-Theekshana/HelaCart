@@ -2,7 +2,11 @@ import {
   BadRequestException,
   ConflictException,
   Injectable,
+  Logger,
+  Optional,
 } from '@nestjs/common';
+import { AuditService } from '../audit/audit.service.js';
+import { describeError } from '../common/describe-error.js';
 import type { DecodedIdToken } from 'firebase-admin/auth';
 import { PrismaService } from '../prisma/prisma.service.js';
 import { AuthService } from '../auth/auth.service.js';
@@ -13,11 +17,31 @@ import { UpdateHeroDto } from './content.dto.js';
 
 @Injectable()
 export class HeroAdminService {
+  private readonly logger = new Logger(HeroAdminService.name);
   constructor(
     private readonly prisma: PrismaService,
     private readonly auth: AuthService,
     private readonly storage: ContentImageStorageService,
+    @Optional() private readonly audit?: AuditService,
   ) {}
+
+  /** Records who changed the hero; an audit failure never undoes the edit. */
+  private async recordEdit(
+    identity: DecodedIdToken | undefined,
+    details: Record<string, unknown>,
+  ) {
+    if (!identity || !this.audit) return;
+    try {
+      await this.audit.record(this.prisma, await this.audit.actor(identity), {
+        action: 'HERO_UPDATE',
+        subjectType: 'STOREFRONT_HERO',
+        subjectId: 'home',
+        details,
+      });
+    } catch (error) {
+      this.logger.error(`Hero audit entry failed: ${describeError(error)}`);
+    }
+  }
   async publicHero() {
     const row = await this.prisma.storefrontAppearance.findUnique({
       where: { id: 'home' },
@@ -50,7 +74,7 @@ export class HeroAdminService {
       );
     return row;
   }
-  async update(dto: UpdateHeroDto) {
+  async update(dto: UpdateHeroDto, identity?: DecodedIdToken) {
     const { expectedRevision, ...text } = dto;
     for (const field of [
       'eyebrow',
@@ -73,6 +97,10 @@ export class HeroAdminService {
       throw new ConflictException(
         'Hero changed. Reload the editor before continuing.',
       );
+    await this.recordEdit(identity, {
+      operation: 'DRAFT_UPDATE',
+      revision: expectedRevision + 1,
+    });
     return this.admin();
   }
   async publish(revision: number, identity: DecodedIdToken) {
@@ -109,9 +137,18 @@ export class HeroAdminService {
         .filter((url) => url && !retained.includes(url))
         .map((url) => this.storage.cleanup(this.storage.heroKey(url))),
     );
+    await this.recordEdit(identity, {
+      operation: 'PUBLISH',
+      revision: revision + 1,
+    });
     return this.admin();
   }
-  async image(kind: string, revision: number, request?: AuthenticatedRequest) {
+  async image(
+    kind: string,
+    revision: number,
+    request?: AuthenticatedRequest,
+    identity?: DecodedIdToken,
+  ) {
     if (kind !== 'desktop' && kind !== 'mobile')
       throw new BadRequestException('Choose desktop or mobile');
     const row = await this.current(revision);
@@ -144,6 +181,11 @@ export class HeroAdminService {
     ];
     if (!retained.includes(draft[field]))
       await this.storage.cleanup(this.storage.heroKey(draft[field]));
+    await this.recordEdit(identity ?? request?.user, {
+      operation: uploaded ? 'IMAGE_UPLOAD' : 'IMAGE_REMOVE',
+      kind,
+      revision: revision + 1,
+    });
     return this.admin();
   }
 }

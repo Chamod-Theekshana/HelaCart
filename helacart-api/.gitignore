@@ -66,3 +66,7 @@ firebase-admin*.json
 *service-account*.json
 /src/generated/prisma
 .git-backup/
+
+# Database backups (scripts/backup-db.mjs)
+backups/
+*.dump

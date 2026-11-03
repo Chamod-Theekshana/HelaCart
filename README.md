@@ -4,7 +4,7 @@
 
 **Good finds. Local roots.**
 
-A multi-vendor marketplace for independent shops across Sri Lanka, with a buyer storefront, Seller Center, and admin workspace.
+A multi-vendor marketplace for independent shops across Sri Lanka, with a buyer storefront, native Flutter buyer app, Seller Center, and admin workspace.
 
 ![Next.js](https://img.shields.io/badge/Next.js-16-0F172A?logo=nextdotjs&logoColor=white)
 ![React](https://img.shields.io/badge/React-19-0F172A?logo=react&logoColor=61DAFB)
@@ -27,17 +27,28 @@ HelaCart brings product discovery, shop profiles, verified-purchase reviews, fav
 - Save products to account-based favorites across devices, with current prices and availability.
 - Choose product variants, manage a cart grouped by shop, and see delivery fees before checkout.
 - Use saved addresses, place cash-on-delivery orders, and follow order status.
+- Review destination-specific delivery fees at checkout and follow seller-provided courier references and delivery progress.
 - Manage a personal profile, account security, notifications, cancellations, and return requests.
+- Request returns for selected items/quantities, follow verified refund records, and open private support conversations.
 - Review shops after a delivered purchase: 1–5 stars, comments, optional photos, edit/delete, and reporting.
+- Review individual purchased products, browse rating summaries and seller replies, and manage previous feedback from the account.
+- Read seller-supplied brands, specifications and warranty information, with an enlarged product-image gallery.
+- Search across product/brand/shop details, use suggestions and recommendations, browse approved offers, and opt into favorite price/restock alerts.
 
 ### Seller Center
 
 - Apply with mandatory front/back NIC or driving-licence photos and an optional business-registration image.
 - Manage the shop profile, logo, cover, public location, private business details, and delivery fee.
+- Configure district delivery rates, unavailable destinations, optional free-delivery thresholds, and dispatch estimates.
 - Create and edit products, manage variants, upload images, and submit listings for approval.
 - Adjust inventory and inspect stock movement history.
 - Process COD orders through acceptance, packing, shipping, and delivery, with collection confirmation.
 - Read buyer feedback and publish replies to shop reviews.
+- Review commission charges, monthly statements, and balances; submit private bank-payment receipts for owner verification.
+- Respond to support cases and submit records of actual buyer refunds for HelaCart verification.
+- Reply to product reviews and manage shop managers through owner-only team permissions.
+- Import counted stock from CSV with a preview, manage listings in bulk, configure stock alerts, and export date-filtered business reports.
+- Submit scheduled product discounts for HelaCart approval and manage campaign cancellation/history.
 
 ### Admin workspace
 
@@ -45,8 +56,12 @@ HelaCart brings product discovery, shop profiles, verified-purchase reviews, fav
 - Award or revoke shop verification with recorded reasons and decision history.
 - Moderate product submissions and manage category names, images, ordering, and archive/restore states.
 - Edit homepage hero images and copy, preview changes, and publish content.
-- Inspect orders, review return requests, and record COD reconciliation and disputes.
+- Assign product-specific commission rates, configure payment days in Settings, hold disputed order commissions, verify seller bank payments, and record item-specific refund credits.
+- Review item returns and buyer refund evidence, record corrections and resolution outcomes, and manage support conversations and case holds.
 - Moderate reported reviews and manage the administrator's own profile and security.
+- Moderate product-review reports and suspend or restore account access with recorded reasons and history.
+- Review listings in bulk and inspect marketplace sales, shop performance, verified refunds, and commission reports.
+- Approve, reject or cancel seller-funded promotions with recorded reasons and protected order-price snapshots.
 
 Selling approval, shop identity verification, and verified-purchase reviews are separate workflows. Protected actions are checked by the API using Firebase identity and the relevant account, shop membership, or administrator permissions.
 
@@ -73,6 +88,7 @@ These screenshots show the storefront's **labelled design-preview catalog**, usi
 | Layer | Technology |
 | --- | --- |
 | Web application | Next.js 16 App Router, React 19, TypeScript, Tailwind CSS 4, Lucide icons |
+| Buyer mobile | Flutter 3.47.8, Dart 3.13.7, Riverpod, GoRouter, Dio, Firebase Auth |
 | REST API | NestJS 12, TypeScript, validated request DTOs |
 | Database | PostgreSQL on Neon, Prisma 7, versioned migrations |
 | Authentication | Firebase Authentication and Firebase Admin token verification |
@@ -106,6 +122,10 @@ HelaCart/
 │   ├── prisma/       # Schema and database migrations
 │   ├── test/         # HTTP tests and test helpers
 │   └── scripts/      # Database and workflow verification utilities
+├── helacart_buyer_mobile_app/
+│   ├── lib/          # Flutter buyer features, application state and API integration
+│   ├── test/         # Purchase recovery, account isolation and UI checks
+│   └── docs/         # Stitch screen coverage
 └── docs/images/      # README screenshots
 ```
 
@@ -225,15 +245,22 @@ Each app has its own `package.json` and lockfile. Install and run commands insid
 
 ## Current scope
 
-HelaCart currently supports **cash on delivery**. Online payment gateways, automated refunds, seller payouts/commissions, and courier dispatch integrations are future extensions. Return resolution records the operational outcome; it does not automatically refund money or restock inventory.
+HelaCart currently supports **cash on delivery**. Sellers collect buyer payments and pay HelaCart commission separately by bank transfer, with owner verification. Each product remains commission-inactive until an admin assigns its rate. Order items freeze their rates and commission amounts at checkout; commission is due 14 days from successful delivery by default, with admin-configurable terms and return/dispute holds. Online payment gateways, automated refunds, seller payouts, and courier dispatch integrations are future extensions. Return resolution records the operational outcome; it does not automatically refund money or restock inventory.
 
 Deployment configuration and real operational processes still need environment-specific verification before accepting public orders. See the [operations runbook](helacart-api/OPERATIONS-RUNBOOK.md) for deployment, backup, and COD operations guidance.
 
 ## Documentation
 
+- [Buyer mobile setup, architecture and verification](helacart_buyer_mobile_app/README.md) and [Stitch screen coverage](helacart_buyer_mobile_app/docs/screen-coverage.md)
 - [API setup and endpoint guide](helacart-api/README.md)
 - [Web application notes](helacart-storefront/README.md) and [screen file index](helacart-storefront/screens/README.md)
 - [Favorites and save-after-sign-in behavior](helacart-storefront/docs/product-favorites.md)
+- [Seller commission, statements, and collection workflow](helacart-storefront/docs/seller-commission.md)
+- [Delivery rates, tracking, and order notifications](helacart-storefront/docs/delivery-tracking.md)
+- [Support cases, item returns, and refund records](helacart-storefront/docs/after-sales.md)
+- [Product feedback, product details, and account permissions](helacart-storefront/docs/product-feedback-and-permissions.md)
+- [Bulk tools, stock alerts, and business reports](helacart-storefront/docs/bulk-stock-and-business-reports.md)
+- [Search, recommendations, favorite alerts, and promotions](helacart-storefront/docs/search-recommendations-and-promotions.md)
 - [Shop profiles, reviews, photos, and moderation](helacart-storefront/docs/shops-and-reviews.md)
 - [Verified shops and administrator decisions](helacart-storefront/docs/shop-verification.md)
 - [Buyer, shop, and admin profiles](helacart-storefront/docs/account-profiles.md)

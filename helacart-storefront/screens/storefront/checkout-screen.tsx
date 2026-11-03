@@ -12,11 +12,17 @@ import {
   ShieldCheck,
   Truck,
 } from "lucide-react";
-import { api, ApiError, errorMessage, money } from "@/lib/api";
-import type { Address, Order } from "@/lib/types";
+import { ApiError, errorMessage, money, userApi } from "@/lib/api";
+import type { Address, AddressInput, Order, Cart } from "@/lib/types";
+import { checkoutErrorCodes, checkoutErrorKey } from "@/lib/checkout-errors";
+import deliveryStyles from "@/components/delivery-workspace.module.css";
 import { Breadcrumbs } from "@/components/breadcrumbs";
 import { useShop } from "@/components/shop-provider";
 import { CartFeedback } from "@/components/cart-feedback";
+import { AddressForm } from "@/components/address-form";
+import { PhoneVerification } from "@/components/phone-verification";
+import { SignInLink } from "@/components/sign-in-link";
+import { useT } from "@/components/language-provider";
 import {
   clearCheckoutIntent,
   readCheckoutIntent,
@@ -33,8 +39,15 @@ const sampleAddresses: Address[] = [
     city: "Colombo 04",
     district: "Colombo",
     postalCode: "00400",
+    phoneVerified: true,
+    isDefault: true,
   },
 ];
+const preferredAddress = (rows: Address[], current: string) =>
+  rows.some((row) => row.id === current)
+    ? current
+    : (rows.find((row) => row.isDefault) ?? rows[0])?.id || "";
+
 export default function CheckoutPage() {
   const { user, isPreview } = useShop();
   return (
@@ -42,6 +55,7 @@ export default function CheckoutPage() {
   );
 }
 function CheckoutForm() {
+  const t = useT();
   const router = useRouter();
   const { user, cart, isPreview, refreshCart, cartLoading, cartError } =
     useShop();
@@ -50,12 +64,53 @@ function CheckoutForm() {
   );
   const [selected, setSelected] = useState(isPreview ? "sample-address" : "");
   const [showForm, setShowForm] = useState(false);
+  const [editing, setEditing] = useState<Address | null>(null);
+  const [verifyingId, setVerifyingId] = useState("");
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
+  const [notice, setNotice] = useState("");
   const [pending, setPending] = useState<CheckoutIntent | null>(null);
   const pendingRef = useRef<CheckoutIntent | null>(null);
   const operation = useRef(false);
   const [completedOrderId, setCompletedOrderId] = useState("");
+  const [quoteAttempt, setQuoteAttempt] = useState(0);
+  const quoteKey = `${user?.uid}:${selected}:${cart?.checkoutQuote}:${quoteAttempt}`;
+  const [deliveryState, setDeliveryState] = useState<{
+    key: string;
+    cart: Cart | null;
+    error: string;
+  } | null>(null);
+  const quotedCart = isPreview
+    ? cart
+    : deliveryState?.key === quoteKey
+      ? deliveryState.cart
+      : null;
+  const quoteError = deliveryState?.key === quoteKey ? deliveryState.error : "";
+  const quoteLoading =
+    !isPreview &&
+    Boolean(user?.emailVerified && selected) &&
+    deliveryState?.key !== quoteKey;
+  const blockers = isPreview ? [] : (quotedCart?.checkoutBlockers ?? []);
+  useEffect(() => {
+    if (isPreview || !user?.emailVerified || !selected || !cart?.checkoutQuote)
+      return;
+    let active = true;
+    userApi<Cart>(user, `/me/cart?addressId=${encodeURIComponent(selected)}`)
+      .then((value) => {
+        if (active) setDeliveryState({ key: quoteKey, cart: value, error: "" });
+      })
+      .catch((cause) => {
+        if (active)
+          setDeliveryState({
+            key: quoteKey,
+            cart: null,
+            error: errorMessage(cause),
+          });
+      });
+    return () => {
+      active = false;
+    };
+  }, [user, isPreview, selected, cart?.checkoutQuote, quoteKey]);
   const [addressError, setAddressError] = useState("");
   const [addressAttempt, setAddressAttempt] = useState(0);
   const [addressesLoading, setAddressesLoading] = useState(
@@ -73,15 +128,11 @@ function CheckoutForm() {
   useEffect(() => {
     if (isPreview || !user?.emailVerified) return;
     let active = true;
-    user
-      .getIdToken()
-      .then((token) => api<Address[]>("/me/addresses", { token }))
+    userApi<Address[]>(user, "/me/addresses")
       .then((rows) => {
         if (active) {
           setAddresses(rows);
-          setSelected((old) =>
-            rows.some((row) => row.id === old) ? old : rows[0]?.id || "",
-          );
+          setSelected((old) => preferredAddress(rows, old));
           setAddressesLoading(false);
           setAddressError("");
         }
@@ -96,33 +147,51 @@ function CheckoutForm() {
       active = false;
     };
   }, [isPreview, user, addressAttempt]);
-  async function saveAddress(event: React.FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!user || operation.current || pending) return;
-    operation.current = true;
-    setLoading(true);
-    setMessage("");
-    const values = new FormData(event.currentTarget);
-    const body = Object.fromEntries(
-      ["recipient", "phone", "line1", "city", "district", "postalCode"].map(
-        (key) => [key, String(values.get(key) ?? "").trim()],
-      ),
+  function reloadAddresses() {
+    setAddressAttempt((value) => value + 1);
+    setQuoteAttempt((value) => value + 1);
+  }
+  async function createAddress(body: Partial<AddressInput>) {
+    if (!user || pending) return;
+    const saved = await userApi<Address>(user, "/me/addresses", {
+      method: "POST",
+      body,
+    });
+    setAddresses((old) => [saved, ...old]);
+    setSelected(saved.id);
+    setShowForm(false);
+    setNotice(t("address.saved"));
+  }
+  async function updateAddress(address: Address, body: Partial<AddressInput>) {
+    if (!user || pending) return;
+    const saved = await userApi<Address>(user, `/me/addresses/${address.id}`, {
+      method: "PATCH",
+      body,
+    });
+    setAddresses((old) =>
+      old.map((row) => (row.id === saved.id ? saved : row)),
     );
-    const line2 = String(values.get("line2") ?? "").trim();
+    setEditing(null);
+    setNotice(t("address.updated"));
+    setQuoteAttempt((value) => value + 1);
+  }
+  async function makeDefault(address: Address) {
+    if (!user || isPreview || operation.current) return;
+    operation.current = true;
+    setMessage("");
     try {
-      const saved = await api<Address>("/me/addresses", {
-        method: "POST",
-        token: await user.getIdToken(),
-        body: { ...body, ...(line2 ? { line2 } : {}) },
+      await userApi<Address>(user, `/me/addresses/${address.id}`, {
+        method: "PATCH",
+        body: { isDefault: true },
       });
-      setAddresses((old) => [saved, ...old]);
-      setSelected(saved.id);
-      setShowForm(false);
-    } catch (error) {
-      setMessage(errorMessage(error));
+      setAddresses((old) =>
+        old.map((row) => ({ ...row, isDefault: row.id === address.id })),
+      );
+      setNotice(t("address.defaultSet"));
+    } catch (cause) {
+      setMessage(errorMessage(cause));
     } finally {
       operation.current = false;
-      setLoading(false);
     }
   }
   async function placeOrder() {
@@ -131,8 +200,9 @@ function CheckoutForm() {
     if (
       !recovery &&
       (!selected ||
-        !cart?.canCheckout ||
-        !cart.checkoutQuote ||
+        !quotedCart?.canCheckout ||
+        !quotedCart.checkoutQuote ||
+        blockers.length > 0 ||
         cartLoading ||
         cartError)
     )
@@ -141,22 +211,24 @@ function CheckoutForm() {
     setLoading(true);
     setMessage("");
     try {
-      await user.reload();
-      if (!user.emailVerified)
-        throw new Error("Verify your email before checkout.");
-      const token = await user.getIdToken(true);
+      if (!user.emailVerified) {
+        // Only an unverified cached user is reloaded; after verification the
+        // token is refreshed once so the API sees the verified email.
+        await user.reload();
+        if (!user.emailVerified) throw new Error(t("checkout.verifyFirst"));
+        await user.getIdToken(true);
+      }
       const intent = recovery || {
         userId: user.uid,
         checkoutKey: crypto.randomUUID(),
         addressId: selected,
-        quote: cart!.checkoutQuote!,
+        quote: quotedCart!.checkoutQuote!,
       };
       pendingRef.current = intent;
       setPending(intent);
       saveCheckoutIntent(intent);
-      const order = await api<Order>("/me/orders/checkout", {
+      const order = await userApi<Order>(user, "/me/orders/checkout", {
         method: "POST",
-        token,
         body: {
           addressId: intent.addressId,
           checkoutKey: intent.checkoutKey,
@@ -170,12 +242,19 @@ function CheckoutForm() {
       void refreshCart({ checkoutCompleted: true }).catch(() => undefined);
       router.push(`/order-success?orderId=${encodeURIComponent(order.id)}`);
     } catch (error) {
-      setMessage(errorMessage(error));
+      const code = error instanceof ApiError ? error.code : undefined;
+      setMessage(
+        code && (checkoutErrorCodes as readonly string[]).includes(code)
+          ? t(checkoutErrorKey(code))
+          : errorMessage(error),
+      );
+      if (code === "PHONE_NOT_VERIFIED") setVerifyingId(selected);
       if (error instanceof ApiError && [400, 404, 409].includes(error.status)) {
         clearCheckoutIntent(user.uid);
         pendingRef.current = null;
         setPending(null);
         await refreshCart().catch(() => undefined);
+        setQuoteAttempt((v) => v + 1);
       }
     } finally {
       operation.current = false;
@@ -183,41 +262,49 @@ function CheckoutForm() {
     }
   }
   const rows = cart?.items ?? [];
+  const selectedAddress = addresses.find(
+    (row) => row.id === (pending?.addressId || selected),
+  );
+  // The OTP panel opens when checkout requires it, or on request.
+  const needsPhone =
+    !isPreview &&
+    Boolean(selectedAddress) &&
+    selectedAddress?.phoneVerified !== true &&
+    (blockers.includes("PHONE_NOT_VERIFIED") ||
+      verifyingId === selectedAddress?.id);
   return (
     <div className="container checkout-page">
       <Breadcrumbs
         items={[
-          { label: "Shopping Cart", href: "/cart" },
-          { label: "Cash on Delivery Checkout" },
+          { label: t("cart.title"), href: "/cart" },
+          { label: t("checkout.title") },
         ]}
       />
       <div className="page-title">
         <div>
-          <span className="section-kicker">SECURE CHECKOUT</span>
-          <h1>Cash on Delivery Checkout</h1>
-          <p>
-            Confirm your delivery address and review the total before placing an
-            order.
-          </p>
+          <span className="section-kicker">{t("checkout.kicker")}</span>
+          <h1>{t("checkout.title")}</h1>
+          <p>{t("checkout.subtitle")}</p>
         </div>
         <span className="cod-badge">
           <Banknote size={15} /> COD
         </span>
       </div>
       {isPreview && (
-        <div className="message info">
-          Design preview: this screen uses sample addresses and cannot submit an
-          order.
-        </div>
+        <div className="message info">{t("checkout.previewNotice")}</div>
       )}
       {!isPreview && !user && (
         <div className="message info">
-          Please <Link href="/auth">sign in</Link> before checkout.
+          {t("checkout.signInFirst")}{" "}
+          <SignInLink next="/checkout">{t("auth.signIn")}</SignInLink>
         </div>
       )}
       {!isPreview && user && !user.emailVerified && (
         <div className="message info">
-          Verify your email first. <Link href="/auth">Check verification</Link>
+          {t("checkout.verifyFirst")}{" "}
+          <SignInLink next="/checkout">
+            {t("cart.checkVerification")}
+          </SignInLink>
         </div>
       )}
       {message && (
@@ -225,21 +312,43 @@ function CheckoutForm() {
           {message}
         </div>
       )}
+      {notice && !message && (
+        <div className="message success" role="status">
+          {notice}
+        </div>
+      )}
       <CartFeedback />
+      {blockers.length > 0 && (
+        <div className="message error checkout-blockers" role="alert">
+          {[...new Set(blockers)].map((code) => (
+            <p key={code}>{t(checkoutErrorKey(code))}</p>
+          ))}
+        </div>
+      )}
+      {quoteError && (
+        <div className="message error" role="alert">
+          {quoteError}
+          <button
+            className="outline-btn"
+            onClick={() => setQuoteAttempt((v) => v + 1)}
+          >
+            {t("checkout.recalculate")}
+          </button>
+        </div>
+      )}
       {pending && !loading && (
         <div className="message info" role="status">
-          A previous checkout needs confirmation. Check it before starting a new
-          order. Your original address and totals will be used.{" "}
-          <Link href="/orders">View your orders</Link>
+          {t("checkout.pendingNotice")}{" "}
+          <Link href="/orders">{t("checkout.viewOrders")}</Link>
         </div>
       )}
       {completedOrderId && (
         <div className="message info" role="status">
-          Your order was placed.{" "}
+          {t("checkout.placed")}{" "}
           <Link
             href={`/order-success?orderId=${encodeURIComponent(completedOrderId)}`}
           >
-            View confirmation
+            {t("checkout.viewConfirmation")}
           </Link>
         </div>
       )}
@@ -249,13 +358,16 @@ function CheckoutForm() {
             <div className="checkout-panel-heading">
               <span className="number-dot">1</span>
               <div>
-                <h2>Delivery Address</h2>
-                <p>Where should your order be delivered?</p>
+                <h2>{t("checkout.address.title")}</h2>
+                <p>{t("checkout.address.subtitle")}</p>
               </div>
               <button
                 type="button"
                 className="text-link"
-                onClick={() => setShowForm(!showForm)}
+                onClick={() => {
+                  setEditing(null);
+                  setShowForm(!showForm);
+                }}
                 disabled={
                   loading ||
                   Boolean(pending) ||
@@ -263,7 +375,7 @@ function CheckoutForm() {
                   (!isPreview && !user?.emailVerified)
                 }
               >
-                <Plus size={16} /> Add address
+                <Plus size={16} /> {t("checkout.address.add")}
               </button>
             </div>
             <div className="address-grid">
@@ -290,13 +402,68 @@ function CheckoutForm() {
                     <small>
                       {address.city}, {address.district} · {address.postalCode}
                     </small>
+                    <span className="address-badges">
+                      {address.isDefault && (
+                        <span className="badge">{t("address.default")}</span>
+                      )}
+                      {address.phoneVerified === true && (
+                        <span className="badge good">
+                          {t("address.phoneVerified")}
+                        </span>
+                      )}
+                      {address.phoneVerified === false && (
+                        <span className="badge warn">
+                          {t("address.phoneUnverified")}
+                        </span>
+                      )}
+                    </span>
+                    {!isPreview && !pending && (
+                      <span className="address-card-actions">
+                        <button
+                          type="button"
+                          disabled={loading}
+                          onClick={(event) => {
+                            event.preventDefault();
+                            setShowForm(false);
+                            setEditing(address);
+                          }}
+                        >
+                          {t("address.edit")}
+                        </button>
+                        {!address.isDefault && (
+                          <button
+                            type="button"
+                            disabled={loading}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              void makeDefault(address);
+                            }}
+                          >
+                            {t("address.makeDefault")}
+                          </button>
+                        )}
+                        {address.phoneVerified === false && (
+                          <button
+                            type="button"
+                            disabled={loading}
+                            onClick={(event) => {
+                              event.preventDefault();
+                              setSelected(address.id);
+                              setVerifyingId(address.id);
+                            }}
+                          >
+                            {t("address.verifyPhone")}
+                          </button>
+                        )}
+                      </span>
+                    )}
                   </span>
                 </label>
               ))}
             </div>
             {addressesLoading && (
               <div className="message info" role="status">
-                Loading saved addresses…
+                {t("checkout.address.loading")}
               </div>
             )}
             {addressError && (
@@ -310,91 +477,55 @@ function CheckoutForm() {
                     setAddressAttempt((value) => value + 1);
                   }}
                 >
-                  Retry addresses
+                  {t("checkout.address.retry")}
                 </button>
               </div>
             )}
             {!addresses.length && !addressesLoading && !addressError && (
-              <div className="empty-panel">
-                Add a delivery address to continue.
+              <div className="empty-panel">{t("checkout.address.empty")}</div>
+            )}
+            {needsPhone && selectedAddress && (
+              <div className="address-verify">
+                <PhoneVerification
+                  key={`${selectedAddress.id}:${selectedAddress.phone}`}
+                  phone={selectedAddress.phone}
+                  onVerified={() => {
+                    setVerifyingId("");
+                    setNotice(t("phone.verified"));
+                    reloadAddresses();
+                  }}
+                />
               </div>
             )}
+            {editing && !isPreview && (
+              <AddressForm
+                key={editing.id}
+                initial={editing}
+                disabled={Boolean(pending)}
+                onCancel={() => setEditing(null)}
+                onSubmit={(body) => updateAddress(editing, body)}
+              />
+            )}
             {showForm &&
+              !editing &&
               (isPreview ? (
                 <div className="message info">
-                  Connect Firebase and the API to save real addresses.
+                  {t("checkout.address.previewNotice")}
                 </div>
               ) : (
-                <form className="address-form" onSubmit={saveAddress}>
-                  <label>
-                    Recipient name
-                    <input
-                      name="recipient"
-                      required
-                      minLength={2}
-                      maxLength={100}
-                    />
-                  </label>
-                  <label>
-                    Phone
-                    <input
-                      name="phone"
-                      type="tel"
-                      required
-                      placeholder="+94 77 123 4567"
-                    />
-                  </label>
-                  <label className="wide">
-                    Street address
-                    <input
-                      name="line1"
-                      required
-                      minLength={5}
-                      maxLength={200}
-                    />
-                  </label>
-                  <label className="wide">
-                    Address line 2 (optional)
-                    <input name="line2" maxLength={200} />
-                  </label>
-                  <label>
-                    City
-                    <input name="city" required minLength={2} maxLength={80} />
-                  </label>
-                  <label>
-                    District
-                    <input
-                      name="district"
-                      required
-                      minLength={2}
-                      maxLength={80}
-                    />
-                  </label>
-                  <label>
-                    Postal code
-                    <input
-                      name="postalCode"
-                      required
-                      minLength={3}
-                      maxLength={20}
-                    />
-                  </label>
-                  <button
-                    className="primary-btn"
-                    disabled={loading}
-                    type="submit"
-                  >
-                    {loading ? "Saving..." : "Save address"}
-                  </button>
-                </form>
+                <AddressForm
+                  disabled={loading || Boolean(pending)}
+                  onCancel={() => setShowForm(false)}
+                  onSubmit={createAddress}
+                />
               ))}
           </section>
           <section className="panel checkout-panel">
             <div className="checkout-panel-heading">
               <span className="number-dot">2</span>
               <div>
-                <h2>Order items</h2>
-                <p>Items may ship from different sellers.</p>
+                <h2>{t("checkout.items.title")}</h2>
+                <p>{t("checkout.items.subtitle")}</p>
               </div>
             </div>
             {rows.length ? (
@@ -408,7 +539,7 @@ function CheckoutForm() {
                     <small>
                       {Object.values(item.optionValues || {}).join(" / ") ||
                         item.sku}{" "}
-                      · Qty {item.quantity}
+                      · {t("checkout.qty", { count: item.quantity })}
                     </small>
                   </span>
                   <b>{money(item.priceLkrMinor * item.quantity)}</b>
@@ -416,17 +547,15 @@ function CheckoutForm() {
               ))
             ) : cartLoading ? (
               <div className="empty-panel" role="status">
-                Loading your order items…
+                {t("checkout.items.loading")}
               </div>
             ) : cartError ? (
-              <div className="empty-panel">
-                Refresh your cart to view your order items.
-              </div>
+              <div className="empty-panel">{t("checkout.items.error")}</div>
             ) : (
               <div className="empty-panel">
-                <p>No items in the cart yet.</p>
+                <p>{t("checkout.items.empty")}</p>
                 <Link href="/products" className="outline-btn">
-                  Browse products
+                  {t("cart.empty.action")}
                 </Link>
               </div>
             )}
@@ -435,55 +564,85 @@ function CheckoutForm() {
             <div className="checkout-panel-heading">
               <span className="number-dot">3</span>
               <div>
-                <h2>Payment method</h2>
-                <p>Pay when your order arrives.</p>
+                <h2>{t("checkout.payment.title")}</h2>
+                <p>{t("cart.codText")}</p>
               </div>
             </div>
             <div className="payment-choice">
               <Banknote size={23} />
               <span>
-                <strong>Cash on Delivery (COD)</strong>
-                <small>
-                  The payable amount is shown in your order summary.
-                </small>
+                <strong>{t("checkout.payment.cod")}</strong>
+                <small>{t("checkout.payment.text")}</small>
               </span>
               <span className="payment-check">✓</span>
             </div>
           </section>
         </div>
         <aside className="panel checkout-summary">
-          <h2>{pending ? "Previous checkout" : "Order Summary"}</h2>
+          <h2>{pending ? t("checkout.previous") : t("cart.summary")}</h2>
           {pending ? (
-            <p>
-              Confirm the result of your previous checkout using its original
-              address and totals. The confirmed amount will appear with your
-              order.
-            </p>
+            <p>{t("checkout.previousText")}</p>
           ) : (
             <>
               <div className="summary-row">
-                <span>Items subtotal</span>
-                <strong>{money(cart?.subtotalLkrMinor ?? 0)}</strong>
+                <span>{t("cart.subtotal")}</span>
+                <strong>
+                  {money(
+                    quotedCart?.subtotalLkrMinor ?? cart?.subtotalLkrMinor ?? 0,
+                  )}
+                </strong>
               </div>
               <div className="summary-row">
-                <span>Delivery</span>
+                <span>{t("checkout.delivery")}</span>
                 <strong>
                   {isPreview
-                    ? "Preview only"
-                    : money(cart?.shippingLkrMinor ?? 0)}
+                    ? t("checkout.previewOnly")
+                    : quoteLoading
+                      ? t("checkout.calculating")
+                      : quotedCart
+                        ? money(quotedCart.shippingLkrMinor)
+                        : t("checkout.selectAddress")}
                 </strong>
               </div>
               <div className="summary-total">
-                <span>Total due on delivery</span>
-                <strong>{money(cart?.totalLkrMinor ?? 0)}</strong>
+                <span>{t("checkout.totalDue")}</span>
+                <strong>
+                  {quotedCart ? money(quotedCart.totalLkrMinor) : "—"}
+                </strong>
               </div>
             </>
           )}
+          {!pending &&
+            quotedCart?.deliveryBySeller?.map((d) => (
+              <div className={deliveryStyles.quote} key={d.sellerId}>
+                <strong>{d.sellerName}</strong>
+                {d.available ? (
+                  <>
+                    <span>
+                      {d.freeDelivery
+                        ? t("checkout.freeDelivery")
+                        : money(d.feeMinor ?? 0)}
+                      {d.district ? ` · ${d.district}` : ""}
+                    </span>
+                    {d.minDays && d.maxDays && (
+                      <p className={deliveryStyles.muted}>
+                        {t("checkout.estimateDays", {
+                          min: d.minDays,
+                          max: d.maxDays,
+                        })}
+                      </p>
+                    )}
+                  </>
+                ) : (
+                  <p role="alert">{d.reason}</p>
+                )}
+              </div>
+            ))}
           <div className="cod-note">
             <ShieldCheck size={21} />
             <span>
-              <strong>Confirm your order</strong>
-              <small>Check the address and total before placing it.</small>
+              <strong>{t("checkout.confirmTitle")}</strong>
+              <small>{t("checkout.confirmText")}</small>
             </span>
           </div>
           <button
@@ -496,36 +655,36 @@ function CheckoutForm() {
               (!pending &&
                 (cartLoading ||
                   Boolean(cartError) ||
-                  !cart?.canCheckout ||
-                  !cart.checkoutQuote ||
+                  quoteLoading ||
+                  blockers.length > 0 ||
+                  !quotedCart?.canCheckout ||
+                  !quotedCart.checkoutQuote ||
                   !selected))
             }
             onClick={placeOrder}
           >
             {loading
-              ? "Checking your order..."
+              ? t("checkout.checking")
               : pending
-                ? "Check previous checkout"
-                : "Confirm & Place COD Order"}{" "}
+                ? t("checkout.checkPrevious")
+                : t("checkout.place")}{" "}
             <ArrowRight size={17} />
           </button>
           {isPreview && (
-            <p className="small-warning">
-              Ordering is disabled in the design preview.
-            </p>
+            <p className="small-warning">{t("checkout.previewDisabled")}</p>
           )}
           <Link href="/cart" className="outline-btn full">
-            Back to cart
+            {t("checkout.backToCart")}
           </Link>
           <div className="summary-icons">
             <span>
-              <Truck size={17} /> Delivery
+              <Truck size={17} /> {t("checkout.delivery")}
             </span>
             <span>
               <Banknote size={17} /> COD
             </span>
             <span>
-              <MapPin size={17} /> Your address
+              <MapPin size={17} /> {t("checkout.yourAddress")}
             </span>
           </div>
         </aside>

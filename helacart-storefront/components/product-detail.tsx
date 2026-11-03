@@ -1,7 +1,8 @@
 "use client";
 /* eslint-disable react/no-unescaped-entities */
 
-import { useState } from "react";
+import discoveryStyles from "./discovery.module.css";
+import { useRef, useState } from "react";
 import Link from "next/link";
 import {
   ArrowRight,
@@ -19,11 +20,18 @@ import { shopPath } from "@/lib/shops";
 import { useShop } from "./shop-provider";
 import { StorefrontImage } from "./storefront-image";
 import { FavoriteButton } from "./favorite-button";
+import { ProductReviews } from "./product-reviews";
+import { ProductSpecifications } from "./product-specifications";
+import reviewStyles from "./product-feedback.module.css";
+import { useT } from "./language-provider";
 
 export function ProductDetail({ product }: { product: Product }) {
+  const zoom = useRef<HTMLDialogElement>(null);
   const [image, setImage] = useState(0);
   const [variantId, setVariantId] = useState(
-    product.variants.find((entry) => entry.availableQuantity)?.id ??
+    product.variants
+      .filter((entry) => entry.availableQuantity > 0)
+      .sort((a, b) => a.priceLkrMinor - b.priceLkrMinor)[0]?.id ??
       product.variants[0]?.id ??
       "",
   );
@@ -32,6 +40,7 @@ export function ProductDetail({ product }: { product: Product }) {
   const [notice, setNotice] = useState("");
   const [noticeError, setNoticeError] = useState(false);
   const { addToCart, isPreview, authReady } = useShop();
+  const t = useT();
   const variant = product.variants.find((entry) => entry.id === variantId);
   const available = variant?.availableQuantity ?? 0;
   async function add() {
@@ -41,9 +50,7 @@ export function ProductDetail({ product }: { product: Product }) {
     setNoticeError(false);
     try {
       await addToCart(product, variantId, quantity);
-      setNotice(
-        isPreview ? "Added to your preview cart." : "Added to your cart.",
-      );
+      setNotice(isPreview ? t("product.addedPreview") : t("product.added"));
     } catch (error) {
       setNotice(errorMessage(error));
       setNoticeError(true);
@@ -56,11 +63,19 @@ export function ProductDetail({ product }: { product: Product }) {
       <div className="detail-grid">
         <div className="gallery">
           <div className="gallery-main">
-            <StorefrontImage
-              src={product.imageUrls[image]}
-              alt={product.title}
-              fallback={<span className="image-fallback">HelaCart</span>}
-            />
+            <button
+              type="button"
+              className={reviewStyles.zoomTrigger}
+              aria-label={t("product.enlarge")}
+              disabled={!product.imageUrls[image]}
+              onClick={() => zoom.current?.showModal()}
+            >
+              <StorefrontImage
+                src={product.imageUrls[image]}
+                alt={product.title}
+                fallback={<span className="image-fallback">HelaCart</span>}
+              />
+            </button>
           </div>
           {product.imageUrls.length > 1 && (
             <div className="gallery-thumbs">
@@ -70,7 +85,8 @@ export function ProductDetail({ product }: { product: Product }) {
                   className={image === index ? "selected" : ""}
                   key={src}
                   onClick={() => setImage(index)}
-                  aria-label={`View image ${index + 1}`}
+                  aria-label={t("product.viewImage", { number: index + 1 })}
+                  aria-pressed={image === index}
                 >
                   <StorefrontImage
                     src={src}
@@ -84,22 +100,39 @@ export function ProductDetail({ product }: { product: Product }) {
         </div>
         <div className="detail-copy">
           <Link href={shopPath(product.seller)} className="seller-label">
-            <Store size={15} /> Sold by {product.seller.name}{" "}
+            <Store size={15} />{" "}
+            {t("product.soldBy", { seller: product.seller.name })}{" "}
             <ArrowRight size={14} />
           </Link>
           <span className="category-pill">{product.category.name}</span>
           <h1>{product.title}</h1>
-          <p className="product-sku">{variant?.sku ?? "Product details"}</p>
+          <a className="text-link" href="#product-reviews">
+            {t("product.readReviews")}
+          </a>
+          <p className="product-sku">{variant?.sku ?? t("product.details")}</p>
+          {product.promotion && (
+            <div className={discoveryStyles.dealDetail}>
+              <span className={discoveryStyles.offer}>
+                {product.promotion.name}
+              </span>
+              {variant?.originalPriceLkrMinor &&
+                variant.originalPriceLkrMinor > variant.priceLkrMinor && (
+                  <del>{money(variant.originalPriceLkrMinor)}</del>
+                )}
+            </div>
+          )}
           <div className="detail-price">
             {money(variant?.priceLkrMinor ?? product.priceLkrMinor)}
           </div>
           <p className="product-description">
-            {product.description ||
-              "Explore this product from a HelaCart seller."}
+            {(product.description ?? "").slice(0, 220) +
+              (product.description && product.description.length > 220
+                ? "…"
+                : "") || t("product.descriptionFallback")}
           </p>
           {product.variants.length > 1 && (
             <div className="detail-options">
-              <h2>Select an option</h2>
+              <h2>{t("product.selectOption")}</h2>
               <div className="option-buttons">
                 {product.variants.map((entry) => (
                   <button
@@ -114,7 +147,7 @@ export function ProductDetail({ product }: { product: Product }) {
                     {Object.values(entry.optionValues || {}).join(" / ") ||
                       entry.sku}
                     {entry.availableQuantity === 0 && (
-                      <small>Unavailable</small>
+                      <small>{t("product.unavailable")}</small>
                     )}
                   </button>
                 ))}
@@ -123,7 +156,9 @@ export function ProductDetail({ product }: { product: Product }) {
           )}
           <div className="stock-message">
             <span className={available ? "stock-dot" : "stock-dot out"} />
-            {available ? `${available} available` : "Currently out of stock"}
+            {available
+              ? t("product.available", { count: available })
+              : t("product.currentlyOut")}
           </div>
           <div className="detail-actions">
             <div className="qty-control">
@@ -131,7 +166,7 @@ export function ProductDetail({ product }: { product: Product }) {
                 disabled={quantity <= 1}
                 type="button"
                 onClick={() => setQuantity(quantity - 1)}
-                aria-label="Decrease quantity"
+                aria-label={t("product.decrease")}
               >
                 <Minus size={17} />
               </button>
@@ -140,7 +175,7 @@ export function ProductDetail({ product }: { product: Product }) {
                 disabled={quantity >= Math.min(available, 100)}
                 type="button"
                 onClick={() => setQuantity(quantity + 1)}
-                aria-label="Increase quantity"
+                aria-label={t("product.increase")}
               >
                 <Plus size={17} />
               </button>
@@ -153,7 +188,8 @@ export function ProductDetail({ product }: { product: Product }) {
                 !available || busy || !authReady || quantity > available
               }
             >
-              <ShoppingBag size={18} /> {busy ? "Adding..." : "Add to Cart"}
+              <ShoppingBag size={18} />{" "}
+              {busy ? t("product.adding") : t("product.addToCart")}
             </button>
           </div>
           {notice && (
@@ -163,7 +199,7 @@ export function ProductDetail({ product }: { product: Product }) {
             >
               {notice}{" "}
               <Link href="/cart">
-                View cart <ArrowRight size={15} />
+                {t("product.viewCart")} <ArrowRight size={15} />
               </Link>
             </div>
           )}
@@ -178,24 +214,22 @@ export function ProductDetail({ product }: { product: Product }) {
             <div>
               <Banknote size={19} />
               <span>
-                <strong>Cash on Delivery</strong>
-                <small>Available at checkout</small>
+                <strong>{t("trust.cod.title")}</strong>
+                <small>{t("product.codAvailable")}</small>
               </span>
             </div>
             <div>
               <PackageCheck size={19} />
               <span>
-                <strong>Delivery total</strong>
-                <small>
-                  Calculated from the seller's settings in your cart
-                </small>
+                <strong>{t("product.deliveryTotal")}</strong>
+                <small>{t("product.deliveryTotalText")}</small>
               </span>
             </div>
             <div>
               <ShieldCheck size={19} />
               <span>
-                <strong>Listed on HelaCart</strong>
-                <small>Browse approved marketplace products</small>
+                <strong>{t("product.listed")}</strong>
+                <small>{t("product.listedText")}</small>
               </span>
             </div>
           </div>
@@ -203,24 +237,56 @@ export function ProductDetail({ product }: { product: Product }) {
       </div>
       <section className="spec-section">
         <div>
-          <span className="section-kicker">PRODUCT DETAILS</span>
-          <h2>About this item</h2>
-          <p>
-            {product.description ||
-              "The seller has not added a description yet."}
+          <span className="section-kicker">{t("product.detailsKicker")}</span>
+          <h2>{t("product.about")}</h2>
+          <p className={reviewStyles.detailsText}>
+            {product.description || t("product.noDescription")}
           </p>
+          <ProductSpecifications product={product} />
         </div>
         <div>
-          <span className="section-kicker">SELLER</span>
+          <span className="section-kicker">{t("product.sellerKicker")}</span>
           <h2>{product.seller.name}</h2>
-          <p>
-            Explore this seller&apos;s products and read verified buyer reviews.
-          </p>
+          <p>{t("product.sellerText")}</p>
           <Link href={shopPath(product.seller)} className="text-link">
-            Visit shop <ArrowRight size={16} />
+            {t("product.visitShop")} <ArrowRight size={16} />
           </Link>
         </div>
       </section>
+      <ProductReviews productId={product.id} />
+      <dialog
+        ref={zoom}
+        className={reviewStyles.zoom}
+        aria-label={t("product.imagePreview")}
+      >
+        <button className="outline-btn" onClick={() => zoom.current?.close()}>
+          {t("product.closeImage")}
+        </button>
+        <StorefrontImage
+          src={product.imageUrls[image]}
+          alt={product.title}
+          fallback={<span>{t("product.imageUnavailable")}</span>}
+        />
+        <div className={reviewStyles.actions}>
+          <button
+            className="outline-btn"
+            disabled={image === 0}
+            onClick={() => setImage((i) => i - 1)}
+          >
+            {t("product.previousImage")}
+          </button>
+          <span>
+            {image + 1} / {product.imageUrls.length}
+          </span>
+          <button
+            className="outline-btn"
+            disabled={image >= product.imageUrls.length - 1}
+            onClick={() => setImage((i) => i + 1)}
+          >
+            {t("product.nextImage")}
+          </button>
+        </div>
+      </dialog>
     </>
   );
 }

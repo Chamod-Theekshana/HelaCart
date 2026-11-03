@@ -1,0 +1,13 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["REPLACE_WITH_APPLE_TEAM_ID.com.helacart.buyer"],
+        "components": [
+          { "/": "/products/*", "comment": "Shared product pages" },
+          { "/": "/shops/*", "comment": "Shared shop pages" }
+        ]
+      }
+    ]
+  }
+}

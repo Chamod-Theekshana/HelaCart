@@ -1,4 +1,5 @@
 "use client";
+import { FavoriteAlertSettings } from "@/components/favorite-alert-settings";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { ArrowRight, Heart, Package, Trash2 } from "lucide-react";
@@ -150,6 +151,11 @@ export default function UserFavoritesScreen() {
                     </div>
                   </article>
                 )}
+                <FavoriteAlertSettings
+                  key={`${item.id}:${item.alertVersion}`}
+                  item={item}
+                  onSaved={() => setAttempt((v) => v + 1)}
+                />
                 <button
                   className={s.remove}
                   disabled={favorites.isPending(item.productId || item.id)}

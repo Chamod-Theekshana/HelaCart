@@ -11,6 +11,7 @@ import {
   PutObjectCommand,
   S3Client,
 } from '@aws-sdk/client-s3';
+import { sanitizeUploadedImage } from '../media/strip-metadata.js';
 
 export const profilePhotoMaxBytes = 3 * 1024 * 1024;
 export type ProfilePhotoFile = {
@@ -96,6 +97,7 @@ export class ProfilePhotoStorageService {
     file: ProfilePhotoFile,
   ): Promise<StoredProfilePhoto> {
     this.validate(file);
+    const body = sanitizeUploadedImage(file.buffer, file.mimetype);
     const { bucket, client } = this.storage();
     const storageKey = `profile-photos/${userId}/${randomUUID()}.${formats[file.mimetype as keyof typeof formats]}`;
     try {
@@ -103,12 +105,12 @@ export class ProfilePhotoStorageService {
         new PutObjectCommand({
           Bucket: bucket,
           Key: storageKey,
-          Body: file.buffer,
+          Body: body,
           ContentType: file.mimetype,
           CacheControl: 'private, no-store',
         }),
       );
-      return { storageKey, contentType: file.mimetype, byteSize: file.size };
+      return { storageKey, contentType: file.mimetype, byteSize: body.length };
     } catch (error) {
       await client
         .send(new DeleteObjectCommand({ Bucket: bucket, Key: storageKey }))

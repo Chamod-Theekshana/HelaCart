@@ -1,92 +1,80 @@
-# Validation report
+# Validation
 
-Verified on Linux with Node.js 24.19.0 and npm 11.9.0.
-Windows setup instructions are supplied, but were not executed on Windows here.
+This file describes how to verify the API and what has and has not been
+verified. Test counts are intentionally not recorded here: they change with
+every release; read them from the test runner or the CI log instead.
 
-The inventory, COD and operations migrations and workflows were exercised against
-an isolated PGlite PostgreSQL instance. This archive has not applied the new migrations
-to the user's live Neon DB.
+## How to verify a change
 
-## Automated checks
+On Node.js 24 (`.nvmrc`) with npm 11:
 
-- Dependencies reused from the previously validated catalog archive in this sandbox;
-  a fresh offline `npm ci` could not complete because one tarball was uncached.
-- Prisma schema validation and client generation: passed.
-- Prettier formatting check: passed.
-- Oxlint with warnings denied: passed.
-- Full TypeScript typecheck: passed.
-- Unit tests: 19 passed in the latest operations run.
-- HTTP tests: 44 passed in the latest operations run (database and Firebase providers mocked).
-- Production compilation: passed.
+```bash
+npm ci
+npm run check        # prisma validate, prettier, oxlint, tsc, unit + HTTP tests, build
+```
 
-## Database and runtime validation
+`npm run check` never contacts a real database or Firebase: unit tests use
+mocks and the HTTP tests (`test/*.e2e-spec.ts`) override Prisma and Firebase
+providers (see `test/setup-env.ts`).
 
-An isolated PGlite PostgreSQL WASM database with a local PostgreSQL protocol socket
-was used for integration checks; it is not a production Neon instance.
+Migrations are verified against a real, empty PostgreSQL 17 database:
 
-- Applied the earlier checked-in foundation migration through Prisma migrate deploy.
-- Prisma migrate status reported up to date.
-- Prisma database-to-schema diff reported no difference.
-- Created user, seller and owner membership through the generated Prisma client.
-- Verified the default pending seller state.
-- Verified duplicate membership rejection and foreign-key deletion protection.
-- Started the compiled dist/main.js server with the real PostgreSQL adapter.
-- Verified HTTP 200 on liveness and database readiness endpoints.
-- Deployed all four checked-in migrations into a fresh isolated PGlite instance for
-  this milestone, then used Prisma to create users, an approved seller, category,
-  product and audited approval. Confirmed public filtering and unpublishing on edit.
-- Applied the first four migrations in an isolated PGlite database, inserted an
-  existing product, then applied the inventory migration. Verified the default
-  variant preserves SKU/price and begins with zero stock.
-- Exercised real Prisma stock adjustments, an audit record, two concurrent
-  reservations for five units (only one four-unit reservation succeeded), a
-  rejected reduction below reserved stock, idempotent release and commit,
-  final stock balance and commit audit.
-- Applied all six migrations in another isolated database; created a seller,
-  approved product and two buyers. Two concurrent COD checkouts competed for
-  one unit: exactly one succeeded. Verified order totals, idempotent retry,
-  cancellation restock, subsequent checkout, seller fulfillment and COD marker.
-- Prisma `migrate deploy` applied all six migrations to a fresh isolated database;
-  `migrate status` and database-to-schema diff reported no outstanding changes.
+```bash
+docker run --rm -d --name helacart-pg -e POSTGRES_USER=ci -e POSTGRES_PASSWORD=ci \
+  -e POSTGRES_DB=helacart_ci -p 5432:5432 postgres:17
+DIRECT_URL=postgresql://ci:ci@127.0.0.1:5432/helacart_ci npx prisma migrate deploy
+DIRECT_URL=postgresql://ci:ci@127.0.0.1:5432/helacart_ci npx prisma migrate status
+```
 
-## Limits
+CI (`.github/workflows/api.yml`) runs both on every push and pull request that
+touches `helacart-api/`. Raw-SQL objects (partial and trigram indexes,
+triggers, CHECK constraints) are not modelled in `schema.prisma`, so a
+`prisma migrate diff` against the schema reports them; CI shows that diff
+without failing.
 
-The user previously confirmed Neon readiness, Firebase `/auth/me` and a successful
-seller approval on their own Windows machine. The COD and operations migrations have **not** been
-deployed to that database by this delivery. Apply it with `npm run db:deploy`, then
-check `npm run db:status` and `/health/ready` before testing catalog endpoints.
-PGlite exercised the conditional database updates, but it does not establish
-production load, cloud compatibility or availability guarantees.
+Workflow scripts in `scripts/verify-*.mjs` exercise individual flows against a
+disposable database; run them only against development data.
 
-Admin and seller-access behavior was tested with a mocked Firebase verifier. Real
-tokens, the user's database and externally hosted product images still require
-manual end-to-end testing on the user's machine. No private credential is included.
+## Manual checks before a release
 
-Online payments, automated refunds/payouts and courier integration are still needed. COD checkout uses immediate stock
-deduction; the internal reservation service runs its expiry loop for future flows.
-The checkout integration used PGlite, not a live Neon/Firebase environment.
+- Start the built API (`npm run build && npm run start:prod`) against a
+  staging database and probe `/api/v1/health` and `/api/v1/health/ready`.
+- Real Firebase tokens: `/auth/me`, a seller route and an admin route.
+- One COD order end to end: checkout, accept, pack, ship, `DELIVERY_FAILED`,
+  re-ship, buyer confirm-receipt; one cancellation and one
+  `RETURNED_TO_SELLER`, checking that stock is restored and that commission is
+  charged only for the delivered order.
+- Phone verification with a real Notify.lk account, one email through Resend
+  and one push to a test device; confirm the `NotificationDelivery` rows reach
+  `SENT` (or `SKIPPED` with a reason).
+- Upload a JPEG taken on a phone with location enabled and confirm the stored
+  object has no EXIF/GPS (`exiftool` shows none).
+- Seller suspension and reinstatement; account deletion of a test buyer.
+- `npm run db:backup` followed by the restore drill in `OPERATIONS-RUNBOOK.md`.
 
-## COD pilot operations verification (2026-10-14)
+## Status of the November 2026 hardening release
 
-- Installed dependencies with `npm ci` and pinned `@aws-sdk/client-s3`.
-- `npm run check`: schema validation, formatting, lint, TypeScript, 19 unit
-  tests, 44 HTTP tests and production compilation (see latest run).
-- Applied all seven checked-in migrations with Prisma migrate deploy to an
-  isolated PGlite PostgreSQL database. Status and schema diff were clean.
-- Against a separate isolated database: raced two COD checkouts for one item;
-  verified idempotency, cancellation restock and fulfillment. Then exercised
-  private notifications, return ownership/uniqueness/review/resolution, COD
-  dispute followed by full reconciliation, and the unread queue.
-- R2 calls, real Firebase ID tokens and the user's Neon database were not
-  available here; verify these with your own credentials in development.
+The release was implemented in an environment without access to the npm
+registry, so `npm ci`, the Prisma client generator, the TypeScript compiler with
+real dependency types, the test runner and PostgreSQL were **not** available.
+Checks that were performed there:
 
-## COD pilot safeguard verification (2026-10-19)
+- Prettier (global 3.8) on every changed TypeScript file.
+- `tsc --noEmit` without dependency types: no syntax errors; remaining errors
+  were limited to unresolved packages and the ungenerated Prisma client.
+- Line-by-line review of every changed file, the migrations against the
+  existing triggers and constraints, and the new unit and HTTP specs.
 
-- `npm run check` passed: Prisma validation, formatting, lint, typecheck,
-  21 unit tests, 45 HTTP tests and a production build.
-- Local PostgreSQL-compatible integration repeated concurrent checkout,
-  cancellation, fulfillment, notification, return and COD reconciliation
-  flows with the return deadline and paginated admin queues.
-- The Dockerfile was inspected against compiled `dist` and generated Prisma
-  client paths; Docker is unavailable in this workspace, so image build and
-  hosted staging checks remain operator verification items.
+Everything in "How to verify a change" therefore still has to run once on a
+Node 24 machine (or in CI) before this release is deployed.
+
+## Earlier milestones
+
+Earlier milestones were verified with `npm run check` and with isolated
+PostgreSQL-compatible databases (PGlite): migrations applied with
+`prisma migrate deploy` and a clean `migrate status`, concurrent COD checkouts
+competing for one unit (exactly one succeeded), idempotent checkout retry,
+cancellation restock, fulfilment, notifications, returns and COD
+reconciliation. R2, real Firebase tokens, the user's Neon database, Docker and
+hosted staging were not available in those environments and remain operator
+verification items.
