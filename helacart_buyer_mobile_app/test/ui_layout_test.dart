@@ -1,6 +1,7 @@
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:helacart_buyer_mobile_app/app/hc.dart';
+import 'package:helacart_buyer_mobile_app/features/catalog/presentation/home_widgets.dart';
 import 'package:timezone/data/latest.dart' as tz;
 
 import 'buyer_flows_test.dart' show openBuyer, tapReachable;
@@ -192,6 +193,44 @@ void main() {
       expect(tester.takeException(), isNull);
     },
   );
+
+  for (final scale in [1.0, 1.8]) {
+    testWidgets('home shop tiles share one size at ${scale}x text', (
+      tester,
+    ) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: helacartTheme(),
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: const Size(360, 800),
+              textScaler: TextScaler.linear(scale),
+            ),
+            child: Scaffold(
+              body: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  for (final shop in [
+                    {
+                      'name': 'Ceylon Threads and Handloom Collective of Kandy',
+                      'slug': 'ceylon-threads',
+                      'publicLocation': 'Kandy, Central Province',
+                      'isVerified': true,
+                    },
+                    {'name': 'Clay', 'slug': 'clay'},
+                  ])
+                    SizedBox(width: 160, child: LocalShopTile(shop)),
+                ],
+              ),
+            ),
+          ),
+        ),
+      );
+      final tiles = find.byType(LocalShopTile);
+      expect(tester.getSize(tiles.first), tester.getSize(tiles.last));
+      expect(tester.takeException(), isNull);
+    });
+  }
 
   testWidgets('compact button surfaces preserve full touch targets', (
     tester,

@@ -528,6 +528,13 @@ const sinhalaStrings = <String, String>{
 
   // Notifications inbox
   'notifications.title': 'දැනුම්දීම්',
+  'notifications.activity': 'මෑත ක්‍රියාකාරකම්',
+  'notifications.unread': 'නොකියවූ දැනුම්දීම',
+  'notifications.orders': 'ඇණවුම් යාවත්කාලීනය',
+  'notifications.support': 'සහාය පිළිතුර',
+  'notifications.returns': 'ආපසු යැවීම් සහ මුදල් ආපසු ගෙවීම්',
+  'notifications.favorites': 'ඔබේ ප්‍රියතමයන් වෙතින්',
+  'notifications.update': 'HelaCart යාවත්කාලීනය',
   'notifications.markAll': 'සියල්ල කියවූ ලෙස සලකුණු කරන්න',
   'notifications.emptyTitle': 'ඔබ සියල්ල බලා ඇත',
   'notifications.emptyMessage': 'ඇණවුම් යාවත්කාලීන, සහාය පිළිතුරු සහ සක්‍රිය කළ ප්‍රියතම ඇඟවීම් මෙහි දිස්වේ.',

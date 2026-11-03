@@ -526,6 +526,13 @@ const englishStrings = <String, String>{
 
   // Notifications inbox
   'notifications.title': 'Notifications',
+  'notifications.activity': 'Recent activity',
+  'notifications.unread': 'Unread notification',
+  'notifications.orders': 'Order update',
+  'notifications.support': 'Support reply',
+  'notifications.returns': 'Returns & refunds',
+  'notifications.favorites': 'From your favorites',
+  'notifications.update': 'HelaCart update',
   'notifications.markAll': 'Mark all as read',
   'notifications.emptyTitle': 'You’re all caught up',
   'notifications.emptyMessage': 'Order updates, support replies and enabled favorite alerts will appear here.',

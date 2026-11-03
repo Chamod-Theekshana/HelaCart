@@ -251,58 +251,106 @@ class _TrustLabel extends StatelessWidget {
 class LocalShopTile extends StatelessWidget {
   const LocalShopTile(this.shop, {super.key});
   final Json shop;
+  static const coverHeight = 112.0;
+  static const _name = TextStyle(
+    fontSize: 13,
+    height: 1.3,
+    fontWeight: FontWeight.w600,
+  );
+  static const _location = TextStyle(
+    fontSize: 11,
+    height: 1.4,
+    color: HelaColors.muted,
+  );
+
+  /// Same for every tile at a given text scale, so a row of tiles lines up.
+  static double height(BuildContext context) {
+    final scale = MediaQuery.textScalerOf(context);
+    final text = scale.scale(13) * 1.3 + 4 + scale.scale(11) * 1.4;
+    return coverHeight + 24 + (text < 48 ? 48 : text) + 2;
+  }
+
   @override
-  Widget build(BuildContext context) => Material(
-    color: Colors.white,
-    shape: RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(14),
-      side: const BorderSide(color: HelaColors.border),
-    ),
-    child: InkWell(
-      borderRadius: BorderRadius.circular(14),
-      onTap: () =>
-          context.push('/shops/${Uri.encodeComponent(string(shop['slug']))}'),
-      child: Padding(
-        padding: const EdgeInsets.all(14),
-        child: Row(
-          children: [
-            ShopAvatar(shop, backgroundColor: HelaColors.cream),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    string(shop['name']),
-                    style: const TextStyle(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  verticalGap(4),
-                  Text(
-                    string(shop['publicLocation'], 'Sri Lanka'),
-                    style: const TextStyle(
-                      fontSize: 11,
-                      color: HelaColors.muted,
-                    ),
-                  ),
-                ],
+  Widget build(BuildContext context) {
+    final cover = string(shop['coverUrl']);
+    return SizedBox(
+      height: height(context),
+      child: Material(
+        color: Colors.white,
+        clipBehavior: Clip.antiAlias,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+          side: const BorderSide(color: HelaColors.border),
+        ),
+        child: InkWell(
+          onTap: () => context.push(
+            '/shops/${Uri.encodeComponent(string(shop['slug']))}',
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              SizedBox(
+                height: coverHeight,
+                child: cover.isEmpty
+                    ? const ColoredBox(
+                        color: HelaColors.cream,
+                        child: Icon(
+                          Icons.storefront_outlined,
+                          size: 36,
+                          color: HelaColors.muted,
+                        ),
+                      )
+                    : ProductPhoto(cover, fit: BoxFit.cover),
               ),
-            ),
-            if (boolean(shop['isVerified']))
-              IconButton(
-                tooltip: 'Shop identity reviewed by HelaCart.',
-                onPressed: () => verifiedShopInfo(context),
-                icon: const Icon(
-                  Icons.verified_outlined,
-                  size: 18,
-                  color: HelaColors.teal,
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 4, 12),
+                  child: Row(
+                    children: [
+                      ShopAvatar(shop, backgroundColor: HelaColors.cream),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(
+                              string(shop['name']),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: _name,
+                            ),
+                            verticalGap(4),
+                            Text(
+                              string(
+                                shop['publicLocation'],
+                                context.tr('common.sriLanka'),
+                              ),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: _location,
+                            ),
+                          ],
+                        ),
+                      ),
+                      if (boolean(shop['isVerified']))
+                        IconButton(
+                          tooltip: context.tr('shop.verified'),
+                          onPressed: () => verifiedShopInfo(context),
+                          icon: const Icon(
+                            Icons.verified_outlined,
+                            size: 18,
+                            color: HelaColors.teal,
+                          ),
+                        ),
+                    ],
+                  ),
                 ),
               ),
-          ],
+            ],
+          ),
         ),
       ),
-    ),
-  );
+    );
+  }
 }

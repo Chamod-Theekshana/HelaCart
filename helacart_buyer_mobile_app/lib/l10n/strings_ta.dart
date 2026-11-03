@@ -534,6 +534,13 @@ const tamilStrings = <String, String>{
 
   // Notifications inbox
   'notifications.title': 'அறிவிப்புகள்',
+  'notifications.activity': 'சமீபத்திய செயல்பாடு',
+  'notifications.unread': 'படிக்காத அறிவிப்பு',
+  'notifications.orders': 'ஆர்டர் புதுப்பிப்பு',
+  'notifications.support': 'உதவிப் பதில்',
+  'notifications.returns': 'திருப்பி அனுப்புதல் & பணத்தைத் திரும்பப் பெறுதல்',
+  'notifications.favorites': 'உங்கள் பிடித்தவற்றிலிருந்து',
+  'notifications.update': 'HelaCart புதுப்பிப்பு',
   'notifications.markAll': 'அனைத்தையும் படித்ததாகக் குறி',
   'notifications.emptyTitle': 'எல்லாவற்றையும் பார்த்துவிட்டீர்கள்',
   'notifications.emptyMessage': 'ஆர்டர் புதுப்பிப்புகள், உதவிப் பதில்கள் மற்றும் இயக்கிய பிடித்தவை எச்சரிக்கைகள் இங்கே தோன்றும்.',
